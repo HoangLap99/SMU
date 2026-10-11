@@ -1,0 +1,1392 @@
+@SMU_HostAddress = http://localhost:5100
+
+### 1. Đăng ký tài khoản dùng thử (Public API - Không cần token)
+# @name registerTrial
+POST {{SMU_HostAddress}}/api/Users/register-trial
+Content-Type: application/json
+
+{
+  "fullName": "Nguyen Van A",
+  "email": "user.test@example.com",
+  "phoneNumber": "0987654321",
+  "username": "usertest01",
+  "password": "Password123@"
+}
+
+### 2.0. Đăng nhập với tài khoản Quản trị viên (admin / 123456) - Role=Admin KHÔNG cần Mã Customer
+# @name loginAdmin
+POST {{SMU_HostAddress}}/api/Users/login
+Content-Type: application/json
+
+{
+  "usernameOrEmail": "admin",
+  "password": "123456"
+}
+
+### Lưu biến token Admin từ kết quả Login
+@adminToken = {{loginAdmin.response.body.accessToken}}
+
+### 2.1. Đăng nhập thành công với tài khoản cán bộ - Role=User BẮT BUỘC có Mã Customer hợp lệ
+# @name loginMember
+POST {{SMU_HostAddress}}/api/Users/login
+Content-Type: application/json
+
+{
+  "usernameOrEmail": "canbo01",
+  "password": "Password123@",
+  "maCustomer": "CUS-001"
+}
+
+### Lưu biến token từ kết quả Login
+@authToken = {{loginMember.response.body.accessToken}}
+
+### 2.2. Thử nghiệm Đăng nhập cán bộ khi KHÔNG truyền Mã Customer (Kỳ vọng lỗi 400 Bad Request)
+# @name loginMissingCustomer
+POST {{SMU_HostAddress}}/api/Users/login
+Content-Type: application/json
+
+{
+  "usernameOrEmail": "canbo01",
+  "password": "Password123@"
+}
+
+### 2.3. Thử nghiệm Đăng nhập cán bộ với SAI Mã Customer (Kỳ vọng lỗi 400 Bad Request)
+# @name loginWrongCustomer
+POST {{SMU_HostAddress}}/api/Users/login
+Content-Type: application/json
+
+{
+  "usernameOrEmail": "canbo01",
+  "password": "Password123@",
+  "maCustomer": "MA_SAI_KHONG_TON_TAI"
+}
+
+### 3. Kiểm tra user hiện tại trong Function/API (Yêu cầu Authorization)
+GET {{SMU_HostAddress}}/api/Users/me
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 4. Thử nghiệm gọi API khi KHÔNG có Authorization (Kỳ vọng trả về 401 Unauthorized)
+GET {{SMU_HostAddress}}/api/Users/me
+Accept: application/json
+
+### 5. Lấy danh sách toàn bộ người dùng (Yêu cầu Authorization)
+# @name getUsers
+GET {{SMU_HostAddress}}/api/Users
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 6. Tạo mới Khách hàng / Đơn vị (Yêu cầu Authorization)
+# @name createCustomer
+POST {{SMU_HostAddress}}/api/Customers
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "code": "CUS-AI-01",
+  "name": "Đơn vị Tự động hóa Tài liệu AI",
+  "description": "Ứng dụng AI phân tích và xử lý hóa đơn, hợp đồng tự động",
+  "startDate": "2026-10-01T00:00:00Z",
+  "endDate": "2026-12-31T00:00:00Z",
+  "status": 1
+}
+
+### Lưu ID khách hàng vừa tạo
+@customerId = {{createCustomer.response.body.id}}
+
+### 7. Lấy định mức tài khoản đơn vị (Quota)
+GET {{SMU_HostAddress}}/api/Customers/{{customerId}}/quota
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 8. Thêm tài khoản cán bộ vào Đơn vị / Khách hàng (Tạo cả User và Account)
+# @name addMember
+POST {{SMU_HostAddress}}/api/Customers/{{customerId}}/members
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "username": "admin_nghiado",
+  "password": "Password123@",
+  "fullName": "Bùi Văn Kiên",
+  "capBacId": null,
+  "soHieuCAND": "142-890",
+  "chucVu": "Phó Trưởng Công an phường",
+  "vaiTroPhanQuyenId": null,
+  "email": "kien.bv@cand.vn",
+  "phoneNumber": "0912345678"
+}
+
+### Lưu UserId của cán bộ vừa thêm
+@newMemberUserId = {{addMember.response.body.userId}}
+
+### 8.1. Thử thêm cán bộ với username trùng Admin ("admin") -> Kỳ vọng lỗi 400
+# @name addMemberAdminDuplicate
+POST {{SMU_HostAddress}}/api/Customers/{{customerId}}/members
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "Password123@",
+  "fullName": "Nguyen Van B",
+  "email": "b.nv@example.com"
+}
+
+### 8.2. Thêm cán bộ với username trùng Customer khác ("canbo01" đã có ở CUS-001) -> Kỳ vọng THÀNH CÔNG (200 OK)
+# @name addMemberDuplicateOtherCustomer
+POST {{SMU_HostAddress}}/api/Customers/{{customerId}}/members
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "username": "canbo01",
+  "password": "Password123@",
+  "fullName": "Cán bộ canbo01 của CUS-AI-01",
+  "email": "canbo01.cus2@example.com"
+}
+
+### 8.3. Thử thêm lại cán bộ với username "canbo01" vào CÙNG Customer này -> Kỳ vọng lỗi 400 do trùng trong cùng đơn vị
+# @name addMemberDuplicateSameCustomer
+POST {{SMU_HostAddress}}/api/Customers/{{customerId}}/members
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "username": "canbo01",
+  "password": "Password123@",
+  "fullName": "Nguyen Van C",
+  "email": "c.nv@example.com"
+}
+
+### 9. Lấy danh sách cán bộ trong Đơn vị (Kèm tìm kiếm & lọc trạng thái)
+GET {{SMU_HostAddress}}/api/Customers/{{customerId}}/members?search=Kiên&isActive=true
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 10. Chuyển đổi trạng thái cán bộ: Kích hoạt / Ngừng kích hoạt (Toggle Status)
+PUT {{SMU_HostAddress}}/api/Customers/{{customerId}}/members/{{newMemberUserId}}/toggle-status
+Authorization: Bearer {{authToken}}
+
+### 11. Cập nhật thông tin cán bộ trong Đơn vị
+PUT {{SMU_HostAddress}}/api/Customers/{{customerId}}/members/{{newMemberUserId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "fullName": "Bùi Văn Kiên (Cập nhật)",
+  "capBacId": null,
+  "soHieuCAND": "142-890",
+  "chucVu": "Trưởng Công an phường",
+  "vaiTroPhanQuyenId": null,
+  "email": "kien.bv.updated@cand.vn",
+  "phoneNumber": "0988888888"
+}
+
+### 12. Xóa cán bộ khỏi Đơn vị
+DELETE {{SMU_HostAddress}}/api/Customers/{{customerId}}/members/{{newMemberUserId}}
+Authorization: Bearer {{authToken}}
+
+### 13. Lấy danh sách định dạng tài liệu được hỗ trợ (Yêu cầu Authorization)
+GET {{SMU_HostAddress}}/api/DocumentAi/supported-formats
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 14. Trích xuất text thuần từ file (Yêu cầu Authorization)
+POST {{SMU_HostAddress}}/api/DocumentAi/extract-text
+Authorization: Bearer {{authToken}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="sample.txt"
+Content-Type: text/plain
+
+Đây là nội dung thử nghiệm phân tích tài liệu văn phòng với Gemini AI.
+--boundary--
+
+### 15. Phân tích tài liệu bằng Gemini AI (Yêu cầu Authorization)
+POST {{SMU_HostAddress}}/api/DocumentAi/analyze
+Authorization: Bearer {{authToken}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="sample.txt"
+Content-Type: text/plain
+
+Doanh thu tháng 1: 150 triệu VND
+Doanh thu tháng 2: 200 triệu VND
+Doanh thu tháng 3: 180 triệu VND
+Chi phí vận hành mỗi tháng: 50 triệu VND
+--boundary
+Content-Disposition: form-data; name="prompt"
+
+Hãy tính tổng lợi nhuận quý 1 và đưa ra nhận xét ngắn gọn.
+--boundary--
+
+### 16. Tải file bất kỳ lên server (Yêu cầu Authorization - Lưu GUID 36 ký tự)
+POST {{SMU_HostAddress}}/api/FileUpload/upload
+Authorization: Bearer {{authToken}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="file"; filename="sample_document.docx"
+Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+
+Nội dung file mẫu dùng để kiểm thử tính năng upload file.
+--boundary--
+
+### =================================================================
+### CÁC API CHUẨN CHO TỪNG DANH MỤC (Route không dấu gạch dưới)
+### Ví dụ: Danh mục Đầu biển số (/api/daubienso)
+### =================================================================
+
+### 0. LẤY DANH SÁCH KHÔNG PHÂN TRANG (GET): Chỉ truyền vào CustomerId
+GET {{SMU_HostAddress}}/api/daubienso?customerId={{customerId}}
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 1. LẤY DANH SÁCH (POST): Phân trang (CurrentPage, PageSize), Tìm kiếm (KeyWord), Lọc theo Customer của user
+POST {{SMU_HostAddress}}/api/daubienso
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "keyWord": "29",
+  "customerId": null,
+  "isActive": true,
+  "currentPage": 1,
+  "pageSize": 10
+}
+
+### 2. SET (POST): Vừa thêm mới vừa cập nhật (Nếu không truyền Id => Thêm mới; Có Id => Cập nhật)
+# @name setDauBienSo
+POST {{SMU_HostAddress}}/api/daubienso/set
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "id": null,
+  "customerId": null,
+  "ma": "29",
+  "ten": "Thành phố Hà Nội",
+  "kyHieuSeries": "A, B, C, D, E",
+  "maTinhThanh": "01",
+  "moTa": "Đầu biển số xe thuộc khu vực Hà Nội",
+  "thuTu": 1,
+  "isActive": true
+}
+
+### Lưu Id vừa thêm mới để kiểm thử
+@danhMucId = {{setDauBienSo.response.body.id}}
+
+### Cập nhật lại bản ghi vừa thêm (truyền Id)
+POST {{SMU_HostAddress}}/api/daubienso/set
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "id": "{{danhMucId}}",
+  "ma": "29",
+  "ten": "Thành phố Hà Nội (Cập nhật)",
+  "kyHieuSeries": "A, B, C, D, E, F",
+  "maTinhThanh": "01",
+  "moTa": "Mô tả sau khi cập nhật",
+  "thuTu": 1,
+  "isActive": true
+}
+
+### 3. DELETE THEO LIST ID (POST): Xóa hàng loạt theo danh sách Id
+POST {{SMU_HostAddress}}/api/daubienso/delete
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "ids": [
+    "{{danhMucId}}"
+  ]
+}
+
+### 4. IMPORT EXCEL (POST): Sử dụng EPPlus 6.0.8 đọc file theo FileName
+POST {{SMU_HostAddress}}/api/daubienso/import
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "fileName": "dau_bien_so_sample.xlsx",
+  "customerId": null
+}
+
+### 5. EXPORT EXCEL (POST): Sử dụng EPPlus 6.0.8 xuất nhiều dữ liệu ra Excel (.xlsx)
+POST {{SMU_HostAddress}}/api/daubienso/export
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "keyWord": "",
+  "customerId": null,
+  "isActive": true
+}
+
+### =================================================================
+### DANH MỤC GÓI THUÊ BAO (/api/goithuebao)
+### =================================================================
+
+### 0. LẤY DANH SÁCH GÓI THUÊ BAO KHÔNG PHÂN TRANG (GET): Không cần truyền ProjectId
+GET {{SMU_HostAddress}}/api/goithuebao
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 1. LẤY DANH SÁCH GÓI THUÊ BAO (POST)
+POST {{SMU_HostAddress}}/api/goithuebao
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "keyWord": "VIP",
+  "projectId": null,
+  "isActive": true,
+  "currentPage": 1,
+  "pageSize": 10
+}
+
+### 2. SET GÓI THUÊ BAO (POST): Thêm mới / Cập nhật gói kèm giới hạn user
+# @name setGoiThueBao
+POST {{SMU_HostAddress}}/api/goithuebao/set
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "id": null,
+  "projectId": null,
+  "ma": "GOI_VIP_10",
+  "ten": "Gói Doanh Nghiệp VIP (10 Users)",
+  "gioiHanUser": 10,
+  "moTa": "Gói thuê bao dành cho doanh nghiệp vừa và nhỏ tối đa 10 tài khoản",
+  "thuTu": 1,
+  "isActive": true
+}
+
+### 3. DELETE GÓI THUÊ BAO THEO LIST ID (POST)
+POST {{SMU_HostAddress}}/api/goithuebao/delete
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "ids": [
+    "{{setGoiThueBao.response.body.id}}"
+  ]
+}
+
+### 4. IMPORT EXCEL GÓI THUÊ BAO (POST)
+POST {{SMU_HostAddress}}/api/goithuebao/import
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "fileName": "goi_thue_bao_sample.xlsx",
+  "projectId": null
+}
+
+### 5. EXPORT EXCEL GÓI THUÊ BAO (POST)
+POST {{SMU_HostAddress}}/api/goithuebao/export
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "keyWord": "",
+  "projectId": null,
+  "isActive": true
+}
+
+### =================================================================
+### DANH MỤC MỨC THU LỆ PHÍ (/api/mucthulephi)
+### =================================================================
+
+### 0. LẤY TOÀN BỘ MỨC THU LỆ PHÍ KHÔNG PHÂN TRANG (GET)
+GET {{SMU_HostAddress}}/api/mucthulephi?projectId={{projectId}}
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 1. LẤY DANH SÁCH MỨC THU LỆ PHÍ (POST): Phân trang, Tìm kiếm
+POST {{SMU_HostAddress}}/api/mucthulephi
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "keyWord": "Ô tô",
+  "projectId": null,
+  "isActive": true,
+  "currentPage": 1,
+  "pageSize": 10
+}
+
+### 2. SET MỨC THU LỆ PHÍ (POST): Chọn Loại xe, Loại thủ tục & Bảng mức thu theo từng khu vực
+# @name setMucThuLePhi
+POST {{SMU_HostAddress}}/api/mucthulephi/set
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "id": null,
+  "projectId": null,
+  "ma": "MTLP_OTO_01",
+  "ten": "Cấp mới đăng ký kèm biển số Ô tô chở người từ 9 chỗ trở xuống (Trường hợp 1)",
+  "loaiXeId": null,
+  "nhomXe": "Ô tô",
+  "loaiThuTucId": null,
+  "phanLoaiThuTuc": "Cấp biển (kèm biển mới)",
+  "khoangTriGiaXe": "Trên 40.000.000 đồng",
+  "canCuPhapLy": "Thông tư 155/2025/TT-BTC",
+  "batBuocChonTriGiaXe": true,
+  "ghiChuHuongDan": "Khu vực I áp dụng cho TP Hà Nội và TP Hồ Chí Minh",
+  "chiTietMucThuKhuVuc": [
+    {
+      "khuVucApDungId": "00000000-0000-0000-0000-000000000001",
+      "mucThu": 20000000,
+      "ghiChu": "Áp dụng cho Hà Nội và TP.HCM"
+    },
+    {
+      "khuVucApDungId": "00000000-0000-0000-0000-000000000002",
+      "mucThu": 1000000,
+      "ghiChu": "Áp dụng cho các tỉnh/thành phố còn lại"
+    }
+  ],
+  "thuTu": 1,
+  "isActive": true
+}
+
+### 3. DELETE MỨC THU LỆ PHÍ THEO LIST ID (POST)
+POST {{SMU_HostAddress}}/api/mucthulephi/delete
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "ids": [
+    "{{setMucThuLePhi.response.body.id}}"
+  ]
+}
+
+### 4. IMPORT EXCEL MỨC THU LỆ PHÍ (POST)
+POST {{SMU_HostAddress}}/api/mucthulephi/import
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "fileName": "muc_thu_le_phi_sample.xlsx",
+  "projectId": null
+}
+
+### 5. EXPORT EXCEL MỨC THU LỆ PHÍ (POST)
+POST {{SMU_HostAddress}}/api/mucthulephi/export
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "keyWord": "",
+  "projectId": null,
+  "isActive": true
+}
+
+###############################################################################
+### DANH MỤC CẤP BẬC (CapBac - Tuyến đường: /api/capbac)
+###############################################################################
+
+### 1. LẤY TOÀN BỘ DANH SÁCH CẤP BẬC KHÔNG PHÂN TRANG (GET)
+GET {{SMU_HostAddress}}/api/capbac?projectId={{projectId}}
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 2. LẤY DANH SÁCH CẤP BẬC CÓ PHÂN TRANG VÀ TÌM KIẾM (POST)
+POST {{SMU_HostAddress}}/api/capbac
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "keyWord": "Úy",
+  "projectId": "{{projectId}}",
+  "isActive": true,
+  "currentPage": 1,
+  "pageSize": 10
+}
+
+### 3. THÊM MỚI HOẶC CẬP NHẬT CẤP BẬC (POST /api/capbac/set)
+# @name setCapBac
+POST {{SMU_HostAddress}}/api/capbac/set
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "id": null,
+  "projectId": "{{projectId}}",
+  "ma": "DAI_UY",
+  "ten": "Đại úy",
+  "moTa": "Cấp bậc Sĩ quan cấp úy CAND",
+  "nhomCapBac": "Sĩ quan cấp úy",
+  "heSoThamChieu": 5.4,
+  "thuTu": 1,
+  "isActive": true
+}
+
+### 4. XÓA CẤP BẬC THEO LIST ID (POST /api/capbac/delete)
+POST {{SMU_HostAddress}}/api/capbac/delete
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "ids": [
+    "{{setCapBac.response.body.id}}"
+  ]
+}
+
+### 5. IMPORT EXCEL CẤP BẬC (POST)
+POST {{SMU_HostAddress}}/api/capbac/import
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "fileName": "cap_bac_sample.xlsx",
+  "projectId": "{{projectId}}"
+}
+
+### 6. EXPORT EXCEL CẤP BẬC (POST)
+POST {{SMU_HostAddress}}/api/capbac/export
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "keyWord": "",
+  "projectId": "{{projectId}}",
+  "isActive": true
+}
+
+###############################################################################
+### DANH MỤC VAI TRÒ PHÂN QUYỀN (VaiTroPhanQuyen - Tuyến đường: /api/vaitrophanquyen)
+###############################################################################
+
+### 1. LẤY TOÀN BỘ DANH SÁCH VAI TRÒ KHÔNG PHÂN TRANG (GET)
+GET {{SMU_HostAddress}}/api/vaitrophanquyen?projectId={{projectId}}
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 2. LẤY DANH SÁCH VAI TRÒ CÓ PHÂN TRANG VÀ TÌM KIẾM (POST)
+POST {{SMU_HostAddress}}/api/vaitrophanquyen
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "keyWord": "Nghiệp vụ",
+  "projectId": "{{projectId}}",
+  "isActive": true,
+  "currentPage": 1,
+  "pageSize": 10
+}
+
+### 3. THÊM MỚI HOẶC CẬP NHẬT VAI TRÒ PHÂN QUYỀN (POST /api/vaitrophanquyen/set)
+# @name setVaiTro
+POST {{SMU_HostAddress}}/api/vaitrophanquyen/set
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "id": null,
+  "projectId": "{{projectId}}",
+  "ma": "CAN_BO_NGHIEP_VU",
+  "ten": "Cán bộ nghiệp vụ (Nhập/Xuất)",
+  "moTa": "Quyền nhập biển số, xuất biển số, ghi biên lai lệ phí",
+  "quyenHan": "NHAP_BIEN,XUAT_BIEN,GHI_BIEN_LAI",
+  "isAdmin": false,
+  "thuTu": 2,
+  "isActive": true
+}
+
+### 4. XÓA VAI TRÒ PHÂN QUYỀN THEO LIST ID (POST /api/vaitrophanquyen/delete)
+POST {{SMU_HostAddress}}/api/vaitrophanquyen/delete
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "ids": [
+    "{{setVaiTro.response.body.id}}"
+  ]
+}
+
+### 5. IMPORT EXCEL VAI TRÒ PHÂN QUYỀN (POST)
+POST {{SMU_HostAddress}}/api/vaitrophanquyen/import
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "fileName": "vai_tro_sample.xlsx",
+  "projectId": "{{projectId}}"
+}
+
+### 6. EXPORT EXCEL VAI TRÒ PHÂN QUYỀN (POST)
+POST {{SMU_HostAddress}}/api/vaitrophanquyen/export
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "keyWord": "",
+  "customerId": "{{customerId}}",
+  "isActive": true
+}
+
+### ===================================================================
+### PHẦN V: QUẢN LÝ KHO BIỂN SỐ XE (4 API CỐT LÕI - KHÔNG DẤU '-' HOẶC '_')
+### ===================================================================
+
+### 1. (POST) LẤY DANH SÁCH ĐỢT NHẬP KHO CÓ PHÂN TRANG VÀ BỘ LỌC
+# @name layDanhSachDotNhap
+POST {{SMU_HostAddress}}/api/NhapKho/danhsach
+Content-Type: application/json
+
+{
+  "currentPage": 1,
+  "pageSize": 10,
+  "keyWord": "",
+  "daNhapKho": null
+}
+
+### 2. (POST) THÊM MỚI HOẶC UPDATE ĐỢT NHẬP KHO (NẾU UPDATE VÀ daNhapKho == true THÌ SẼ LƯU KHO)
+# @name setDotNhapKho
+POST {{SMU_HostAddress}}/api/NhapKho/set
+Content-Type: application/json
+
+{
+  "id": null,
+  "maDotNhap": "NK-2026-10-15-MOI",
+  "ngayNhapKho": "2026-10-15T00:00:00Z",
+  "loaiXeId": "OTO",
+  "mauBienSoId": "TRANG",
+  "kyHieuDaiDauBien": ["30B", "29RM"],
+  "canBoTiepNhan": "Trung Tá - Mai Cao",
+  "tinhChatDotNhapId": "TON_DAU",
+  "soCongVan": "BB-TK-0108/CAP",
+  "ghiChu": "Khai báo chốt tồn ban đầu chuyển đổi số hóa hệ thống",
+  "daNhapKho": false,
+  "danhSachBienSo": [
+    {
+      "thuTu": 1,
+      "bienKiemSoat": "30B-530.01",
+      "laBienDauGia": false,
+      "ghiChu": "Biển thường đưa vào kho bấm ngẫu nhiên"
+    },
+    {
+      "thuTu": 2,
+      "bienKiemSoat": "30B-530.88",
+      "laBienDauGia": true,
+      "ghiChu": "Biển số đẹp tách riêng đem đấu giá (Không lưu vào KhoBienSo)"
+    }
+  ]
+}
+
+### Lưu ID đợt nhập vừa tạo
+@dotNhapId = {{setDotNhapKho.response.body.id}}
+
+### 2.1 (POST) UPDATE ĐỢT NHẬP KHO VÀ THỰC HIỆN LƯU KHO (daNhapKho == true)
+POST {{SMU_HostAddress}}/api/NhapKho/set
+Content-Type: application/json
+
+{
+  "id": "{{dotNhapId}}",
+  "maDotNhap": "NK-2026-10-15-MOI",
+  "ngayNhapKho": "2026-10-15T00:00:00Z",
+  "loaiXeId": "OTO",
+  "mauBienSoId": "TRANG",
+  "kyHieuDaiDauBien": ["30B", "29RM"],
+  "canBoTiepNhan": "Trung Tá - Mai Cao",
+  "tinhChatDotNhapId": "TON_DAU",
+  "soCongVan": "BB-TK-0108/CAP",
+  "ghiChu": "Xác nhận kiểm kê và lưu kho chính thức",
+  "daNhapKho": true,
+  "danhSachBienSo": [
+    {
+      "thuTu": 1,
+      "bienKiemSoat": "30B-530.01",
+      "laBienDauGia": false,
+      "ghiChu": "Biển thường lưu vào KhoBienSo"
+    },
+    {
+      "thuTu": 2,
+      "bienKiemSoat": "30B-530.88",
+      "laBienDauGia": true,
+      "ghiChu": "Biển số đẹp đấu giá không lưu vào KhoBienSo"
+    }
+  ]
+}
+
+### 3. (GET) LẤY THÔNG TIN 1 ĐỢT NHẬP KHO THEO ID
+# @name getDotNhapDetail
+GET {{SMU_HostAddress}}/api/NhapKho/{{dotNhapId}}
+Accept: application/json
+
+### 4. (GET) XÓA ĐỢT NHẬP KHO THEO ID
+GET {{SMU_HostAddress}}/api/NhapKho/delete/{{dotNhapId}}
+
+### =================================================================
+### QUẢN LÝ XUẤT KHO & BIÊN LAI THU TIỀN (/api/XuatKho)
+### =================================================================
+
+### 1. (GET) LẤY DANH SÁCH BIỂN SỐ CHƯA XUẤT KHO KHẢ DỤNG TRONG KHO (KhoBienSo)
+# @name getBienSoKhaDung
+GET {{SMU_HostAddress}}/api/XuatKho/biensokhokhadung?pageSize=20
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### Lưu ID biển số khả dụng đầu tiên
+@bienSoKhoId = {{getBienSoKhaDung.response.body.items[0].id}}
+
+### 2. (GET) LẤY MỨC THU LỆ PHÍ DỰA VÀO NỘI DUNG LỆ PHÍ VÀ KHU VỰC ÁP DỤNG (TT 155/2025/TT-BTC)
+# @name getMucThuKhuVuc
+GET {{SMU_HostAddress}}/api/XuatKho/mucthukhuvuc?mucThuLePhiId=MTLP_OTO_01&khuVucApDungId=KHU_VUC_I
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 3. (GET) LẤY THÔNG TIN QUYỂN VÀ GỢI Ý SỐ BIÊN LAI TIẾP THEO
+# @name getSoBienLaiGoiY
+GET {{SMU_HostAddress}}/api/XuatKho/sobienlai/AA26E
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 4. (POST) LẬP THỦ TỤC & BIÊN LAI THU TIỀN (XUẤT KHO)
+# @name setXuatKho
+POST {{SMU_HostAddress}}/api/XuatKho/set
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "id": null,
+  "loaiThuTucId": "CAP_BIEN",
+  "ngayThucHien": "2026-10-10T00:00:00Z",
+  "tinhChatXuatKho": "Xuất 01 biển từ kho 'Biển được bấm'",
+  "khoBienSoId": "{{bienSoKhoId}}",
+  "mucThuLePhiId": "MTLP_OTO_01",
+  "khuVucApDungId": "KHU_VUC_I",
+  "dieuKienTriGiaXe": "Trị giá trên 40 triệu đồng (Mức thu: 20.000.000đ)",
+  "canCuPhapLy": "Thông tư 155/2025/TT-BTC (Khu vực I áp dụng cho TP Hà Nội và TP Hồ Chí Minh)",
+  "soTienTuDongDien": 20000000,
+  "kyHieuQuyenBienLaiId": "AA26E",
+  "soBienLai": "0000113",
+  "ngayBienLai": "2026-10-10T00:00:00Z",
+  "soTienThu": 20000000,
+  "hoTenNguoiNop": "Nguyễn Văn An",
+  "soCccd": "001099000123",
+  "maHoSoDvc": "HS-2026-00889",
+  "ghiChu": "Hồ sơ hợp lệ, đã đối chiếu bản gốc giấy hẹn"
+}
+
+### Lưu ID phiếu xuất kho vừa tạo
+@xuatKhoId = {{setXuatKho.response.body.id}}
+
+### 5. (POST) LẤY DANH SÁCH PHIẾU XUẤT KHO CÓ PHÂN TRANG VÀ BỘ LỌC
+POST {{SMU_HostAddress}}/api/XuatKho/danhsach
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "currentPage": 1,
+  "pageSize": 10,
+  "keyWord": "30B"
+}
+
+### 6. (GET) LẤY CHI TIẾT 1 PHIẾU XUẤT KHO THEO ID
+GET {{SMU_HostAddress}}/api/XuatKho/{{xuatKhoId}}
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 7. (GET) XÓA PHIẾU XUẤT KHO THEO ID (HOÀN TÁC BIỂN SỐ VỀ KHO)
+GET {{SMU_HostAddress}}/api/XuatKho/delete/{{xuatKhoId}}
+Authorization: Bearer {{authToken}}
+
+### =================================================================
+### QUẢN LÝ TỒN KHO BIỂN SỐ XE (/api/TonKho)
+### =================================================================
+
+### 1. (POST) BẢNG TỔNG HỢP TỒN KHO THEO ĐẦU BIỂN
+# @name getTongHopTonKho
+POST {{SMU_HostAddress}}/api/TonKho/tonghop
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "timSoBien": null,
+  "dauBien": null,
+  "loaiXeId": null,
+  "mauBienSoId": null,
+  "trangThai": null,
+  "loaiThoiGian": "TatCa"
+}
+
+### 2. (POST) DANH SÁCH CÁC BIỂN SỐ CHƯA XUẤT KHI CLICK "CHI TIẾT" Ở 1 NHÓM ĐẦU BIỂN
+POST {{SMU_HostAddress}}/api/TonKho/chitiet
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "dauBien": "29AH-316",
+  "keyWord": null,
+  "currentPage": 1,
+  "pageSize": 50
+}
+
+### 3. (GET) DỮ LIỆU CẤU HÌNH CHO CÁC DROPDOWN BỘ LỌC TÌM KIẾM TỒN KHO
+GET {{SMU_HostAddress}}/api/TonKho/boloc
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 4. (POST) MA TRẬN 100 SỐ DẢI BIỂN (00 ĐẾN 99) - THEO ĐẦU BIỂN TRUYỀN QUA BODY JSON
+POST {{SMU_HostAddress}}/api/TonKho/matran
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "dauBien": "29AC-963"
+}
+
+### 5. (POST) BẤM VÀO Ô SỐ ĐỂ SỬA TRẠNG THÁI TRONG MA TRẬN
+POST {{SMU_HostAddress}}/api/TonKho/suatrangthai
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "dauBien": "29AC-963",
+  "soDuoi": "52",
+  "trangThaiMoi": "DuocBam",
+  "laBienDauGia": false,
+  "ghiChu": "Cập nhật thủ công từ ma trận"
+}
+
+### =================================================================
+### QUẢN LÝ KIỂM KÊ KHO BIỂN SỐ XE (/api/KiemKeKho)
+### =================================================================
+
+### 1. (POST) KHỞI TẠO PHIẾU KIỂM KÊ TỪ CÁC BIỂN CHƯA XUẤT TRONG BẢNG KHOBIENSO
+# @name khoiTaoKiemKe
+POST {{SMU_HostAddress}}/api/KiemKeKho/khoitao
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "loaiPhuongTien": "Ô tô",
+  "loaiXeId": null,
+  "customerId": null
+}
+
+### 2. (POST) POPUP XÁC ĐỊNH BIỂN THIẾU/THỪA THEO DẢI ĐẦU BIỂN (Click nút "Danh sách biển")
+POST {{SMU_HostAddress}}/api/KiemKeKho/chitietbien
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "dauBien": "29E-794",
+  "mauBienSoId": null,
+  "kiemKeKhoId": null,
+  "keyWord": null
+}
+
+### 3. (POST) THÊM MỚI HOẶC CẬP NHẬT PHIẾU KIỂM KÊ (LƯU NHÁP / XÁC NHẬN HOÀN TẤT)
+# @name setKiemKeKho
+POST {{SMU_HostAddress}}/api/KiemKeKho/set
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "id": null,
+  "maPhieuKiemKe": "KK-2026-10-10-921",
+  "ngayKiemKe": "2026-10-10T00:00:00Z",
+  "thoiGianKiemKe": "17 giờ 15 phút",
+  "loaiPhuongTien": "Ô tô",
+  "diaDiemKiemKe": "Tổ đăng ký xe, Công an phường Nghĩa Đô",
+  "truongDoanKiemKe": "Thiếu tá Bùi Văn Kiên",
+  "canBoLapBienBan": "Bùi Văn Kiên",
+  "tongTonHeThong": 299,
+  "tongThucTe": 299,
+  "tongChenhLech": 0,
+  "trangThai": "LuuNhap",
+  "xacNhanHoanTat": false,
+  "ghiChu": "Kiểm kê định kỳ tháng 10/2026",
+  "danhSachNhomDauBien": [
+    {
+      "stt": 1,
+      "dauBien": "30B-207",
+      "mauBien": "Biển Trắng",
+      "tonHeThong": 1,
+      "thucTe": 1,
+      "chenhLech": 0,
+      "ghiChu": "Khớp sổ sách",
+      "danhSachBienTrongKho": [
+        {
+          "bienKiemSoat": "30B-207.66",
+          "trangThaiKiemKe": "CoMat",
+          "isCoMat": true,
+          "ghiChu": "Có mặt"
+        }
+      ],
+      "danhSachBienThua": []
+    },
+    {
+      "stt": 2,
+      "dauBien": "29E-794",
+      "mauBien": "Biển Vàng",
+      "tonHeThong": 39,
+      "thucTe": 39,
+      "chenhLech": 0,
+      "ghiChu": "Khớp sổ sách",
+      "danhSachBienTrongKho": [
+        {
+          "bienKiemSoat": "29E-794.01",
+          "trangThaiKiemKe": "Thieu",
+          "isCoMat": false,
+          "ghiChu": "Kiểm kê báo thiếu (chuyển từ Có mặt sang Thiếu)"
+        },
+        {
+          "bienKiemSoat": "29E-794.04",
+          "trangThaiKiemKe": "CoMat",
+          "isCoMat": true,
+          "ghiChu": "Có mặt"
+        }
+      ],
+      "danhSachBienThua": [
+        {
+          "bienKiemSoat": "29E-794.02",
+          "ghiChu": "Phát hiện thừa thực tế (tự xác định dải 29E-794)"
+        }
+      ]
+    }
+  ]
+}
+
+### 3b. (POST) TỰ ĐỘNG XÁC ĐỊNH ĐẦU BIỂN TỪ BIỂN KIỂM SOÁT
+POST {{SMU_HostAddress}}/api/KiemKeKho/xacdinhdaubien
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "bienKiemSoat": "29E-794.02"
+}
+
+### 3b. (POST) XÁC NHẬN HOÀN TẤT PHIẾU KIỂM KÊ (ĐỒNG BỘ VÀO BẢNG KHOBIENSO)
+POST {{SMU_HostAddress}}/api/KiemKeKho/set
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "id": "{{kiemKeKhoId}}",
+  "maPhieuKiemKe": "KK-2026-10-10-921",
+  "ngayKiemKe": "2026-10-10T00:00:00Z",
+  "thoiGianKiemKe": "17 giờ 15 phút",
+  "loaiPhuongTien": "Ô tô",
+  "tongTonHeThong": 299,
+  "tongThucTe": 299,
+  "tongChenhLech": 0,
+  "trangThai": "HoanTat",
+  "xacNhanHoanTat": true,
+  "ghiChu": "Xác nhận chốt số liệu kiểm kê kho",
+  "danhSachNhomDauBien": [
+    {
+      "stt": 1,
+      "dauBien": "29E-794",
+      "mauBien": "Biển Vàng",
+      "tonHeThong": 39,
+      "thucTe": 40,
+      "chenhLech": 1,
+      "ghiChu": "Thừa 1 biển",
+      "danhSachBienTrongKho": [
+        {
+          "bienKiemSoat": "29E-794.01",
+          "trangThaiKiemKe": "CoMat",
+          "isCoMat": true,
+          "ghiChu": "Có mặt"
+        }
+      ],
+      "danhSachBienThua": [
+        {
+          "bienKiemSoat": "29E-794.02",
+          "ghiChu": "Phát hiện thừa thực tế (tự xác định dải 29E-794 khi xác nhận hoàn tất -> Nhập vào KhoBienSo)"
+        }
+      ]
+    }
+  ]
+}
+
+### Lưu Id phiếu kiểm kê vừa tạo
+@kiemKeKhoId = {{setKiemKeKho.response.body.id}}
+
+### 4. (POST) LẤY DANH SÁCH PHIẾU KIỂM KÊ CÓ PHÂN TRANG VÀ BỘ LỌC
+POST {{SMU_HostAddress}}/api/KiemKeKho/danhsach
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "currentPage": 1,
+  "pageSize": 10,
+  "keyWord": "KK-2026",
+  "loaiPhuongTien": "Ô tô",
+  "trangThai": null
+}
+
+### 5. (GET) LẤY CHI TIẾT 1 PHIẾU KIỂM KÊ THEO ID
+GET {{SMU_HostAddress}}/api/KiemKeKho/{{kiemKeKhoId}}
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 6. (GET) XÓA PHIẾU KIỂM KÊ THEO ID
+GET {{SMU_HostAddress}}/api/KiemKeKho/delete/{{kiemKeKhoId}}
+Authorization: Bearer {{authToken}}
+
+
+###############################################################################
+### CẤP LẠI ĐĂNG KÝ XE (Thủ tục cấp lại giấy đăng ký xe không xuất kho, không giảm tồn biển)
+###############################################################################
+
+### 1. (GET) LẤY GỢI Ý SỐ BIÊN LAI TIẾP THEO THEO QUYỂN (Ví dụ quyển AA/26E -> Số 0000113)
+# @name getSoBienLaiCapLaiTiepTheo
+GET {{SMU_HostAddress}}/api/CapLaiDangKyXe/so-bien-lai-tiep-theo?kyHieuQuyenBienLaiId=quyen-aa26e-guid
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 2. (POST) THÊM MỚI BIÊN LAI CẤP LẠI ĐĂNG KÝ XE DẠNG LƯU NHÁP (xacNhanHoanTat = false)
+# @name luuNhapCapLaiDangKyXe
+POST {{SMU_HostAddress}}/api/CapLaiDangKyXe
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "kyHieuQuyenBienLaiId": "b6f5b9d3-6e42-4f32-b7f3-e5e54d809ab1",
+  "soBienLai": "0000113",
+  "ngayBienLai": "2026-10-11T09:00:00Z",
+  "bienKiemSoat": "30A-123.45",
+  "loaiPhuongTien": "Ô tô",
+  "noiDungThuPhi": "Cấp lại riêng giấy chứng nhận đăng ký xe (mất, hư hỏng - không cấp biển mới) (50.000 đ)",
+  "soTienThu": 50000,
+  "hinhThucThuTien": "Tiền mặt",
+  "hoTenChuXe": "Nguyễn Văn A",
+  "soCccd": "001099012345",
+  "maHoSoDvc": "HS-2026-00123",
+  "lyDoCapLai": "Cấp lại chứng nhận đăng ký xe bị mất/hỏng theo đơn",
+  "xacNhanHoanTat": false
+}
+
+### Lưu Id biên lai cấp lại vừa tạo
+@capLaiId = {{luuNhapCapLaiDangKyXe.response.body.id}}
+
+### 3. (POST) CHỈNH SỬA BIÊN LAI Ở TRẠNG THÁI LƯU NHÁP (Cho phép sửa bình thường)
+# @name updateDraftCapLaiDangKyXe
+POST {{SMU_HostAddress}}/api/CapLaiDangKyXe
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "id": "{{capLaiId}}",
+  "kyHieuQuyenBienLaiId": "b6f5b9d3-6e42-4f32-b7f3-e5e54d809ab1",
+  "soBienLai": "0000113",
+  "ngayBienLai": "2026-10-11T09:00:00Z",
+  "bienKiemSoat": "30A-123.45",
+  "loaiPhuongTien": "Ô tô",
+  "noiDungThuPhi": "Cấp lại riêng giấy chứng nhận đăng ký xe (mất, hư hỏng - không cấp biển mới) (50.000 đ)",
+  "soTienThu": 50000,
+  "hinhThucThuTien": "Chuyển khoản",
+  "hoTenChuXe": "Nguyễn Văn A (Đã cập nhật)",
+  "soCccd": "001099012345",
+  "maHoSoDvc": "HS-2026-00123",
+  "lyDoCapLai": "Cấp lại chứng nhận đăng ký xe bị mất theo đơn trình báo",
+  "xacNhanHoanTat": false
+}
+
+### 4. (POST) XÁC NHẬN HOÀN TẤT BIÊN LAI (Khóa phiếu, chuyển trạng thái DaXacNhan, không cho sửa hay xóa nữa)
+# @name xacNhanCapLaiDangKyXe
+POST {{SMU_HostAddress}}/api/CapLaiDangKyXe/{{capLaiId}}/xac-nhan
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 5. (POST) THỬ CHỈNH SỬA BIÊN LAI ĐÃ XÁC NHẬN (Kỳ vọng trả về 400 Bad Request - Chặn chỉnh sửa)
+POST {{SMU_HostAddress}}/api/CapLaiDangKyXe
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "id": "{{capLaiId}}",
+  "kyHieuQuyenBienLaiId": "b6f5b9d3-6e42-4f32-b7f3-e5e54d809ab1",
+  "soBienLai": "0000113",
+  "ngayBienLai": "2026-10-11T09:00:00Z",
+  "bienKiemSoat": "30A-123.45",
+  "loaiPhuongTien": "Ô tô",
+  "noiDungThuPhi": "Cấp lại đăng ký xe",
+  "soTienThu": 50000,
+  "hoTenChuXe": "Cố tình sửa biên lai đã khóa"
+}
+
+### 6. (DELETE) THỬ XÓA BIÊN LAI ĐÃ XÁC NHẬN (Kỳ vọng trả về 400 Bad Request - Chặn xóa)
+DELETE {{SMU_HostAddress}}/api/CapLaiDangKyXe/{{capLaiId}}
+Authorization: Bearer {{authToken}}
+
+### 7. (POST) THÊM MỚI VÀ PHÁT HÀNH BIÊN LAI TRỰC TIẾP (xacNhanHoanTat = true)
+# @name phatHanhTrucTiepCapLaiDangKyXe
+POST {{SMU_HostAddress}}/api/CapLaiDangKyXe
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "kyHieuQuyenBienLaiId": "b6f5b9d3-6e42-4f32-b7f3-e5e54d809ab1",
+  "soBienLai": "0000114",
+  "ngayBienLai": "2026-10-11T09:30:00Z",
+  "bienKiemSoat": "29E-895.02",
+  "loaiPhuongTien": "Ô tô",
+  "noiDungThuPhi": "Cấp lại riêng giấy chứng nhận đăng ký xe (mất, hư hỏng - không cấp biển mới) (50.000 đ)",
+  "soTienThu": 50000,
+  "hinhThucThuTien": "Tiền mặt",
+  "hoTenChuXe": "Trần Thị B",
+  "soCccd": "038199009876",
+  "maHoSoDvc": "HS-2026-00456",
+  "lyDoCapLai": "Giấy chứng nhận đăng ký xe bị rách/hỏng",
+  "xacNhanHoanTat": true
+}
+
+### 8. (POST) LẤY DANH SÁCH BIÊN LAI CẤP LẠI ĐĂNG KÝ XE CÓ PHÂN TRANG VÀ BỘ LỌC
+POST {{SMU_HostAddress}}/api/CapLaiDangKyXe/danh-sach
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "currentPage": 1,
+  "pageSize": 20,
+  "keyword": "30A-123.45",
+  "trangThai": "DaXacNhan",
+  "loaiPhuongTien": "Ô tô"
+}
+
+### 9. (GET) LẤY CHI TIẾT 1 BIÊN LAI CẤP LẠI THEO ID
+GET {{SMU_HostAddress}}/api/CapLaiDangKyXe/{{capLaiId}}
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+
+###############################################################################
+### BÁO CÁO: BIỂU ĐỒ PHÂN TÍCH BIẾN THIÊN NHẬP - XUẤT - CHI PHÍ LỆ PHÍ
+### Dữ liệu lấy từ Bảng KhoBienSo và các bảng nghiệp vụ liên quan
+###############################################################################
+
+### 1. (POST) KHOANH ĐỎ SỐ 2: THẺ TÓM TẮT KPI / THỐNG KÊ TỔNG QUAN
+# @name getBaoCaoKpiTongQuan
+POST {{SMU_HostAddress}}/api/BaoCaoBienThien/tong-quan
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "gomTheo": "Thang",
+  "mocThoiGianNhanh": "ToanBo",
+  "tuNgay": "2026-08-01T00:00:00Z",
+  "denNgay": "2026-10-31T23:59:59Z",
+  "loaiXeId": null
+}
+
+### 2. (POST) KHOANH ĐỎ SỐ 3: BIỂU ĐỒ 1 - BIẾN THIÊN SỐ LƯỢNG BIỂN NHẬP VÀ BIỂN XUẤT THEO THỜI GIAN (GOM THEO THÁNG)
+# @name getBieuDo1NhapXuatTheoThang
+POST {{SMU_HostAddress}}/api/BaoCaoBienThien/bieu-do-nhap-xuat
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "gomTheo": "Thang",
+  "mocThoiGianNhanh": "ToanBo",
+  "tuNgay": "2026-08-01T00:00:00Z",
+  "denNgay": "2026-10-31T23:59:59Z",
+  "loaiXeId": null
+}
+
+### 2.1. (POST) BIỂU ĐỒ 1 - BIẾN THIÊN SỐ LƯỢNG BIỂN NHẬP VÀ BIỂN XUẤT (GOM THEO NGÀY)
+# @name getBieuDo1NhapXuatTheoNgay
+POST {{SMU_HostAddress}}/api/BaoCaoBienThien/bieu-do-nhap-xuat
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "gomTheo": "Ngay",
+  "tuNgay": "2026-08-01T00:00:00Z",
+  "denNgay": "2026-08-10T23:59:59Z"
+}
+
+### 3. (POST) KHOANH ĐỎ SỐ 4: BIỂU ĐỒ 2 - BIẾN THIÊN TIỀN LỆ PHÍ THU TỪ BIỂN XUẤT THEO THỜI GIAN (GOM THEO THÁNG)
+# @name getBieuDo2LePhi
+POST {{SMU_HostAddress}}/api/BaoCaoBienThien/bieu-do-le-phi
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "gomTheo": "Thang",
+  "mocThoiGianNhanh": "ToanBo",
+  "tuNgay": "2026-08-01T00:00:00Z",
+  "denNgay": "2026-10-31T23:59:59Z"
+}
+
+### 4. (POST) KHOANH ĐỎ SỐ 5: CƠ CẤU BIỂN XUẤT THEO THỦ TỤC & PHÂN BỔ LOẠI PHƯƠNG TIỆN
+# @name getCoCauBienXuat
+POST {{SMU_HostAddress}}/api/BaoCaoBienThien/co-cau-thu-tuc
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "tuNgay": "2026-08-01T00:00:00Z",
+  "denNgay": "2026-10-31T23:59:59Z"
+}
+
+### 5. (POST) KHOANH ĐỎ SỐ 6: BẢNG SỐ LIỆU BIẾN THIÊN NHẬP - XUẤT - TIỀN THU CHI TIẾT (THEO THÁNG)
+# @name getBangChiTietTheoThang
+POST {{SMU_HostAddress}}/api/BaoCaoBienThien/bang-chi-tiet
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "gomTheo": "Thang",
+  "mocThoiGianNhanh": "ToanBo",
+  "tuNgay": "2026-08-01T00:00:00Z",
+  "denNgay": "2026-10-31T23:59:59Z"
+}
+
+### 5.1. (POST) BẢNG SỐ LIỆU BIẾN THIÊN NHẬP - XUẤT - TIỀN THU CHI TIẾT (THEO NGÀY)
+# @name getBangChiTietTheoNgay
+POST {{SMU_HostAddress}}/api/BaoCaoBienThien/bang-chi-tiet
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "gomTheo": "Ngay",
+  "tuNgay": "2026-08-01T00:00:00Z",
+  "denNgay": "2026-08-15T23:59:59Z"
+}
+
+### 6. (POST) TẤT CẢ DỮ LIỆU DASHBOARD CHO 1 LẦN GỌI (All-in-One Dashboard)
+# @name getToanBoDashboard
+POST {{SMU_HostAddress}}/api/BaoCaoBienThien/dashboard
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "gomTheo": "Thang",
+  "mocThoiGianNhanh": "ToanBo",
+  "tuNgay": "2026-08-01T00:00:00Z",
+  "denNgay": "2026-10-31T23:59:59Z"
+}
+
+### 7. (GET) LẤY DANH SÁCH BỘ LỌC 'GOM THEO' (Theo tháng, Theo ngày)
+# @name getBoLocGomTheo
+GET {{SMU_HostAddress}}/api/BaoCaoBienThien/bo-loc/gom-theo
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 8. (GET) LẤY DANH SÁCH BỘ LỌC 'MỐC THỜI GIAN' (Toàn bộ, Tháng 8/2026, Tháng 9/2026, Tháng 10/2026, Quý 3/2026...)
+# @name getBoLocMocThoiGian
+GET {{SMU_HostAddress}}/api/BaoCaoBienThien/bo-loc/moc-thoi-gian
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+
+###############################################################################
+### BÁO CÁO NHẬP - XUẤT - TỒN BIỂN SỐ XE
+### Kỳ báo cáo từ ngày 01/08/2026 đến ngày 31/10/2026
+###############################################################################
+
+### 1. (POST) LẤY BÁO CÁO NHẬP - XUẤT - TỒN THEO KỲ VÀ BỘ LỌC
+# @name getBaoCaoNhapXuatTon
+POST {{SMU_HostAddress}}/api/BaoCaoNhapXuatTon
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "tuNgay": "2026-08-01T00:00:00Z",
+  "denNgay": "2026-10-31T23:59:59Z",
+  "loaiXeId": null,
+  "mauBienSoId": null,
+  "timDauBien": null
+}
+
+### 2. (POST) LẤY BÁO CÁO NHẬP - XUẤT - TỒN LỌC THEO ĐẦU BIỂN CỤ THỂ (Ví dụ: "29A")
+# @name getBaoCaoNhapXuatTonFilterDauBien
+POST {{SMU_HostAddress}}/api/BaoCaoNhapXuatTon
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "tuNgay": "2026-08-01T00:00:00Z",
+  "denNgay": "2026-10-31T23:59:59Z",
+  "timDauBien": "29A"
+}
+
+### 3. (POST) LẤY DỮ LIỆU ĐỊNH DẠNG XUẤT BẢN IN A4 (Print Preview chuẩn chỉ)
+# @name getDuLieuInA4NhapXuatTon
+POST {{SMU_HostAddress}}/api/BaoCaoNhapXuatTon/ina4
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "tuNgay": "2026-08-01T00:00:00Z",
+  "denNgay": "2026-10-31T23:59:59Z"
+}
+
+### 4. (POST) BÁO CÁO BIỂN SỐ TỒN KHO TẠI THỜI ĐIỂM (Tab 3)
+# @name getBaoCaoTonTaiThoiDiem
+POST {{SMU_HostAddress}}/api/BaoCaoNhapXuatTon/tontaithoidiem
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "chotTonTaiNgay": "2026-08-31T23:59:59Z",
+  "loaiXeId": null,
+  "mauBienSoId": null,
+  "timKiem": null
+}
+
+### 5. (POST) BÁO CÁO TIỀN THU THEO BIÊN LAI VÀ THỦ TỤC (Tab 4)
+# @name getBaoCaoTienThuBienLai
+POST {{SMU_HostAddress}}/api/BaoCaoNhapXuatTon/tienthubienlai
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "tuNgay": "2026-08-01T00:00:00Z",
+  "denNgay": "2026-10-31T23:59:59Z",
+  "timKiem": null
+}
+
+### 6. (POST) BẢNG THỐNG KÊ THỦ TỤC VÀ TIỀN THU (Tab 5)
+# @name getBangThongKeThuTuc
+POST {{SMU_HostAddress}}/api/BaoCaoNhapXuatTon/thongkethutuc
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "tuNgay": "2026-08-01T00:00:00Z",
+  "denNgay": "2026-10-31T23:59:59Z"
+}
+
+### 7. (POST) BẢNG KÊ CHI TIẾT ĐỢT NHẬP BIẾN SỐ XE (Tab 6)
+# @name getBangKeChiTietDotNhap
+POST {{SMU_HostAddress}}/api/BaoCaoNhapXuatTon/chitietdotnhap
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "tuNgay": "2026-08-01T00:00:00Z",
+  "denNgay": "2026-10-31T23:59:59Z",
+  "loaiXeId": null,
+  "timKiem": null
+}
+
+### 8. (POST) BẢNG KÊ CHI TIẾT BIẾN SỐ ĐÃ XUẤT KHO (Tab 7)
+# @name getBangKeChiTietXuatKho
+POST {{SMU_HostAddress}}/api/BaoCaoNhapXuatTon/chitietxuatkho
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "tuNgay": "2026-08-01T00:00:00Z",
+  "denNgay": "2026-10-31T23:59:59Z",
+  "timKiem": null
+}
+
+
+
+
+
+
+
