@@ -641,9 +641,9 @@ public class KiemKeKhoService : IKiemKeKhoService
             query = query.Where(x => x.NgayKiemKe <= request.DenNgay.Value);
         }
 
-        if (!string.IsNullOrWhiteSpace(request.KeyWord))
+        if (!string.IsNullOrWhiteSpace(request.Keyword))
         {
-            var kw = request.KeyWord.Trim().ToLower();
+            var kw = request.Keyword.Trim().ToLower();
             query = query.Where(x =>
                 x.MaPhieuKiemKe.ToLower().Contains(kw) ||
                 (x.TruongDoanKiemKe != null && x.TruongDoanKiemKe.ToLower().Contains(kw)) ||

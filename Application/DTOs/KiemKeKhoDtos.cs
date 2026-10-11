@@ -441,8 +441,7 @@ public class PagedKiemKeKhoRequest
     /// <summary>
     /// Từ khóa tìm kiếm (Mã phiếu, Địa điểm, Trưởng đoàn, Cán bộ lập).
     /// </summary>
-    public string? KeyWord { get; set; }
-    public string? Keyword { get => KeyWord; set => KeyWord = value; }
+    public string? Keyword { get; set; }
 
     /// <summary>
     /// Lọc theo loại phương tiện: "Ô tô", "Xe máy", "Rơ moóc".
