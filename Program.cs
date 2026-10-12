@@ -1,6 +1,9 @@
 using SMU.Extensions;
 using SMU.Infrastructure.Data;
 
+// Cho phép xử lý linh hoạt timestamp DateTime trong PostgreSQL Npgsql
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. Đăng ký các dịch vụ theo từng Layer (Dependency Injection)

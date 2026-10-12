@@ -86,12 +86,18 @@ public class NhapKhoService : INhapKhoService
 
         if (request.FromDate.HasValue)
         {
-            query = query.Where(x => x.NgayNhapKho >= request.FromDate.Value);
+            var from = request.FromDate.Value.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(request.FromDate.Value, DateTimeKind.Utc)
+                : request.FromDate.Value.ToUniversalTime();
+            query = query.Where(x => x.NgayNhapKho >= from);
         }
 
         if (request.ToDate.HasValue)
         {
-            query = query.Where(x => x.NgayNhapKho <= request.ToDate.Value);
+            var to = request.ToDate.Value.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(request.ToDate.Value, DateTimeKind.Utc)
+                : request.ToDate.Value.ToUniversalTime();
+            query = query.Where(x => x.NgayNhapKho <= to);
         }
 
         var totalItems = await query.CountAsync(cancellationToken);
@@ -233,6 +239,12 @@ public class NhapKhoService : INhapKhoService
         int soBienDuocBam = listBienSoItems.Count(x => !x.LaBienDauGia);
         int soBienChoDauGia = listBienSoItems.Count(x => x.LaBienDauGia);
 
+        var ngayNhapKhoUtc = request.NgayNhapKho != default
+            ? (request.NgayNhapKho.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(request.NgayNhapKho, DateTimeKind.Utc)
+                : request.NgayNhapKho.ToUniversalTime())
+            : DateTime.UtcNow;
+
         // Lưu / Cập nhật bản ghi DotNhapKho
         if (!isUpdate)
         {
@@ -240,7 +252,7 @@ public class NhapKhoService : INhapKhoService
             {
                 CustomerId = customerId,
                 MaDotNhap = maDotNhapChuanHoa,
-                NgayNhapKho = request.NgayNhapKho != default ? request.NgayNhapKho : DateTime.UtcNow,
+                NgayNhapKho = ngayNhapKhoUtc,
                 LoaiXeId = request.LoaiXeId,
                 MauBienSoId = request.MauBienSoId,
                 KyHieuDaiDauBien = kyHieuDaiDauBienJson,
@@ -262,7 +274,7 @@ public class NhapKhoService : INhapKhoService
         else
         {
             dotNhap!.MaDotNhap = maDotNhapChuanHoa;
-            dotNhap.NgayNhapKho = request.NgayNhapKho != default ? request.NgayNhapKho : dotNhap.NgayNhapKho;
+            dotNhap.NgayNhapKho = request.NgayNhapKho != default ? ngayNhapKhoUtc : dotNhap.NgayNhapKho;
             dotNhap.LoaiXeId = request.LoaiXeId;
             dotNhap.MauBienSoId = request.MauBienSoId;
             dotNhap.KyHieuDaiDauBien = kyHieuDaiDauBienJson;

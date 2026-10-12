@@ -411,6 +411,19 @@ public class PostgresDbContext : DbContext
                 continue;
             }
 
+            // Chuẩn hóa tất cả DateTime/DateTime? có Kind == Unspecified sang UTC để tránh lỗi Npgsql
+            foreach (var prop in entry.Properties)
+            {
+                if (prop.Metadata.ClrType == typeof(DateTime) && prop.CurrentValue is DateTime dt && dt.Kind == DateTimeKind.Unspecified)
+                {
+                    prop.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                }
+                else if (prop.Metadata.ClrType == typeof(DateTime?) && prop.CurrentValue is DateTime dtNullable && dtNullable.Kind == DateTimeKind.Unspecified)
+                {
+                    prop.CurrentValue = DateTime.SpecifyKind(dtNullable, DateTimeKind.Utc);
+                }
+            }
+
             // 2. Áp dụng cho các thực thể kế thừa từ class Audit (Core/Entities/Audit.cs: User, Account, Project, ProjectMember)
             if (entry.Entity is Audit audit)
             {
