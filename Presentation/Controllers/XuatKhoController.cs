@@ -83,7 +83,8 @@ public class XuatKhoController : ControllerBase
 
     /// <summary>
     /// API 4: (POST) Thêm mới và cập nhật phiếu Lập thủ tục &amp; Biên lai thu tiền (Xuất kho).
-    /// Tự động cập nhật biển số trong bảng KhoBienSo sang DaXuatKho = true, TrangThai = 'DaBam' và tăng số hiện tại của quyển biên lai.
+    /// - Nếu DaXuatKho = true: Cập nhật biển số trong bảng KhoBienSo sang DaXuatKho = true, TrangThai = 'DaBam' và tăng số hiện tại của quyển biên lai.
+    /// - Nếu DaXuatKho = false: Lưu phiếu dạng lưu tạm / dự thảo, KHÔNG thay đổi dữ liệu trong KhoBienSo.
     /// </summary>
     [HttpPost("set")]
     [ProducesResponseType(typeof(XuatKhoResponse), StatusCodes.Status200OK)]

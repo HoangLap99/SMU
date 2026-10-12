@@ -279,6 +279,11 @@ public class SetXuatKhoRequest
     /// </summary>
     public string? GhiChu { get; set; }
 
+    /// <summary>
+    /// Trạng thái đã xuất kho hay chưa. Nếu DaXuatKho == true thì mới thay đổi dữ liệu của KhoBienSo.
+    /// </summary>
+    public bool DaXuatKho { get; set; } = false;
+
     #endregion
 }
 
@@ -299,6 +304,7 @@ public class PagedXuatKhoRequest
     public string? CustomerId { get; set; }
     public string? LoaiThuTucId { get; set; }
     public string? KyHieuQuyenBienLaiId { get; set; }
+    public bool? DaXuatKho { get; set; }
     public DateTime? FromDate { get; set; }
     public DateTime? ToDate { get; set; }
 }
@@ -357,6 +363,7 @@ public class XuatKhoResponse
     public string? MaHoSoDvc { get; set; }
     public string? GhiChu { get; set; }
     public string TrangThai { get; set; } = "HoanTat";
+    public bool DaXuatKho { get; set; }
     #endregion
 
     public DateTime Created { get; set; }

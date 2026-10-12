@@ -76,6 +76,40 @@ GET {{SMU_HostAddress}}/api/Users
 Authorization: Bearer {{authToken}}
 Accept: application/json
 
+### 5.1. Đổi mật khẩu cho người dùng hiện tại (Tự đổi mật khẩu của mình)
+# @name changePassword
+POST {{SMU_HostAddress}}/api/Users/change-password
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "oldPassword": "Password123@",
+  "newPassword": "NewPassword456@",
+  "confirmPassword": "NewPassword456@"
+}
+
+### 5.2. Admin đặt lại (reset) mật khẩu cho người dùng theo Username hoặc UserId (Chỉ tài khoản Admin)
+# @name adminResetPassword
+POST {{SMU_HostAddress}}/api/Users/reset-password
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "userIdOrUsername": "canbo01",
+  "newPassword": "Password123@",
+  "unlockAccount": true
+}
+
+### 5.3. Thử nghiệm reset mật khẩu khi người gọi KHÔNG PHẢI là Admin (Kỳ vọng trả về 403 Forbidden)
+POST {{SMU_HostAddress}}/api/Users/reset-password
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "userIdOrUsername": "canbo01",
+  "newPassword": "Password123@"
+}
+
 ### 6. Tạo mới Khách hàng / Đơn vị (Yêu cầu Authorization)
 # @name createCustomer
 POST {{SMU_HostAddress}}/api/Customers
@@ -772,7 +806,8 @@ Content-Type: application/json
   "hoTenNguoiNop": "Nguyễn Văn An",
   "soCccd": "001099000123",
   "maHoSoDvc": "HS-2026-00889",
-  "ghiChu": "Hồ sơ hợp lệ, đã đối chiếu bản gốc giấy hẹn"
+  "ghiChu": "Hồ sơ hợp lệ, đã đối chiếu bản gốc giấy hẹn",
+  "daXuatKho": true
 }
 
 ### Lưu ID phiếu xuất kho vừa tạo

@@ -32,4 +32,14 @@ public interface IUserService
     /// Xác thực đăng nhập bằng tên đăng nhập/email và mật khẩu.
     /// </summary>
     Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Đổi mật khẩu cho chính người dùng hiện tại đang đăng nhập.
+    /// </summary>
+    Task<UserActionResponse> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Đặt lại (reset) mật khẩu cho người dùng chỉ định (Chỉ dành riêng cho tài khoản có vai trò Quản trị viên - Admin).
+    /// </summary>
+    Task<UserActionResponse> AdminResetPasswordAsync(string targetUserIdOrUsername, string newPassword, bool unlockAccount = true, CancellationToken cancellationToken = default);
 }

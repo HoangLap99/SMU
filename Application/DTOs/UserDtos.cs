@@ -209,3 +209,90 @@ public class CurrentUserProfileResponse
     public string? FullName { get; set; }
     public bool IsAuthenticated { get; set; }
 }
+
+/// <summary>
+/// Yêu cầu đổi mật khẩu cho chính người dùng đang đăng nhập.
+/// </summary>
+public class ChangePasswordRequest
+{
+    /// <summary>
+    /// Mật khẩu hiện tại của người dùng.
+    /// </summary>
+    [Required(ErrorMessage = "Vui lòng nhập mật khẩu hiện tại.")]
+    public string OldPassword { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Mật khẩu mới cần đổi (tối thiểu 6 ký tự).
+    /// </summary>
+    [Required(ErrorMessage = "Vui lòng nhập mật khẩu mới.")]
+    [MinLength(6, ErrorMessage = "Mật khẩu mới phải có ít nhất 6 ký tự.")]
+    [MaxLength(100, ErrorMessage = "Mật khẩu mới không được vượt quá 100 ký tự.")]
+    public string NewPassword { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Xác nhận lại mật khẩu mới (phải khớp với Mật khẩu mới).
+    /// </summary>
+    [Required(ErrorMessage = "Vui lòng xác nhận lại mật khẩu mới.")]
+    [Compare(nameof(NewPassword), ErrorMessage = "Mật khẩu xác nhận không khớp với mật khẩu mới.")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Yêu cầu đặt lại (reset) mật khẩu người dùng do Quản trị viên (Admin) thực hiện.
+/// </summary>
+public class AdminResetPasswordRequest
+{
+    /// <summary>
+    /// Mã Id người dùng hoặc Tên đăng nhập (Username) cần reset mật khẩu.
+    /// </summary>
+    [Required(ErrorMessage = "Vui lòng nhập Id người dùng hoặc Tên đăng nhập cần reset mật khẩu.")]
+    public string UserIdOrUsername { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Mật khẩu mới cần đặt lại (tối thiểu 6 ký tự).
+    /// </summary>
+    [Required(ErrorMessage = "Vui lòng nhập mật khẩu mới.")]
+    [MinLength(6, ErrorMessage = "Mật khẩu mới phải có ít nhất 6 ký tự.")]
+    [MaxLength(100, ErrorMessage = "Mật khẩu mới không được vượt quá 100 ký tự.")]
+    public string NewPassword { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tự động mở khóa tài khoản nếu tài khoản đang bị khóa (mặc định: true).
+    /// </summary>
+    public bool UnlockAccount { get; set; } = true;
+}
+
+/// <summary>
+/// Yêu cầu đặt lại (reset) mật khẩu theo Id người dùng trên URL route (dành riêng cho Admin).
+/// </summary>
+public class ResetPasswordByIdRequest
+{
+    /// <summary>
+    /// Mật khẩu mới cần đặt lại (tối thiểu 6 ký tự).
+    /// </summary>
+    [Required(ErrorMessage = "Vui lòng nhập mật khẩu mới.")]
+    [MinLength(6, ErrorMessage = "Mật khẩu mới phải có ít nhất 6 ký tự.")]
+    [MaxLength(100, ErrorMessage = "Mật khẩu mới không được vượt quá 100 ký tự.")]
+    public string NewPassword { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tự động mở khóa tài khoản nếu tài khoản đang bị khóa (mặc định: true).
+    /// </summary>
+    public bool UnlockAccount { get; set; } = true;
+}
+
+/// <summary>
+/// Kết quả phản hồi chung cho các thao tác người dùng (đổi mật khẩu, reset mật khẩu...).
+/// </summary>
+public class UserActionResponse
+{
+    /// <summary>
+    /// Trạng thái thành công.
+    /// </summary>
+    public bool Success { get; set; } = true;
+
+    /// <summary>
+    /// Thông điệp phản hồi kết quả thao tác.
+    /// </summary>
+    public string Message { get; set; } = string.Empty;
+}

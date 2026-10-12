@@ -454,6 +454,11 @@ public class PagedKiemKeKhoRequest
     public string? TrangThai { get; set; }
 
     /// <summary>
+    /// Lọc theo trạng thái xác nhận hoàn tất (true: Đã xác nhận hoàn tất, false: Lưu nháp).
+    /// </summary>
+    public bool? XacNhanHoanTat { get; set; }
+
+    /// <summary>
     /// Khoảng ngày kiểm kê: Từ ngày.
     /// </summary>
     public DateTime? TuNgay { get; set; }
@@ -489,6 +494,7 @@ public class KiemKeKhoResponse
     public int TongChenhLech { get; set; }
     public string TrangThai { get; set; } = "LuuNhap";
     public string TrangThaiTen { get; set; } = "Lưu nháp";
+    public bool XacNhanHoanTat { get; set; } = false;
     public string? GhiChu { get; set; }
     public DateTime Created { get; set; }
     public string? CreatedByName { get; set; }

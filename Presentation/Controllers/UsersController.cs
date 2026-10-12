@@ -157,4 +157,58 @@ public class UsersController : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// Đổi mật khẩu cho chính người dùng đang đăng nhập (Self Change Password).
+    /// Yêu cầu cung cấp mật khẩu hiện tại và mật khẩu mới (tối thiểu 6 ký tự).
+    /// </summary>
+    [HttpPost("change-password")]
+    [ProducesResponseType(typeof(UserActionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<UserActionResponse>> ChangePassword(
+        [FromBody] ChangePasswordRequest request, 
+        CancellationToken cancellationToken)
+    {
+        var result = await _userService.ChangePasswordAsync(request, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Đặt lại (reset) mật khẩu người dùng theo Id hoặc Tên đăng nhập (Chỉ tài khoản có vai trò Quản trị viên - Admin).
+    /// </summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("reset-password")]
+    [ProducesResponseType(typeof(UserActionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<UserActionResponse>> AdminResetPassword(
+        [FromBody] AdminResetPasswordRequest request, 
+        CancellationToken cancellationToken)
+    {
+        var result = await _userService.AdminResetPasswordAsync(request.UserIdOrUsername, request.NewPassword, request.UnlockAccount, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Đặt lại (reset) mật khẩu theo Id người dùng trên đường dẫn URL (Chỉ tài khoản có vai trò Quản trị viên - Admin).
+    /// </summary>
+    /// <param name="id">Mã định danh (Id) người dùng cần đặt lại mật khẩu.</param>
+    /// <param name="request">Thông tin mật khẩu mới.</param>
+    /// <param name="cancellationToken">Token hủy yêu cầu.</param>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("{id}/reset-password")]
+    [ProducesResponseType(typeof(UserActionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<UserActionResponse>> ResetPasswordById(
+        [FromRoute] string id,
+        [FromBody] ResetPasswordByIdRequest request, 
+        CancellationToken cancellationToken)
+    {
+        var result = await _userService.AdminResetPasswordAsync(id, request.NewPassword, request.UnlockAccount, cancellationToken);
+        return Ok(result);
+    }
 }

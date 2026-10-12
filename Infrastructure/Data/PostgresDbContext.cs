@@ -283,6 +283,8 @@ public class PostgresDbContext : DbContext
             entity.HasIndex(e => new { e.CustomerId, e.SoBienLai });
             entity.HasIndex(e => e.NgayThucHien);
             entity.HasIndex(e => e.KhoBienSoId);
+            entity.HasIndex(e => e.DaXuatKho);
+            entity.HasIndex(e => e.TrangThai);
         });
 
         modelBuilder.Entity<CapLaiDangKyXe>(entity =>
@@ -300,6 +302,8 @@ public class PostgresDbContext : DbContext
             entity.ToTable("KiemKeKho");
             entity.HasIndex(e => new { e.CustomerId, e.MaPhieuKiemKe });
             entity.HasIndex(e => e.NgayKiemKe);
+            entity.HasIndex(e => e.XacNhanHoanTat);
+            entity.HasIndex(e => e.TrangThai);
             entity.HasMany(e => e.DanhSachNhomDauBien)
                 .WithOne(e => e.KiemKeKho)
                 .HasForeignKey(e => e.KiemKeKhoId)

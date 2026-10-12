@@ -209,10 +209,15 @@ public class XuatKhoBienSo : Audit
     public string? GhiChu { get; set; }
 
     /// <summary>
-    /// Trạng thái phiếu xuất kho ("HoanTat", "DaHuy").
+    /// Trạng thái phiếu xuất kho ("HoanTat", "LuuTam", "DaHuy").
     /// </summary>
     [StringLength(50)]
     public string TrangThai { get; set; } = "HoanTat";
+
+    /// <summary>
+    /// Đánh dấu đã thực hiện xuất kho hay chưa (true: Đã xuất kho -> Cập nhật KhoBienSo; false: Lưu tạm / Lập thủ tục chưa xuất kho).
+    /// </summary>
+    public bool DaXuatKho { get; set; } = false;
 
     #endregion
 }

@@ -95,9 +95,7 @@ public static class ServiceCollectionExtensions
 
         // 2. Cấu hình Options tự động validate
         services.AddOptions<GeminiSettings>()
-            .Bind(configuration.GetSection(GeminiSettings.SectionName))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
+            .Bind(configuration.GetSection(GeminiSettings.SectionName));
 
         services.AddOptions<FileStorageSettings>()
             .Bind(configuration.GetSection(FileStorageSettings.SectionName))

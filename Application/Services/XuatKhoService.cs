@@ -314,17 +314,28 @@ public class XuatKhoService : IXuatKhoService
 
         bool isAdd = string.IsNullOrWhiteSpace(request.Id);
 
-        if (isAdd)
+        // Nếu thực hiện xuất kho (DaXuatKho == true): kiểm tra biển số phải khả dụng trong kho
+        if (request.DaXuatKho)
         {
-            // Kiểm tra biển số đã bị xuất kho chưa
-            if (bienSo.DaXuatKho)
+            if (isAdd)
+            {
+                if (bienSo.DaXuatKho)
+                {
+                    throw new InvalidOperationException($"Biển số '{bienSo.BienKiemSoat}' đã được xuất kho trước đó và không còn khả dụng.");
+                }
+
+                if (bienSo.TrangThai != "DuocBam")
+                {
+                    throw new InvalidOperationException($"Biển số '{bienSo.BienKiemSoat}' hiện ở trạng thái '{bienSo.TrangThaiTen}', không thuộc diện Biển được bấm để xuất kho.");
+                }
+            }
+        }
+        else
+        {
+            // Trường hợp lưu tạm (DaXuatKho == false): nếu biển số đã bị xuất kho chính thức bởi phiếu khác
+            if (isAdd && bienSo.DaXuatKho)
             {
                 throw new InvalidOperationException($"Biển số '{bienSo.BienKiemSoat}' đã được xuất kho trước đó và không còn khả dụng.");
-            }
-
-            if (bienSo.TrangThai != "DuocBam")
-            {
-                throw new InvalidOperationException($"Biển số '{bienSo.BienKiemSoat}' hiện ở trạng thái '{bienSo.TrangThaiTen}', không thuộc diện Biển được bấm để xuất kho.");
             }
         }
 
@@ -412,7 +423,8 @@ public class XuatKhoService : IXuatKhoService
                 SoCccd = request.SoCccd?.Trim(),
                 MaHoSoDvc = request.MaHoSoDvc?.Trim(),
                 GhiChu = request.GhiChu,
-                TrangThai = "HoanTat"
+                DaXuatKho = request.DaXuatKho,
+                TrangThai = request.DaXuatKho ? "HoanTat" : "LuuTam"
             };
 
             await _dbContext.XuatKhoBienSos.AddAsync(xuatKho, cancellationToken);
@@ -427,8 +439,8 @@ public class XuatKhoService : IXuatKhoService
                 throw new ArgumentException($"Không tìm thấy phiếu xuất kho với Id '{request.Id}'.");
             }
 
-            // Nếu thay đổi sang biển số khác, hoàn tác biển số cũ
-            if (existing.KhoBienSoId != request.KhoBienSoId)
+            // Xử lý chuyển đổi biển số cũ nếu trước đó phiếu đã xuất kho và nay đổi sang biển số khác hoặc chuyển sang chưa xuất kho
+            if (existing.DaXuatKho && (existing.KhoBienSoId != request.KhoBienSoId || !request.DaXuatKho))
             {
                 var oldBienSo = await _dbContext.KhoBienSos
                     .FirstOrDefaultAsync(x => x.Id == existing.KhoBienSoId, cancellationToken);
@@ -439,11 +451,31 @@ public class XuatKhoService : IXuatKhoService
                     oldBienSo.XuatKhoId = null;
                     oldBienSo.TrangThai = "DuocBam";
                     oldBienSo.TrangThaiTen = "Biển được bấm (Tồn kho)";
-                }
 
+                    if (!string.IsNullOrWhiteSpace(oldBienSo.ChiTietDotNhapBienSoId))
+                    {
+                        var oldChiTiet = await _dbContext.ChiTietDotNhapBienSos
+                            .FirstOrDefaultAsync(x => x.Id == oldBienSo.ChiTietDotNhapBienSoId, cancellationToken);
+                        if (oldChiTiet != null)
+                        {
+                            oldChiTiet.TrangThaiBienSoTen = "Biển được bấm (Tồn kho)";
+                            oldChiTiet.MauSacHienThi = "success";
+                        }
+                    }
+                }
+            }
+
+            // Nếu cập nhật thành xuất kho với biển số mới hoặc phiếu trước đó chưa xuất kho:
+            if (request.DaXuatKho && (!existing.DaXuatKho || existing.KhoBienSoId != request.KhoBienSoId))
+            {
                 if (bienSo.DaXuatKho)
                 {
-                    throw new InvalidOperationException($"Biển số mới '{bienSo.BienKiemSoat}' đã được xuất kho trước đó.");
+                    throw new InvalidOperationException($"Biển số '{bienSo.BienKiemSoat}' đã được xuất kho trước đó.");
+                }
+
+                if (bienSo.TrangThai != "DuocBam")
+                {
+                    throw new InvalidOperationException($"Biển số '{bienSo.BienKiemSoat}' hiện ở trạng thái '{bienSo.TrangThaiTen}', không thuộc diện Biển được bấm để xuất kho.");
                 }
             }
 
@@ -479,40 +511,45 @@ public class XuatKhoService : IXuatKhoService
             xuatKho.SoCccd = request.SoCccd?.Trim();
             xuatKho.MaHoSoDvc = request.MaHoSoDvc?.Trim();
             xuatKho.GhiChu = request.GhiChu;
+            xuatKho.DaXuatKho = request.DaXuatKho;
+            xuatKho.TrangThai = request.DaXuatKho ? "HoanTat" : "LuuTam";
         }
 
-        // 5. Cập nhật trạng thái xuất kho cho bản ghi KhoBienSo
-        bienSo.DaXuatKho = true;
-        bienSo.NgayXuatKho = request.NgayThucHien;
-        bienSo.XuatKhoId = xuatKho.Id;
-        bienSo.TrangThai = "DaBam";
-        bienSo.TrangThaiTen = "Đã bấm (Đã cấp)";
-
-        // 6. Cập nhật dòng chi tiết đợt nhập (nếu có liên kết)
-        if (!string.IsNullOrWhiteSpace(bienSo.ChiTietDotNhapBienSoId))
+        // 5. NẾU DaXuatKho == true: THAY ĐỔI DỮ LIỆU CỦA KhoBienSo
+        if (request.DaXuatKho)
         {
-            var chiTiet = await _dbContext.ChiTietDotNhapBienSos
-                .FirstOrDefaultAsync(x => x.Id == bienSo.ChiTietDotNhapBienSoId, cancellationToken);
-            if (chiTiet != null)
+            bienSo.DaXuatKho = true;
+            bienSo.NgayXuatKho = request.NgayThucHien;
+            bienSo.XuatKhoId = xuatKho.Id;
+            bienSo.TrangThai = "DaBam";
+            bienSo.TrangThaiTen = "Đã bấm (Đã cấp)";
+
+            // 6. Cập nhật dòng chi tiết đợt nhập (nếu có liên kết)
+            if (!string.IsNullOrWhiteSpace(bienSo.ChiTietDotNhapBienSoId))
             {
-                chiTiet.TrangThaiBienSoTen = "Đã bấm (Đã cấp)";
-                chiTiet.MauSacHienThi = "secondary";
+                var chiTiet = await _dbContext.ChiTietDotNhapBienSos
+                    .FirstOrDefaultAsync(x => x.Id == bienSo.ChiTietDotNhapBienSoId, cancellationToken);
+                if (chiTiet != null)
+                {
+                    chiTiet.TrangThaiBienSoTen = "Đã bấm (Đã cấp)";
+                    chiTiet.MauSacHienThi = "secondary";
+                }
             }
-        }
 
-        // 7. Cập nhật Số hiện tại của Quyển biên lai
-        if (long.TryParse(request.SoBienLai.Trim(), out var soMoi))
-        {
-            if (!quyen.SoHienTai.HasValue || soMoi > quyen.SoHienTai.Value)
+            // 7. Cập nhật Số hiện tại của Quyển biên lai
+            if (long.TryParse(request.SoBienLai.Trim(), out var soMoi))
             {
-                quyen.SoHienTai = soMoi;
+                if (!quyen.SoHienTai.HasValue || soMoi > quyen.SoHienTai.Value)
+                {
+                    quyen.SoHienTai = soMoi;
+                }
             }
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Đã lưu thành công phiếu xuất kho '{Id}' cho biển số '{BienKiemSoat}', số biên lai '{SoBienLai}'",
-            xuatKho.Id, xuatKho.BienKiemSoat, xuatKho.SoBienLai);
+        _logger.LogInformation("Đã lưu thành công phiếu xuất kho '{Id}' cho biển số '{BienKiemSoat}', số biên lai '{SoBienLai}', DaXuatKho = {DaXuatKho}",
+            xuatKho.Id, xuatKho.BienKiemSoat, xuatKho.SoBienLai, xuatKho.DaXuatKho);
 
         return MapToResponse(xuatKho);
     }
@@ -542,6 +579,11 @@ public class XuatKhoService : IXuatKhoService
         if (!string.IsNullOrWhiteSpace(request.KyHieuQuyenBienLaiId))
         {
             query = query.Where(x => x.KyHieuQuyenBienLaiId == request.KyHieuQuyenBienLaiId);
+        }
+
+        if (request.DaXuatKho.HasValue)
+        {
+            query = query.Where(x => x.DaXuatKho == request.DaXuatKho.Value);
         }
 
         if (request.FromDate.HasValue)
@@ -602,7 +644,7 @@ public class XuatKhoService : IXuatKhoService
     }
 
     /// <summary>
-    /// API 7: Xóa phiếu xuất kho theo Id. Hoàn tác trạng thái biển số trong KhoBienSo về DaXuatKho = false, TrangThai = "DuocBam".
+    /// API 7: Xóa phiếu xuất kho theo Id. Hoàn tác trạng thái biển số trong KhoBienSo về DaXuatKho = false, TrangThai = "DuocBam" nếu phiếu đã xuất kho.
     /// </summary>
     public async Task<bool> XoaXuatKhoAsync(string id, CancellationToken cancellationToken = default)
     {
@@ -613,26 +655,29 @@ public class XuatKhoService : IXuatKhoService
 
         if (entity == null) return false;
 
-        // Hoàn tác trạng thái biển số trong KhoBienSo
-        var bienSo = await _dbContext.KhoBienSos
-            .FirstOrDefaultAsync(x => x.Id == entity.KhoBienSoId || x.XuatKhoId == entity.Id, cancellationToken);
-
-        if (bienSo != null)
+        // Hoàn tác trạng thái biển số trong KhoBienSo nếu phiếu đã thực hiện xuất kho (DaXuatKho == true)
+        if (entity.DaXuatKho)
         {
-            bienSo.DaXuatKho = false;
-            bienSo.NgayXuatKho = null;
-            bienSo.XuatKhoId = null;
-            bienSo.TrangThai = "DuocBam";
-            bienSo.TrangThaiTen = "Biển được bấm (Tồn kho)";
+            var bienSo = await _dbContext.KhoBienSos
+                .FirstOrDefaultAsync(x => x.Id == entity.KhoBienSoId || x.XuatKhoId == entity.Id, cancellationToken);
 
-            if (!string.IsNullOrWhiteSpace(bienSo.ChiTietDotNhapBienSoId))
+            if (bienSo != null)
             {
-                var chiTiet = await _dbContext.ChiTietDotNhapBienSos
-                    .FirstOrDefaultAsync(x => x.Id == bienSo.ChiTietDotNhapBienSoId, cancellationToken);
-                if (chiTiet != null)
+                bienSo.DaXuatKho = false;
+                bienSo.NgayXuatKho = null;
+                bienSo.XuatKhoId = null;
+                bienSo.TrangThai = "DuocBam";
+                bienSo.TrangThaiTen = "Biển được bấm (Tồn kho)";
+
+                if (!string.IsNullOrWhiteSpace(bienSo.ChiTietDotNhapBienSoId))
                 {
-                    chiTiet.TrangThaiBienSoTen = "Biển được bấm (Tồn kho)";
-                    chiTiet.MauSacHienThi = "success";
+                    var chiTiet = await _dbContext.ChiTietDotNhapBienSos
+                        .FirstOrDefaultAsync(x => x.Id == bienSo.ChiTietDotNhapBienSoId, cancellationToken);
+                    if (chiTiet != null)
+                    {
+                        chiTiet.TrangThaiBienSoTen = "Biển được bấm (Tồn kho)";
+                        chiTiet.MauSacHienThi = "success";
+                    }
                 }
             }
         }
@@ -640,8 +685,8 @@ public class XuatKhoService : IXuatKhoService
         _dbContext.XuatKhoBienSos.Remove(entity);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Đã xóa phiếu xuất kho '{Id}' và khôi phục biển số '{BienKiemSoat}' về trạng thái tồn kho",
-            entity.Id, entity.BienKiemSoat);
+        _logger.LogInformation("Đã xóa phiếu xuất kho '{Id}' (DaXuatKho = {DaXuatKho}) và hoàn tác biển số '{BienKiemSoat}'",
+            entity.Id, entity.DaXuatKho, entity.BienKiemSoat);
 
         return true;
     }
@@ -690,6 +735,7 @@ public class XuatKhoService : IXuatKhoService
             MaHoSoDvc = x.MaHoSoDvc,
             GhiChu = x.GhiChu,
             TrangThai = x.TrangThai,
+            DaXuatKho = x.DaXuatKho,
             Created = x.Created,
             CreatedByName = x.CreatedByName,
             Modified = x.Modified,

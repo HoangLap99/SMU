@@ -235,6 +235,70 @@ public class NhapKhoService : INhapKhoService
             }
         }
 
+        // 1. Kiểm tra trùng lặp trong nội bộ danh sách gửi lên
+        var duplicateInternal = listBienSoItems
+            .GroupBy(x => x.BienKiemSoat, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (duplicateInternal.Count > 0)
+        {
+            var duplicatesStr = string.Join(", ", duplicateInternal.Take(5));
+            if (duplicateInternal.Count > 5) duplicatesStr += $" và {duplicateInternal.Count - 5} biển khác";
+            throw new ArgumentException($"Danh sách biển số nhập kho có các số bị trùng lặp: {duplicatesStr}. Vui lòng kiểm tra lại.");
+        }
+
+        // 2. Kiểm tra các biển kiểm soát đã tồn tại trong kho (KhoBienSo) hay chưa
+        if (listBienSoItems.Count > 0)
+        {
+            var plateNumbers = listBienSoItems
+                .Select(x => x.BienKiemSoat.Trim().ToUpperInvariant())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var queryKho = _dbContext.KhoBienSos.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrEmpty(customerId))
+            {
+                queryKho = queryKho.Where(x => x.CustomerId == customerId || x.CustomerId == null);
+            }
+
+            // Nếu là cập nhật đợt nhập đang có, loại trừ các biển thuộc về chính đợt nhập này
+            if (isUpdate && dotNhap != null && !string.IsNullOrEmpty(dotNhap.Id))
+            {
+                queryKho = queryKho.Where(x => x.DotNhapKhoId != dotNhap.Id);
+            }
+
+            var existingInKho = await queryKho
+                .Where(x => plateNumbers.Contains(x.BienKiemSoat))
+                .Select(x => new { x.BienKiemSoat, x.DotNhapKhoId })
+                .ToListAsync(cancellationToken);
+
+            if (existingInKho.Count > 0)
+            {
+                var existingDotNhapIds = existingInKho.Select(x => x.DotNhapKhoId).Distinct().ToList();
+                var dotNhapMap = await _dbContext.DotNhapKhos.AsNoTracking()
+                    .Where(d => existingDotNhapIds.Contains(d.Id!))
+                    .ToDictionaryAsync(d => d.Id!, d => d.MaDotNhap, cancellationToken);
+
+                if (existingInKho.Count == 1)
+                {
+                    var item = existingInKho[0];
+                    var maDot = dotNhapMap.TryGetValue(item.DotNhapKhoId, out var md) ? $" (thuộc đợt nhập '{md}')" : "";
+                    throw new ArgumentException($"Biển kiểm soát '{item.BienKiemSoat}' đã tồn tại trong kho{maDot}. Không thể nhập trùng!");
+                }
+                else
+                {
+                    var distinctPlates = existingInKho.Select(x => x.BienKiemSoat).Distinct().ToList();
+                    var samplePlates = string.Join(", ", distinctPlates.Take(5));
+                    var moreCount = distinctPlates.Count - 5;
+                    var moreText = moreCount > 0 ? $" và {moreCount} biển khác" : "";
+                    throw new ArgumentException($"Phát hiện {distinctPlates.Count} biển kiểm soát đã tồn tại trong kho ({samplePlates}{moreText}). Vui lòng kiểm tra lại!");
+                }
+            }
+        }
+
         int tongSoBien = listBienSoItems.Count;
         int soBienDuocBam = listBienSoItems.Count(x => !x.LaBienDauGia);
         int soBienChoDauGia = listBienSoItems.Count(x => x.LaBienDauGia);
@@ -325,24 +389,90 @@ public class NhapKhoService : INhapKhoService
                 _dbContext.KhoBienSos.RemoveRange(oldKhoEntities);
             }
 
+            // 1. Tự động trích xuất các đầu biển số từ danh sách biển số nhập kho và lưu vào danh mục DauBienSo
+            // Quy tắc: bỏ 2 số cuối đi, ví dụ 30H-123456 -> Ma = Ten = 30H-123, 30H-000.01 -> 30H-000
+            // CustomerId = CustomerId của đợt nhập
+            var dauBienMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            var distinctDauBiens = listBienSoItems
+                .Select(x => TrichXuatDauBienSo(x.BienKiemSoat))
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (distinctDauBiens.Count > 0)
+            {
+                var existingDauBiens = await _dbContext.DauBienSos
+                    .Where(x => (dotNhap.CustomerId == null ? x.CustomerId == null : x.CustomerId == dotNhap.CustomerId))
+                    .ToListAsync(cancellationToken);
+
+                var existingMap = existingDauBiens
+                    .Where(x => distinctDauBiens.Contains(x.Ma, StringComparer.OrdinalIgnoreCase))
+                    .ToDictionary(x => x.Ma, x => x.Id!, StringComparer.OrdinalIgnoreCase);
+
+                foreach (var dbCode in distinctDauBiens)
+                {
+                    if (existingMap.TryGetValue(dbCode, out var existingId))
+                    {
+                        dauBienMap[dbCode] = existingId;
+                    }
+                    else
+                    {
+                        var newDauBien = new DauBienSo
+                        {
+                            CustomerId = dotNhap.CustomerId,
+                            Ma = dbCode,
+                            Ten = dbCode,
+                            KyHieuSeries = dbCode,
+                            ThuTu = 0,
+                            IsActive = true
+                        };
+                        _dbContext.DauBienSos.Add(newDauBien);
+                        dauBienMap[dbCode] = newDauBien.Id!;
+                        _logger.LogInformation("Tự động thêm mới Đầu biển số '{Ma}' vào danh mục DauBienSo cho CustomerId: '{CustomerId}'", dbCode, dotNhap.CustomerId);
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(dotNhap.KyHieuDaiDauBien))
+                {
+                    dotNhap.KyHieuDaiDauBien = JsonSerializer.Serialize(distinctDauBiens);
+                }
+            }
+
+            // Gán DauBienSoId cho từng ChiTietDotNhapBienSo
+            foreach (var item in listBienSoItems)
+            {
+                var code = TrichXuatDauBienSo(item.BienKiemSoat);
+                if (code != null && dauBienMap.TryGetValue(code, out var dbId))
+                {
+                    item.DauBienSoId ??= dbId;
+                }
+            }
+
             // ĐIỀU KIỆN QUAN TRỌNG: Biển số đem đấu giá (LaBienDauGia == true) thì SẼ KHÔNG LƯU vào bảng KhoBienSo
             var bienSoLuuKho = listBienSoItems.Where(x => !x.LaBienDauGia).ToList();
-            var listKhoEntities = bienSoLuuKho.Select(item => new KhoBienSo
+            var listKhoEntities = bienSoLuuKho.Select(item =>
             {
-                CustomerId = dotNhap.CustomerId,
-                DotNhapKhoId = dotNhap.Id!,
-                ChiTietDotNhapBienSoId = item.Id!,
-                ThuTu = item.ThuTu,
-                BienKiemSoat = item.BienKiemSoat,
-                TrangThaiBienSoId = item.TrangThaiBienSoId,
-                TrangThai = "DuocBam",
-                TrangThaiTen = item.TrangThaiBienSoTen,
-                LaBienDauGia = false,
-                LoaiXeId = item.LoaiXeId ?? dotNhap.LoaiXeId,
-                MauBienSoId = item.MauBienSoId ?? dotNhap.MauBienSoId,
-                DauBienSoId = item.DauBienSoId,
-                GhiChu = item.GhiChu ?? "Nhập kho chính thức",
-                NgayNhapKho = dotNhap.NgayNhapKhoThucTe ?? DateTime.UtcNow
+                var code = TrichXuatDauBienSo(item.BienKiemSoat);
+                var dauBienId = (code != null && dauBienMap.TryGetValue(code, out var dbId)) ? dbId : item.DauBienSoId;
+                return new KhoBienSo
+                {
+                    CustomerId = dotNhap.CustomerId,
+                    DotNhapKhoId = dotNhap.Id!,
+                    ChiTietDotNhapBienSoId = item.Id!,
+                    ThuTu = item.ThuTu,
+                    BienKiemSoat = item.BienKiemSoat,
+                    TrangThaiBienSoId = item.TrangThaiBienSoId,
+                    TrangThai = "DuocBam",
+                    TrangThaiTen = item.TrangThaiBienSoTen,
+                    LaBienDauGia = false,
+                    LoaiXeId = item.LoaiXeId ?? dotNhap.LoaiXeId,
+                    MauBienSoId = item.MauBienSoId ?? dotNhap.MauBienSoId,
+                    DauBienSoId = dauBienId,
+                    GhiChu = item.GhiChu ?? "Nhập kho chính thức",
+                    NgayNhapKho = dotNhap.NgayNhapKhoThucTe ?? DateTime.UtcNow
+                };
             }).ToList();
 
             if (listKhoEntities.Count > 0)
@@ -523,5 +653,54 @@ public class NhapKhoService : INhapKhoService
         _logger.LogInformation("Đã xóa hoàn toàn đợt nhập kho '{MaDotNhap}' (Id: {Id}) và các biển số liên quan.", dotNhap.MaDotNhap, dotNhap.Id);
 
         return true;
+    }
+
+    /// <summary>
+    /// Trích xuất đầu biển số từ biển kiểm soát theo quy tắc:
+    /// Bỏ 2 số cuối đi, phần còn lại lưu vào danh mục DauBienSo.
+    /// Ví dụ: "30H-123456" -> "30H-123", "30H-000.01" -> "30H-000", "30H-123.45" -> "30H-123".
+    /// </summary>
+    public static string? TrichXuatDauBienSo(string? bienKiemSoat)
+    {
+        if (string.IsNullOrWhiteSpace(bienKiemSoat))
+            return null;
+
+        var bks = bienKiemSoat.Trim().ToUpperInvariant();
+
+        // 1. Trường hợp có dấu chấm (30H-000.01, 30H-123.45, 30B-207.66)
+        var dotIndex = bks.LastIndexOf('.');
+        if (dotIndex > 0)
+        {
+            return bks.Substring(0, dotIndex);
+        }
+
+        // 2. Trường hợp có dấu gạch ngang (30H-123456, 30H-12345)
+        var dashIndex = bks.LastIndexOf('-');
+        if (dashIndex > 0 && dashIndex < bks.Length - 1)
+        {
+            var prefix = bks.Substring(0, dashIndex);
+            var numberPart = bks.Substring(dashIndex + 1);
+
+            // Với dải số 5 hoặc 6 chữ số: lấy 3 số đầu (bỏ 2 số cuối của biển 5 số)
+            if (numberPart.Length >= 5)
+            {
+                return $"{prefix}-{numberPart.Substring(0, 3)}";
+            }
+
+            if (numberPart.Length > 2)
+            {
+                return $"{prefix}-{numberPart.Substring(0, numberPart.Length - 2)}";
+            }
+
+            return prefix;
+        }
+
+        // 3. Trường hợp chuỗi liền không có dấu: bỏ 2 số cuối
+        if (bks.Length > 2)
+        {
+            return bks.Substring(0, bks.Length - 2);
+        }
+
+        return bks;
     }
 }

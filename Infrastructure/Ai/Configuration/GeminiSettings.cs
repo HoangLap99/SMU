@@ -1,20 +1,26 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace SMU.Infrastructure.Ai.Configuration;
 
 /// <summary>
 /// Cấu hình kết nối tới Google Gemini AI.
-/// Hỗ trợ Options Pattern với xác thực tự động lúc khởi động.
+/// Các giá trị có thể để rỗng khi không sử dụng tính năng Gemini AI.
 /// </summary>
 public class GeminiSettings
 {
     public const string SectionName = "Gemini";
 
-    [Required(ErrorMessage = "Gemini API Key là bắt buộc.")]
     public string ApiKey { get; set; } = string.Empty;
 
-    public string Model { get; set; } = "gemini-1.5-flash";
+    private string _model = "gemini-1.5-flash";
+    public string Model
+    {
+        get => string.IsNullOrWhiteSpace(_model) ? "gemini-1.5-flash" : _model;
+        set => _model = value;
+    }
 
-    [Url(ErrorMessage = "BaseUrl phải là định dạng URL hợp lệ.")]
-    public string BaseUrl { get; set; } = "https://generativelanguage.googleapis.com/v1beta";
+    private string _baseUrl = "https://generativelanguage.googleapis.com/v1beta";
+    public string BaseUrl
+    {
+        get => string.IsNullOrWhiteSpace(_baseUrl) ? "https://generativelanguage.googleapis.com/v1beta" : _baseUrl;
+        set => _baseUrl = value;
+    }
 }

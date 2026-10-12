@@ -1665,6 +1665,11 @@
             Lọc theo trạng thái: "LuuNhap", "HoanTat".
             </summary>
         </member>
+        <member name="P:SMU.Application.DTOs.PagedKiemKeKhoRequest.XacNhanHoanTat">
+            <summary>
+            Lọc theo trạng thái xác nhận hoàn tất (true: Đã xác nhận hoàn tất, false: Lưu nháp).
+            </summary>
+        </member>
         <member name="P:SMU.Application.DTOs.PagedKiemKeKhoRequest.TuNgay">
             <summary>
             Khoảng ngày kiểm kê: Từ ngày.
@@ -2396,6 +2401,76 @@
             Dữ liệu thông tin người dùng hiện tại đang gửi yêu cầu (Current User Identity).
             </summary>
         </member>
+        <member name="T:SMU.Application.DTOs.ChangePasswordRequest">
+            <summary>
+            Yêu cầu đổi mật khẩu cho chính người dùng đang đăng nhập.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ChangePasswordRequest.OldPassword">
+            <summary>
+            Mật khẩu hiện tại của người dùng.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ChangePasswordRequest.NewPassword">
+            <summary>
+            Mật khẩu mới cần đổi (tối thiểu 6 ký tự).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ChangePasswordRequest.ConfirmPassword">
+            <summary>
+            Xác nhận lại mật khẩu mới (phải khớp với Mật khẩu mới).
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.AdminResetPasswordRequest">
+            <summary>
+            Yêu cầu đặt lại (reset) mật khẩu người dùng do Quản trị viên (Admin) thực hiện.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.AdminResetPasswordRequest.UserIdOrUsername">
+            <summary>
+            Mã Id người dùng hoặc Tên đăng nhập (Username) cần reset mật khẩu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.AdminResetPasswordRequest.NewPassword">
+            <summary>
+            Mật khẩu mới cần đặt lại (tối thiểu 6 ký tự).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.AdminResetPasswordRequest.UnlockAccount">
+            <summary>
+            Tự động mở khóa tài khoản nếu tài khoản đang bị khóa (mặc định: true).
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.ResetPasswordByIdRequest">
+            <summary>
+            Yêu cầu đặt lại (reset) mật khẩu theo Id người dùng trên URL route (dành riêng cho Admin).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ResetPasswordByIdRequest.NewPassword">
+            <summary>
+            Mật khẩu mới cần đặt lại (tối thiểu 6 ký tự).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ResetPasswordByIdRequest.UnlockAccount">
+            <summary>
+            Tự động mở khóa tài khoản nếu tài khoản đang bị khóa (mặc định: true).
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.UserActionResponse">
+            <summary>
+            Kết quả phản hồi chung cho các thao tác người dùng (đổi mật khẩu, reset mật khẩu...).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.UserActionResponse.Success">
+            <summary>
+            Trạng thái thành công.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.UserActionResponse.Message">
+            <summary>
+            Thông điệp phản hồi kết quả thao tác.
+            </summary>
+        </member>
         <member name="T:SMU.Application.DTOs.FilterBienSoKhaDungRequest">
             <summary>
             Yêu cầu lọc danh sách biển số khả dụng trong kho.
@@ -2586,6 +2661,11 @@
         <member name="P:SMU.Application.DTOs.SetXuatKhoRequest.GhiChu">
             <summary>
             Ghi chú bổ sung (tùy chọn).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.SetXuatKhoRequest.DaXuatKho">
+            <summary>
+            Trạng thái đã xuất kho hay chưa. Nếu DaXuatKho == true thì mới thay đổi dữ liệu của KhoBienSo.
             </summary>
         </member>
         <member name="T:SMU.Application.DTOs.PagedXuatKhoRequest">
@@ -3095,6 +3175,16 @@
             Xác thực đăng nhập bằng tên đăng nhập/email và mật khẩu.
             </summary>
         </member>
+        <member name="M:SMU.Application.Interfaces.IUserService.ChangePasswordAsync(SMU.Application.DTOs.ChangePasswordRequest,System.Threading.CancellationToken)">
+            <summary>
+            Đổi mật khẩu cho chính người dùng hiện tại đang đăng nhập.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IUserService.AdminResetPasswordAsync(System.String,System.String,System.Boolean,System.Threading.CancellationToken)">
+            <summary>
+            Đặt lại (reset) mật khẩu cho người dùng chỉ định (Chỉ dành riêng cho tài khoản có vai trò Quản trị viên - Admin).
+            </summary>
+        </member>
         <member name="T:SMU.Application.Interfaces.IXuatKhoService">
             <summary>
             Interface dịch vụ Quản lý Xuất kho biển số xe:
@@ -3399,6 +3489,13 @@
             4. (GET) Xóa đợt nhập kho theo Id.
             </summary>
         </member>
+        <member name="M:SMU.Application.Services.NhapKhoService.TrichXuatDauBienSo(System.String)">
+            <summary>
+            Trích xuất đầu biển số từ biển kiểm soát theo quy tắc:
+            Bỏ 2 số cuối đi, phần còn lại lưu vào danh mục DauBienSo.
+            Ví dụ: "30H-123456" -> "30H-123", "30H-000.01" -> "30H-000", "30H-123.45" -> "30H-123".
+            </summary>
+        </member>
         <member name="T:SMU.Application.Services.TonKhoService">
             <summary>
             Service triển khai các nghiệp vụ Quản lý Tồn kho biển số xe:
@@ -3490,7 +3587,7 @@
         </member>
         <member name="M:SMU.Application.Services.XuatKhoService.XoaXuatKhoAsync(System.String,System.Threading.CancellationToken)">
             <summary>
-            API 7: Xóa phiếu xuất kho theo Id. Hoàn tác trạng thái biển số trong KhoBienSo về DaXuatKho = false, TrangThai = "DuocBam".
+            API 7: Xóa phiếu xuất kho theo Id. Hoàn tác trạng thái biển số trong KhoBienSo về DaXuatKho = false, TrangThai = "DuocBam" nếu phiếu đã xuất kho.
             </summary>
         </member>
         <member name="T:SMU.Core.Entities.Account">
@@ -4418,6 +4515,11 @@
             - "HoanTat": Xác nhận hoàn tất, chốt số liệu kiểm kê.
             </summary>
         </member>
+        <member name="P:SMU.Core.Entities.KiemKeKho.XacNhanHoanTat">
+            <summary>
+            Đánh dấu Xác nhận hoàn tất (true: Xác nhận hoàn tất -> đồng bộ/thay đổi dữ liệu KhoBienSo; false: Lưu nháp).
+            </summary>
+        </member>
         <member name="P:SMU.Core.Entities.KiemKeKho.GhiChu">
             <summary>
             Ghi chú chung của phiếu kiểm kê.
@@ -4785,7 +4887,12 @@
         </member>
         <member name="P:SMU.Core.Entities.XuatKhoBienSo.TrangThai">
             <summary>
-            Trạng thái phiếu xuất kho ("HoanTat", "DaHuy").
+            Trạng thái phiếu xuất kho ("HoanTat", "LuuTam", "DaHuy").
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.XuatKhoBienSo.DaXuatKho">
+            <summary>
+            Đánh dấu đã thực hiện xuất kho hay chưa (true: Đã xuất kho -> Cập nhật KhoBienSo; false: Lưu tạm / Lập thủ tục chưa xuất kho).
             </summary>
         </member>
         <member name="T:SMU.Core.Enums.CustomerStatus">
@@ -4891,7 +4998,7 @@
         <member name="T:SMU.Infrastructure.Ai.Configuration.GeminiSettings">
             <summary>
             Cấu hình kết nối tới Google Gemini AI.
-            Hỗ trợ Options Pattern với xác thực tự động lúc khởi động.
+            Các giá trị có thể để rỗng khi không sử dụng tính năng Gemini AI.
             </summary>
         </member>
         <member name="T:SMU.Infrastructure.Ai.GeminiService">
@@ -4906,12 +5013,15 @@
         </member>
         <member name="T:SMU.Infrastructure.Data.DbInitializer">
             <summary>
-            Khởi tạo và gieo dữ liệu mặc định (Seed Data) cho hệ thống khi ứng dụng khởi động.
+            Quản lý kiểm tra cấu trúc cơ sở dữ liệu khi ứng dụng khởi động.
+            Không tự động thêm bất kỳ dữ liệu nào (danh mục, tài khoản, đợt nhập, xuất kho) vào database.
+            Toàn bộ dữ liệu được quản lý và nhập thủ công qua giao diện người dùng.
             </summary>
         </member>
         <member name="M:SMU.Infrastructure.Data.DbInitializer.SeedAsync(System.IServiceProvider)">
             <summary>
-            Khởi tạo tài khoản Admin mặc định, danh mục nghiệp vụ và dữ liệu mẫu đợt nhập kho.
+            Đảm bảo cấu trúc cột và chỉ mục trong cơ sở dữ liệu.
+            Tuyệt đối không can thiệp hoặc thêm dữ liệu vào database.
             </summary>
         </member>
         <member name="T:SMU.Infrastructure.Data.PostgresDbContext">
@@ -5317,6 +5427,18 @@
             <inheritdoc />
         </member>
         <member name="M:SMU.Migrations.Postgres.AddCapLaiDangKyXe.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:SMU.Migrations.Postgres.AddDaXuatKhoVaXacNhanHoanTat">
+            <inheritdoc />
+        </member>
+        <member name="M:SMU.Migrations.Postgres.AddDaXuatKhoVaXacNhanHoanTat.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:SMU.Migrations.Postgres.AddDaXuatKhoVaXacNhanHoanTat.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:SMU.Migrations.Postgres.AddDaXuatKhoVaXacNhanHoanTat.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
             <inheritdoc />
         </member>
         <member name="T:SMU.Presentation.Controllers.BaoCaoBienThienController">
@@ -5997,6 +6119,25 @@
             Endpoint công khai không yêu cầu token xác thực.
             </summary>
         </member>
+        <member name="M:SMU.Presentation.Controllers.UsersController.ChangePassword(SMU.Application.DTOs.ChangePasswordRequest,System.Threading.CancellationToken)">
+            <summary>
+            Đổi mật khẩu cho chính người dùng đang đăng nhập (Self Change Password).
+            Yêu cầu cung cấp mật khẩu hiện tại và mật khẩu mới (tối thiểu 6 ký tự).
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.UsersController.AdminResetPassword(SMU.Application.DTOs.AdminResetPasswordRequest,System.Threading.CancellationToken)">
+            <summary>
+            Đặt lại (reset) mật khẩu người dùng theo Id hoặc Tên đăng nhập (Chỉ tài khoản có vai trò Quản trị viên - Admin).
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.UsersController.ResetPasswordById(System.String,SMU.Application.DTOs.ResetPasswordByIdRequest,System.Threading.CancellationToken)">
+            <summary>
+            Đặt lại (reset) mật khẩu theo Id người dùng trên đường dẫn URL (Chỉ tài khoản có vai trò Quản trị viên - Admin).
+            </summary>
+            <param name="id">Mã định danh (Id) người dùng cần đặt lại mật khẩu.</param>
+            <param name="request">Thông tin mật khẩu mới.</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+        </member>
         <member name="T:SMU.Presentation.Controllers.XuatKhoController">
             <summary>
             Controller quản lý Lập thủ tục &amp; Biên lai thu tiền (Xuất kho biển số xe):
@@ -6028,7 +6169,8 @@
         <member name="M:SMU.Presentation.Controllers.XuatKhoController.Set(SMU.Application.DTOs.SetXuatKhoRequest,System.Threading.CancellationToken)">
             <summary>
             API 4: (POST) Thêm mới và cập nhật phiếu Lập thủ tục &amp; Biên lai thu tiền (Xuất kho).
-            Tự động cập nhật biển số trong bảng KhoBienSo sang DaXuatKho = true, TrangThai = 'DaBam' và tăng số hiện tại của quyển biên lai.
+            - Nếu DaXuatKho = true: Cập nhật biển số trong bảng KhoBienSo sang DaXuatKho = true, TrangThai = 'DaBam' và tăng số hiện tại của quyển biên lai.
+            - Nếu DaXuatKho = false: Lưu phiếu dạng lưu tạm / dự thảo, KHÔNG thay đổi dữ liệu trong KhoBienSo.
             </summary>
         </member>
         <member name="M:SMU.Presentation.Controllers.XuatKhoController.LayDanhSach(SMU.Application.DTOs.PagedXuatKhoRequest,System.Threading.CancellationToken)">

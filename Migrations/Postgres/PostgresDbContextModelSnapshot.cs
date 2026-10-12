@@ -29,7 +29,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -46,10 +46,10 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LastLoginAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -67,10 +67,10 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("TrialEndDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("TrialStartDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("UserId")
                         .HasMaxLength(36)
@@ -96,7 +96,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -125,7 +125,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -166,7 +166,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(50)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -220,7 +220,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -234,10 +234,10 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("NgayBienLai")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("NgayXacNhan")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("NguoiXacNhan")
                         .HasMaxLength(250)
@@ -292,7 +292,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(50)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -334,7 +334,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(50)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -376,7 +376,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(50)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -390,7 +390,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(2000)");
 
                     b.Property<DateTime?>("EndDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("GioiHanUser")
                         .HasColumnType("integer");
@@ -403,7 +403,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("boolean");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -418,7 +418,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(250)");
 
                     b.Property<DateTime?>("StartDate")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -439,7 +439,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -473,7 +473,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -509,7 +509,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(250)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -547,7 +547,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -557,10 +557,10 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("text");
 
                     b.Property<DateTime>("NgayNhapKho")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("NgayNhapKhoThucTe")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("NguoiNhapKho")
                         .HasMaxLength(250)
@@ -607,7 +607,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -636,7 +636,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -677,7 +677,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -718,7 +718,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -728,10 +728,10 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("text");
 
                     b.Property<DateTime>("NgayNhapKho")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime?>("NgayXuatKho")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<int>("ThuTu")
                         .HasColumnType("integer");
@@ -772,7 +772,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -801,7 +801,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -841,7 +841,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(250)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -877,7 +877,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -887,7 +887,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("text");
 
                     b.Property<DateTime>("NgayKiemKe")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ThoiGianKiemKe")
                         .HasMaxLength(100)
@@ -911,9 +911,16 @@ namespace SMU.Migrations.Postgres
                         .HasMaxLength(250)
                         .HasColumnType("character varying(250)");
 
+                    b.Property<bool>("XacNhanHoanTat")
+                        .HasColumnType("boolean");
+
                     b.HasKey("Id");
 
                     b.HasIndex("NgayKiemKe");
+
+                    b.HasIndex("TrangThai");
+
+                    b.HasIndex("XacNhanHoanTat");
 
                     b.HasIndex("CustomerId", "MaPhieuKiemKe");
 
@@ -932,7 +939,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(50)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -973,7 +980,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(50)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -1010,7 +1017,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -1051,7 +1058,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -1096,7 +1103,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -1129,7 +1136,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -1174,7 +1181,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(500)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -1203,7 +1210,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -1239,7 +1246,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -1265,7 +1272,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -1307,7 +1314,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -1341,7 +1348,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -1380,7 +1387,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(250)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -1422,7 +1429,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -1462,7 +1469,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -1481,7 +1488,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -1513,7 +1520,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -1543,7 +1550,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -1578,7 +1585,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("boolean");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -1608,7 +1615,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -1648,7 +1655,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(200)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -1674,7 +1681,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("boolean");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -1707,7 +1714,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(36)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -1736,7 +1743,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(1000)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -1781,7 +1788,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(500)");
 
                     b.Property<DateTime>("Created")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("CreatedById")
                         .HasMaxLength(36)
@@ -1793,6 +1800,9 @@ namespace SMU.Migrations.Postgres
                     b.Property<string>("CustomerId")
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)");
+
+                    b.Property<bool>("DaXuatKho")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("DauBienSoId")
                         .HasMaxLength(36)
@@ -1869,7 +1879,7 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("Modified")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("ModifileById")
                         .HasMaxLength(36)
@@ -1892,10 +1902,10 @@ namespace SMU.Migrations.Postgres
                         .HasColumnType("character varying(500)");
 
                     b.Property<DateTime>("NgayBienLai")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("NgayThucHien")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("SoBienLai")
                         .IsRequired()
@@ -1924,9 +1934,13 @@ namespace SMU.Migrations.Postgres
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DaXuatKho");
+
                     b.HasIndex("KhoBienSoId");
 
                     b.HasIndex("NgayThucHien");
+
+                    b.HasIndex("TrangThai");
 
                     b.HasIndex("CustomerId", "BienKiemSoat");
 

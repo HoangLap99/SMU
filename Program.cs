@@ -42,7 +42,7 @@ app.MapGet("/", () => Results.Redirect("swagger/index.html"));
 
 app.MapControllers();
 
-// Khởi tạo dữ liệu mẫu (Admin account: admin / 123456)
+// Đảm bảo cấu trúc các cột trong cơ sở dữ liệu (không tự động thêm dữ liệu)
 await DbInitializer.SeedAsync(app.Services);
 
 app.Run();

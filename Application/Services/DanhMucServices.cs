@@ -58,29 +58,29 @@ public abstract class BaseDanhMucService<TEntity, TResponse, TSetRequest>
         var currentUserId = CurrentUserService.UserId;
         var query = GetBaseQuery();
 
-        // 1. Lọc theo CustomerId nếu được truyền vào
-        if (!string.IsNullOrWhiteSpace(customerId))
-        {
-            query = query.Where(x => x.CustomerId == customerId);
-        }
-        else if (!string.IsNullOrWhiteSpace(CurrentUserService.CustomerId))
-        {
-            var cid = CurrentUserService.CustomerId;
-            query = query.Where(x => x.CustomerId == null || x.CustomerId == cid);
-        }
-        else if (!string.IsNullOrWhiteSpace(currentUserId))
-        {
-            var userCustomerIds = await DbContext.Users
-                .AsNoTracking()
-                .Where(u => u.Id == currentUserId && u.IsActive && u.CustomerId != null)
-                .Select(u => u.CustomerId!)
-                .ToListAsync(cancellationToken);
+        //// 1. Lọc theo CustomerId nếu được truyền vào
+        //if (!string.IsNullOrWhiteSpace(customerId))
+        //{
+        //    query = query.Where(x => x.CustomerId == customerId);
+        //}
+        //else if (!string.IsNullOrWhiteSpace(CurrentUserService.CustomerId))
+        //{
+        //    var cid = CurrentUserService.CustomerId;
+        //    query = query.Where(x => x.CustomerId == null || x.CustomerId == cid);
+        //}
+        //else if (!string.IsNullOrWhiteSpace(currentUserId))
+        //{
+        //    var userCustomerIds = await DbContext.Users
+        //        .AsNoTracking()
+        //        .Where(u => u.Id == currentUserId && u.IsActive && u.CustomerId != null)
+        //        .Select(u => u.CustomerId!)
+        //        .ToListAsync(cancellationToken);
 
-            if (userCustomerIds.Count > 0)
-            {
-                query = query.Where(x => x.CustomerId == null || userCustomerIds.Contains(x.CustomerId));
-            }
-        }
+        //    if (userCustomerIds.Count > 0)
+        //    {
+        //        query = query.Where(x => x.CustomerId == null || userCustomerIds.Contains(x.CustomerId));
+        //    }
+        //}
 
         // 2. Sắp xếp danh sách theo: Thứ tự (ThuTu), sau đó đến Mã (Ma)
         var list = await query

@@ -35,6 +35,7 @@ public class GlobalExceptionHandler : IExceptionHandler
             AppException appEx => ((int)appEx.StatusCode, "Lỗi xử lý nghiệp vụ", appEx.Message),
             ArgumentException argEx => (StatusCodes.Status400BadRequest, "Dữ liệu đầu vào không hợp lệ", argEx.Message),
             InvalidOperationException invEx => (StatusCodes.Status400BadRequest, "Lỗi cấu hình hoặc trạng thái", invEx.Message),
+            UnauthorizedAccessException unAuthEx => (StatusCodes.Status403Forbidden, "Không có quyền truy cập", unAuthEx.Message),
             DbUpdateException dbEx => (StatusCodes.Status500InternalServerError, "Lỗi cơ sở dữ liệu", _environment.IsDevelopment() ? (dbEx.InnerException?.Message ?? dbEx.Message) : "Đã xảy ra lỗi khi lưu dữ liệu vào hệ thống. Vui lòng thử lại sau."),
             OperationCanceledException => (499, "Yêu cầu bị hủy bỏ", "Thao tác đã bị hủy hoặc vượt quá thời gian chờ (timeout)."),
             _ => (StatusCodes.Status500InternalServerError, "Lỗi máy chủ nội bộ", _environment.IsDevelopment() ? (exception.InnerException?.Message ?? exception.Message) : "Đã xảy ra sự cố không mong muốn trên hệ thống. Vui lòng thử lại sau.")

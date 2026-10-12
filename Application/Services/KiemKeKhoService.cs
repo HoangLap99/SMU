@@ -434,6 +434,7 @@ public class KiemKeKhoService : IKiemKeKhoService
                 TongThucTe = tongThucTe,
                 TongChenhLech = tongChenhLech,
                 TrangThai = trangThaiPhieu,
+                XacNhanHoanTat = isHoanTat,
                 GhiChu = request.GhiChu
             };
 
@@ -464,6 +465,7 @@ public class KiemKeKhoService : IKiemKeKhoService
             kiemKe.TongThucTe = tongThucTe;
             kiemKe.TongChenhLech = tongChenhLech;
             kiemKe.TrangThai = trangThaiPhieu;
+            kiemKe.XacNhanHoanTat = isHoanTat;
             kiemKe.GhiChu = request.GhiChu;
 
             // Xóa chi tiết cũ để cập nhật mới
@@ -631,6 +633,11 @@ public class KiemKeKhoService : IKiemKeKhoService
             query = query.Where(x => x.TrangThai == request.TrangThai);
         }
 
+        if (request.XacNhanHoanTat.HasValue)
+        {
+            query = query.Where(x => x.XacNhanHoanTat == request.XacNhanHoanTat.Value);
+        }
+
         if (request.TuNgay.HasValue)
         {
             query = query.Where(x => x.NgayKiemKe >= request.TuNgay.Value);
@@ -677,7 +684,8 @@ public class KiemKeKhoService : IKiemKeKhoService
                 TongThucTe = x.TongThucTe,
                 TongChenhLech = x.TongChenhLech,
                 TrangThai = x.TrangThai,
-                TrangThaiTen = x.TrangThai == "HoanTat" ? "Xác nhận hoàn tất" : "Lưu nháp",
+                TrangThaiTen = x.XacNhanHoanTat ? "Xác nhận hoàn tất" : "Lưu nháp",
+                XacNhanHoanTat = x.XacNhanHoanTat,
                 GhiChu = x.GhiChu,
                 Created = x.Created,
                 CreatedByName = x.CreatedByName
@@ -835,7 +843,8 @@ public class KiemKeKhoService : IKiemKeKhoService
             TongThucTe = item.TongThucTe,
             TongChenhLech = item.TongChenhLech,
             TrangThai = item.TrangThai,
-            TrangThaiTen = item.TrangThai == "HoanTat" ? "Xác nhận hoàn tất" : "Lưu nháp",
+            TrangThaiTen = item.XacNhanHoanTat ? "Xác nhận hoàn tất" : "Lưu nháp",
+            XacNhanHoanTat = item.XacNhanHoanTat,
             GhiChu = item.GhiChu,
             Created = item.Created,
             CreatedByName = item.CreatedByName,

@@ -88,6 +88,11 @@ public class KiemKeKho : Audit
     public string TrangThai { get; set; } = "LuuNhap";
 
     /// <summary>
+    /// Đánh dấu Xác nhận hoàn tất (true: Xác nhận hoàn tất -> đồng bộ/thay đổi dữ liệu KhoBienSo; false: Lưu nháp).
+    /// </summary>
+    public bool XacNhanHoanTat { get; set; } = false;
+
+    /// <summary>
     /// Ghi chú chung của phiếu kiểm kê.
     /// </summary>
     [StringLength(2000)]

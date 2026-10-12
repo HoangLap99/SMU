@@ -135,7 +135,7 @@ public class GeminiService : IAiService
     private async Task<string> SendGeminiRequestAsync(GeminiGenerateRequest requestBody, CancellationToken cancellationToken)
     {
         var model = string.IsNullOrWhiteSpace(_settings.Model) ? "gemini-1.5-flash" : _settings.Model;
-        var baseUrl = _settings.BaseUrl.TrimEnd('/');
+        var baseUrl = (string.IsNullOrWhiteSpace(_settings.BaseUrl) ? "https://generativelanguage.googleapis.com/v1beta" : _settings.BaseUrl).TrimEnd('/');
         var url = $"{baseUrl}/models/{model}:generateContent?key={_settings.ApiKey}";
 
         var jsonContent = JsonSerializer.Serialize(requestBody, _jsonOptions);

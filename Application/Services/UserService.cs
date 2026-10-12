@@ -15,15 +15,18 @@ public class UserService : IUserService
 {
     private readonly PostgresDbContext _dbContext;
     private readonly IJwtService _jwtService;
+    private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<UserService> _logger;
 
     public UserService(
         PostgresDbContext dbContext, 
         IJwtService jwtService,
+        ICurrentUserService currentUserService,
         ILogger<UserService> logger)
     {
         _dbContext = dbContext;
         _jwtService = jwtService;
+        _currentUserService = currentUserService;
         _logger = logger;
     }
 
@@ -360,6 +363,121 @@ public class UserService : IUserService
             ExpiresAt = expiresAt,
             ExpiresInSeconds = expiresInSeconds,
             User = MapToUserResponse(user, account)
+        };
+    }
+
+    public async Task<UserActionResponse> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken = default)
+    {
+        var currentUserId = _currentUserService.UserId;
+        if (string.IsNullOrWhiteSpace(currentUserId) || !_currentUserService.IsAuthenticated)
+        {
+            throw new UnauthorizedAccessException("Người dùng chưa được xác thực hoặc phiên đăng nhập đã hết hạn.");
+        }
+
+        // Tìm tài khoản theo UserId hoặc Id tài khoản
+        var account = await _dbContext.Accounts
+            .FirstOrDefaultAsync(a => a.UserId == currentUserId || a.Id == currentUserId, cancellationToken);
+
+        if (account == null && !string.IsNullOrWhiteSpace(_currentUserService.Username))
+        {
+            account = await _dbContext.Accounts
+                .FirstOrDefaultAsync(a => a.Username.ToLower() == _currentUserService.Username.ToLower(), cancellationToken);
+        }
+
+        if (account == null)
+        {
+            throw new ArgumentException("Không tìm thấy thông tin tài khoản đăng nhập của người dùng hiện tại.");
+        }
+
+        // Kiểm tra mật khẩu hiện tại
+        var isOldPasswordValid = BCrypt.Net.BCrypt.Verify(request.OldPassword, account.PasswordHash);
+        if (!isOldPasswordValid)
+        {
+            throw new ArgumentException("Mật khẩu hiện tại không chính xác.");
+        }
+
+        // Kiểm tra mật khẩu mới không được trùng với mật khẩu cũ
+        if (BCrypt.Net.BCrypt.Verify(request.NewPassword, account.PasswordHash))
+        {
+            throw new ArgumentException("Mật khẩu mới không được trùng với mật khẩu hiện tại.");
+        }
+
+        // Cập nhật mật khẩu băm mới
+        account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        account.Modified = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Người dùng '{Username}' (UserId: {UserId}) đã đổi mật khẩu thành công.", 
+            account.Username, account.UserId);
+
+        return new UserActionResponse
+        {
+            Success = true,
+            Message = "Đổi mật khẩu thành công. Vui lòng sử dụng mật khẩu mới cho các lần đăng nhập tiếp theo."
+        };
+    }
+
+    public async Task<UserActionResponse> AdminResetPasswordAsync(string targetUserIdOrUsername, string newPassword, bool unlockAccount = true, CancellationToken cancellationToken = default)
+    {
+        // 1. Kiểm tra quyền Quản trị viên (Admin)
+        var currentRole = _currentUserService.Role;
+        if (!string.Equals(currentRole, nameof(UserRole.Admin), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new UnauthorizedAccessException("Chỉ có tài khoản có vai trò Quản trị viên (Admin) mới có quyền đặt lại mật khẩu.");
+        }
+
+        if (string.IsNullOrWhiteSpace(targetUserIdOrUsername))
+        {
+            throw new ArgumentException("Vui lòng cung cấp Id người dùng hoặc Tên đăng nhập cần đặt lại mật khẩu.");
+        }
+
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+        {
+            throw new ArgumentException("Mật khẩu mới phải có độ dài ít nhất 6 ký tự.");
+        }
+
+        var normalizedKey = targetUserIdOrUsername.Trim();
+
+        // 2. Tìm tài khoản theo UserId, Id tài khoản, hoặc Username
+        var account = await _dbContext.Accounts
+            .FirstOrDefaultAsync(a => a.UserId == normalizedKey || a.Id == normalizedKey || a.Username.ToLower() == normalizedKey.ToLower(), cancellationToken);
+
+        if (account == null)
+        {
+            // Tìm theo email hoặc Id trong bảng Users
+            var user = await _dbContext.Users
+                .FirstOrDefaultAsync(u => u.Id == normalizedKey || (u.Email != null && u.Email.ToLower() == normalizedKey.ToLower()), cancellationToken);
+
+            if (user != null)
+            {
+                account = await _dbContext.Accounts
+                    .FirstOrDefaultAsync(a => a.UserId == user.Id, cancellationToken);
+            }
+        }
+
+        if (account == null)
+        {
+            throw new ArgumentException($"Không tìm thấy tài khoản người dùng tương ứng với '{targetUserIdOrUsername}'.");
+        }
+
+        // 3. Đặt lại mật khẩu
+        account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        if (unlockAccount && account.IsLocked)
+        {
+            account.IsLocked = false;
+        }
+        account.Modified = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Quản trị viên '{AdminUser}' đã đặt lại mật khẩu thành công cho tài khoản '{TargetUsername}' (UserId: {UserId}).",
+            _currentUserService.Username, account.Username, account.UserId);
+
+        return new UserActionResponse
+        {
+            Success = true,
+            Message = $"Đã đặt lại mật khẩu thành công cho tài khoản '{account.Username}'."
         };
     }
 
