@@ -2328,12 +2328,67 @@
         <member name="T:SMU.Application.DTOs.RegisterTrialRequest">
             <summary>
             Yêu cầu đăng ký tài khoản dùng thử từ phía người dùng bên ngoài (Self-Registration).
-            Tự động gán quyền 'Trial' kèm thời hạn dùng thử mặc định (14 ngày).
+            Tự động khởi tạo Khách hàng / Đơn vị mới trong bảng Customer và gán quyền 'Trial' cho tài khoản với thời hạn 14 ngày.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.RegisterTrialRequest.TenCustomer">
+            <summary>
+            Tên khách hàng / Tên đơn vị đăng ký dùng thử (Bắt buộc, ví dụ: 'Công an phường Tây Mỗ').
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.RegisterTrialRequest.TenDonVi">
+            <summary>
+            Tên đơn vị (Bí danh tương đương với TenCustomer).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.RegisterTrialRequest.CustomerName">
+            <summary>
+            Tên khách hàng (Bí danh tương đương với TenCustomer).
             </summary>
         </member>
         <member name="P:SMU.Application.DTOs.RegisterTrialRequest.MaCustomer">
             <summary>
-            Mã khách hàng / đơn vị đăng ký dùng thử (tùy chọn).
+            Mã khách hàng / đơn vị đăng ký dùng thử (Bắt buộc, ví dụ: 'CAP_TAYMO'). Sẽ lưu vào bảng Customer và dùng để đăng nhập.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.RegisterTrialRequest.CustomerCode">
+            <summary>
+            Mã khách hàng / đơn vị (Bí danh tương đương với MaCustomer).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.DTOs.RegisterTrialRequest.GetEffectiveCustomerName">
+            <summary>
+            Lấy tên khách hàng / đơn vị hợp lệ từ các trường TenCustomer, TenDonVi, CustomerName.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.DTOs.RegisterTrialRequest.GetEffectiveCustomerCode">
+            <summary>
+            Lấy mã khách hàng / đơn vị hợp lệ từ các trường MaCustomer, CustomerCode.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.RegisterTrialRequest.FullName">
+            <summary>
+            Họ và tên đầy đủ của người dùng (tối đa 150 ký tự).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.RegisterTrialRequest.Email">
+            <summary>
+            Địa chỉ Email liên hệ (duy nhất trên toàn hệ thống).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.RegisterTrialRequest.PhoneNumber">
+            <summary>
+            Số điện thoại liên hệ (tùy chọn, tối đa 20 ký tự).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.RegisterTrialRequest.Username">
+            <summary>
+            Tên đăng nhập (từ 3 - 50 ký tự; chỉ gồm chữ cái, chữ số, gạch dưới, dấu chấm; không trùng Admin và duy nhất trong đơn vị).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.RegisterTrialRequest.Password">
+            <summary>
+            Mật khẩu đăng nhập (từ 6 - 100 ký tự; sẽ được băm một chiều bằng BCrypt trước khi lưu).
             </summary>
         </member>
         <member name="T:SMU.Application.DTOs.AccountResponse">
@@ -2344,6 +2399,16 @@
         <member name="T:SMU.Application.DTOs.UserResponse">
             <summary>
             Thông tin người dùng kèm tài khoản trả về.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.UserResponse.CustomerCode">
+            <summary>
+            Mã khách hàng / đơn vị trực thuộc.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.UserResponse.CustomerName">
+            <summary>
+            Tên khách hàng / đơn vị trực thuộc.
             </summary>
         </member>
         <member name="T:SMU.Application.DTOs.LoginRequest">
@@ -6106,9 +6171,39 @@
         <member name="M:SMU.Presentation.Controllers.UsersController.RegisterTrial(SMU.Application.DTOs.RegisterTrialRequest,System.Threading.CancellationToken)">
             <summary>
             Đăng ký tài khoản dùng thử dành cho người dùng mới (Self-Registration).
-            Tự động phân quyền Trial kèm thời hạn 14 ngày dùng thử.
-            Endpoint công khai không yêu cầu token xác thực.
             </summary>
+            <remarks>
+            Endpoint công khai không yêu cầu token xác thực, cho phép người dùng tự đăng ký trải nghiệm hệ thống với phân quyền Trial.
+            Khi đăng ký dùng thử, người dùng sẽ nhập cả **Tên đơn vị** (`tenCustomer` / `tenDonVi`) và **Mã đơn vị** (`maCustomer` / `customerCode`).
+            Hệ thống sẽ tự động tạo một khách hàng / đơn vị mới trong bảng `Customer` và khởi tạo tài khoản gắn `CustomerId` theo đơn vị vừa tạo.
+            
+            ### 1. Quy trình Kiểm tra (Check / Validation):
+            - **Tên đơn vị (`tenCustomer` / `tenDonVi`)**: Bắt buộc nhập, tối đa 250 ký tự.
+            - **Mã đơn vị (`maCustomer` / `customerCode`)**: Bắt buộc nhập, tối đa 50 ký tự. Hệ thống tự động chuẩn hóa sang chữ hoa (in hoa).
+            - **Kiểm tra trùng Mã đơn vị**: Mã đơn vị phải là duy nhất trên toàn hệ thống trong bảng `Customer`. Nếu đã tồn tại sẽ trả về lỗi `400 Bad Request`.
+            - **Chuẩn hóa dữ liệu**: Tự động chuyển `Username` và `Email` về chữ thường (lowercase) và loại bỏ khoảng trắng thừa (Trim).
+            - **Kiểm tra Email**: Email phải là duy nhất trên toàn hệ thống (bảng `Users`). Nếu đã tồn tại sẽ trả về lỗi `400 Bad Request`.
+            - **Kiểm tra Tên đăng nhập (`Username`)**: Không được trùng với bất kỳ tài khoản Quản trị viên nào (`Role = Admin`).
+            
+            ### 2. Quy trình Lưu trữ (Save / Persistence):
+            - **Tạo Khách hàng (`Customer`)**: Tạo mới bản ghi trong bảng `Customer` với `Code = MaCustomer`, `Name = TenCustomer`, `Status = InProgress`, `IsActive = true`, `GioiHanUser = 10`, hạn sử dụng 14 ngày.
+            - **Gắn Khách hàng (`CustomerId`)**: Tài khoản cán bộ (`Users`) và tài khoản đăng nhập (`Accounts`) được tự động gán `CustomerId` theo bản ghi `Customer` vừa tạo.
+            - **Phân quyền**: Tự động gán quyền `Role = UserRole.Trial` (giá trị enum = 3).
+            - **Thời hạn dùng thử**: 
+              - `TrialStartDate`: Lấy thời điểm hiện tại (`DateTime.UtcNow`).
+              - `TrialEndDate`: Tự động cộng thêm **14 ngày** tính từ ngày bắt đầu.
+            - **Bảo mật mật khẩu**: Mật khẩu được băm một chiều an toàn bằng thuật toán **BCrypt** trước khi lưu vào bảng `Accounts` (không lưu mật khẩu gốc).
+            - **Giao dịch toàn vẹn (Atomic Transaction)**: Tạo đồng thời cả 3 thực thể (`Customer`, `Users`, `Accounts`) trong một giao dịch cơ sở dữ liệu duy nhất.
+            
+            ### 3. Lưu ý khi Đăng nhập sau này (`/api/Users/login`):
+            - Tài khoản dùng thử trực thuộc đơn vị mới tạo, do đó khi đăng nhập người dùng **bắt buộc phải truyền cả MaCustomer** (cùng với Username/Email và Password).
+            - Khi vượt quá thời hạn 14 ngày (`TrialEndDate`), trường `isTrialExpired` sẽ chuyển thành `true` để ứng dụng nhận diện và hiển thị thông báo hết hạn.
+            </remarks>
+            <param name="request">Thông tin đăng ký tài khoản dùng thử (Tên đơn vị, Mã đơn vị, Họ tên, Email, Tên đăng nhập, Mật khẩu, Số điện thoại).</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+            <response code="201">Đăng ký thành công, tạo đơn vị Customer mới và trả về thông tin người dùng kèm thời hạn dùng thử 14 ngày.</response>
+            <response code="400">Dữ liệu không hợp lệ (Mã đơn vị đã tồn tại, Email đã tồn tại, Username trùng với Admin hoặc thiếu thông tin bắt buộc).</response>
+            <response code="500">Lỗi máy chủ nội bộ hoặc lỗi cơ sở dữ liệu.</response>
         </member>
         <member name="M:SMU.Presentation.Controllers.UsersController.Login(SMU.Application.DTOs.LoginRequest,System.Threading.CancellationToken)">
             <summary>

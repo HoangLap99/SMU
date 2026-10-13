@@ -113,9 +113,39 @@ public class UsersController : ControllerBase
 
     /// <summary>
     /// Đăng ký tài khoản dùng thử dành cho người dùng mới (Self-Registration).
-    /// Tự động phân quyền Trial kèm thời hạn 14 ngày dùng thử.
-    /// Endpoint công khai không yêu cầu token xác thực.
     /// </summary>
+    /// <remarks>
+    /// Endpoint công khai không yêu cầu token xác thực, cho phép người dùng tự đăng ký trải nghiệm hệ thống với phân quyền Trial.
+    /// Khi đăng ký dùng thử, người dùng sẽ nhập cả **Tên đơn vị** (`tenCustomer` / `tenDonVi`) và **Mã đơn vị** (`maCustomer` / `customerCode`).
+    /// Hệ thống sẽ tự động tạo một khách hàng / đơn vị mới trong bảng `Customer` và khởi tạo tài khoản gắn `CustomerId` theo đơn vị vừa tạo.
+    /// 
+    /// ### 1. Quy trình Kiểm tra (Check / Validation):
+    /// - **Tên đơn vị (`tenCustomer` / `tenDonVi`)**: Bắt buộc nhập, tối đa 250 ký tự.
+    /// - **Mã đơn vị (`maCustomer` / `customerCode`)**: Bắt buộc nhập, tối đa 50 ký tự. Hệ thống tự động chuẩn hóa sang chữ hoa (in hoa).
+    /// - **Kiểm tra trùng Mã đơn vị**: Mã đơn vị phải là duy nhất trên toàn hệ thống trong bảng `Customer`. Nếu đã tồn tại sẽ trả về lỗi `400 Bad Request`.
+    /// - **Chuẩn hóa dữ liệu**: Tự động chuyển `Username` và `Email` về chữ thường (lowercase) và loại bỏ khoảng trắng thừa (Trim).
+    /// - **Kiểm tra Email**: Email phải là duy nhất trên toàn hệ thống (bảng `Users`). Nếu đã tồn tại sẽ trả về lỗi `400 Bad Request`.
+    /// - **Kiểm tra Tên đăng nhập (`Username`)**: Không được trùng với bất kỳ tài khoản Quản trị viên nào (`Role = Admin`).
+    /// 
+    /// ### 2. Quy trình Lưu trữ (Save / Persistence):
+    /// - **Tạo Khách hàng (`Customer`)**: Tạo mới bản ghi trong bảng `Customer` với `Code = MaCustomer`, `Name = TenCustomer`, `Status = InProgress`, `IsActive = true`, `GioiHanUser = 10`, hạn sử dụng 14 ngày.
+    /// - **Gắn Khách hàng (`CustomerId`)**: Tài khoản cán bộ (`Users`) và tài khoản đăng nhập (`Accounts`) được tự động gán `CustomerId` theo bản ghi `Customer` vừa tạo.
+    /// - **Phân quyền**: Tự động gán quyền `Role = UserRole.Trial` (giá trị enum = 3).
+    /// - **Thời hạn dùng thử**: 
+    ///   - `TrialStartDate`: Lấy thời điểm hiện tại (`DateTime.UtcNow`).
+    ///   - `TrialEndDate`: Tự động cộng thêm **14 ngày** tính từ ngày bắt đầu.
+    /// - **Bảo mật mật khẩu**: Mật khẩu được băm một chiều an toàn bằng thuật toán **BCrypt** trước khi lưu vào bảng `Accounts` (không lưu mật khẩu gốc).
+    /// - **Giao dịch toàn vẹn (Atomic Transaction)**: Tạo đồng thời cả 3 thực thể (`Customer`, `Users`, `Accounts`) trong một giao dịch cơ sở dữ liệu duy nhất.
+    /// 
+    /// ### 3. Lưu ý khi Đăng nhập sau này (`/api/Users/login`):
+    /// - Tài khoản dùng thử trực thuộc đơn vị mới tạo, do đó khi đăng nhập người dùng **bắt buộc phải truyền cả MaCustomer** (cùng với Username/Email và Password).
+    /// - Khi vượt quá thời hạn 14 ngày (`TrialEndDate`), trường `isTrialExpired` sẽ chuyển thành `true` để ứng dụng nhận diện và hiển thị thông báo hết hạn.
+    /// </remarks>
+    /// <param name="request">Thông tin đăng ký tài khoản dùng thử (Tên đơn vị, Mã đơn vị, Họ tên, Email, Tên đăng nhập, Mật khẩu, Số điện thoại).</param>
+    /// <param name="cancellationToken">Token hủy yêu cầu.</param>
+    /// <response code="201">Đăng ký thành công, tạo đơn vị Customer mới và trả về thông tin người dùng kèm thời hạn dùng thử 14 ngày.</response>
+    /// <response code="400">Dữ liệu không hợp lệ (Mã đơn vị đã tồn tại, Email đã tồn tại, Username trùng với Admin hoặc thiếu thông tin bắt buộc).</response>
+    /// <response code="500">Lỗi máy chủ nội bộ hoặc lỗi cơ sở dữ liệu.</response>
     [AllowAnonymous]
     [HttpPost("register-trial")]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status201Created)]

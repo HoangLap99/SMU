@@ -1,16 +1,29 @@
 @SMU_HostAddress = http://localhost:5100
 
-### 1. Đăng ký tài khoản dùng thử (Public API - Không cần token)
+### 1. Đăng ký tài khoản dùng thử (Public API - Không cần token, tự động tạo Customer mới và liên kết CustomerId)
 # @name registerTrial
 POST {{SMU_HostAddress}}/api/Users/register-trial
 Content-Type: application/json
 
 {
+  "tenCustomer": "Công an phường Tây Mỗ",
+  "maCustomer": "CAP_TAYMO",
   "fullName": "Nguyen Van A",
   "email": "user.test@example.com",
   "phoneNumber": "0987654321",
   "username": "usertest01",
   "password": "Password123@"
+}
+
+### 1.1. Đăng nhập với tài khoản dùng thử vừa tạo (Role=Trial BẮT BUỘC có maCustomer)
+# @name loginTrial
+POST {{SMU_HostAddress}}/api/Users/login
+Content-Type: application/json
+
+{
+  "usernameOrEmail": "usertest01",
+  "password": "Password123@",
+  "maCustomer": "CAP_TAYMO"
 }
 
 ### 2.0. Đăng nhập với tài khoản Quản trị viên (admin / 123456) - Role=Admin KHÔNG cần Mã Customer

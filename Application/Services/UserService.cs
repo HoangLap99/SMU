@@ -43,7 +43,17 @@ public class UserService : IUserService
             .Where(a => a.UserId != null && userIds.Contains(a.UserId))
             .ToDictionaryAsync(a => a.UserId!, a => a, cancellationToken);
 
-        return users.Select(u => MapToUserResponse(u, accounts.GetValueOrDefault(u.Id!))).ToList();
+        var customerIds = users.Select(u => u.CustomerId).Where(id => !string.IsNullOrEmpty(id)).Distinct().ToList();
+        var customerMap = await _dbContext.Customers
+            .AsNoTracking()
+            .Where(c => customerIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id!, c => c, cancellationToken);
+
+        return users.Select(u => MapToUserResponse(
+            u, 
+            accounts.GetValueOrDefault(u.Id!),
+            u.CustomerId != null ? customerMap.GetValueOrDefault(u.CustomerId) : null
+        )).ToList();
     }
 
     public async Task<UserResponse?> GetUserByIdAsync(string id, CancellationToken cancellationToken = default)
@@ -58,7 +68,11 @@ public class UserService : IUserService
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.UserId == id, cancellationToken);
 
-        return MapToUserResponse(user, account);
+        var customer = !string.IsNullOrWhiteSpace(user.CustomerId)
+            ? await _dbContext.Customers.AsNoTracking().FirstOrDefaultAsync(c => c.Id == user.CustomerId, cancellationToken)
+            : null;
+
+        return MapToUserResponse(user, account, customer);
     }
 
     public async Task<UserResponse> CreateUserWithAccountAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
@@ -157,24 +171,124 @@ public class UserService : IUserService
         _logger.LogInformation("Đã khởi tạo thành công người dùng '{FullName}' ({Email}) với quyền '{Role}'", 
             user.FullName, user.Email, account.Role);
 
-        return MapToUserResponse(user, account);
+        Customer? resolvedCustomer = null;
+        if (!string.IsNullOrWhiteSpace(resolvedCustomerId))
+        {
+            resolvedCustomer = await _dbContext.Customers.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == resolvedCustomerId, cancellationToken);
+        }
+
+        return MapToUserResponse(user, account, resolvedCustomer);
     }
 
     public async Task<UserResponse> RegisterTrialAsync(RegisterTrialRequest request, CancellationToken cancellationToken = default)
     {
-        var createUserRequest = new CreateUserRequest
+        var effectiveCustomerCode = request.GetEffectiveCustomerCode().ToUpperInvariant();
+        var effectiveCustomerName = request.GetEffectiveCustomerName();
+
+        if (string.IsNullOrWhiteSpace(effectiveCustomerName))
         {
-            FullName = request.FullName,
-            Email = request.Email,
-            PhoneNumber = request.PhoneNumber,
-            Username = request.Username,
-            Password = request.Password,
-            Role = UserRole.Trial,
-            TrialDays = 14, // Mặc định dùng thử 14 ngày
-            MaCustomer = request.MaCustomer
+            throw new ArgumentException("Tên đơn vị / khách hàng không được để trống khi đăng ký tài khoản dùng thử.");
+        }
+
+        if (effectiveCustomerName.Length > 250)
+        {
+            throw new ArgumentException("Tên đơn vị / khách hàng không được vượt quá 250 ký tự.");
+        }
+
+        if (string.IsNullOrWhiteSpace(effectiveCustomerCode))
+        {
+            throw new ArgumentException("Mã khách hàng / đơn vị không được để trống khi đăng ký tài khoản dùng thử.");
+        }
+
+        if (effectiveCustomerCode.Length > 50)
+        {
+            throw new ArgumentException("Mã khách hàng / đơn vị không được vượt quá 50 ký tự.");
+        }
+
+        var normalizedUsername = request.Username.Trim().ToLowerInvariant();
+        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+
+        // 1. Kiểm tra tính duy nhất của Mã khách hàng trong bảng Customer
+        var isCustomerCodeExist = await _dbContext.Customers
+            .AnyAsync(c => c.Code.ToUpper() == effectiveCustomerCode, cancellationToken);
+        if (isCustomerCodeExist)
+        {
+            throw new ArgumentException($"Mã khách hàng / đơn vị '{effectiveCustomerCode}' đã tồn tại trong hệ thống. Vui lòng chọn mã khác.");
+        }
+
+        // 2. Kiểm tra trùng lặp Email
+        if (await _dbContext.Users.AnyAsync(u => u.Email != null && u.Email.ToLower() == normalizedEmail, cancellationToken))
+        {
+            throw new ArgumentException($"Địa chỉ email '{request.Email}' đã được đăng ký trong hệ thống.");
+        }
+
+        // 3. Kiểm tra tính duy nhất của Tên đăng nhập (Username) so với Admin
+        var isAdminDuplicate = await _dbContext.Accounts.AnyAsync(a => 
+            a.Role == UserRole.Admin && a.Username.ToLower() == normalizedUsername, 
+            cancellationToken);
+
+        if (isAdminDuplicate)
+        {
+            throw new ArgumentException($"Tên đăng nhập '{request.Username}' trùng với tài khoản Quản trị viên (Admin) của hệ thống.");
+        }
+
+        // 4. Thiết lập thời gian dùng thử (mặc định 14 ngày)
+        var trialStart = DateTime.UtcNow;
+        var trialEnd = trialStart.AddDays(14);
+
+        // 5. Khởi tạo đối tượng Customer mới đại diện cho đơn vị đăng ký dùng thử
+        var customer = new Customer
+        {
+            Code = effectiveCustomerCode,
+            Name = effectiveCustomerName,
+            Description = $"Tài khoản dùng thử đăng ký bởi {request.FullName.Trim()} ({normalizedEmail})",
+            GioiHanUser = 10,
+            StartDate = trialStart,
+            EndDate = trialEnd,
+            Status = CustomerStatus.InProgress,
+            IsActive = true,
+            Created = trialStart
         };
 
-        return await CreateUserWithAccountAsync(createUserRequest, cancellationToken);
+        // 6. Băm mật khẩu bằng BCrypt
+        var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+
+        // 7. Tạo User gắn CustomerId theo Customer mới tạo
+        var user = new User
+        {
+            CustomerId = customer.Id,
+            FullName = request.FullName.Trim(),
+            Email = normalizedEmail,
+            PhoneNumber = request.PhoneNumber?.Trim(),
+            Created = trialStart,
+            IsActive = true
+        };
+
+        // 8. Tạo Account gắn CustomerId và UserId
+        var account = new Account
+        {
+            CustomerId = customer.Id,
+            UserId = user.Id,
+            Username = normalizedUsername,
+            PasswordHash = passwordHash,
+            Role = UserRole.Trial,
+            TrialStartDate = trialStart,
+            TrialEndDate = trialEnd,
+            IsLocked = false,
+            Created = trialStart
+        };
+
+        // 9. Thêm vào DbContext và lưu đồng thời cả 3 thực thể trong một transaction
+        _dbContext.Customers.Add(customer);
+        _dbContext.Users.Add(user);
+        _dbContext.Accounts.Add(account);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Đã khởi tạo thành công khách hàng dùng thử '{CustomerName}' ({CustomerCode}) và tài khoản '{Username}' ({Email}) với quyền Trial",
+            customer.Name, customer.Code, account.Username, user.Email);
+
+        return MapToUserResponse(user, account, customer);
     }
 
     public async Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
@@ -185,6 +299,7 @@ public class UserService : IUserService
 
         Account? account = null;
         User? user = null;
+        Customer? targetCustomer = null;
 
         // Trường hợp 1: KHÔNG truyền Mã Customer (Chỉ tài khoản Admin được phép đăng nhập không cần Mã Customer)
         if (string.IsNullOrWhiteSpace(reqCustomerCode))
@@ -225,7 +340,7 @@ public class UserService : IUserService
         {
             // Trường hợp 2: CÓ truyền Mã Customer (Tìm trong phạm vi Customer đó)
             // 2.1. Xác thực Customer theo Mã (Code) hoặc Id
-            var targetCustomer = await _dbContext.Customers.AsNoTracking()
+            targetCustomer = await _dbContext.Customers.AsNoTracking()
                 .FirstOrDefaultAsync(c => c.Code.ToLower() == reqCustomerCode.ToLower() || c.Id == reqCustomerCode, cancellationToken);
 
             if (targetCustomer == null)
@@ -354,6 +469,13 @@ public class UserService : IUserService
 
         var expiresInSeconds = (int)Math.Max(0, (expiresAt - DateTime.UtcNow).TotalSeconds);
 
+        Customer? loginCustomer = targetCustomer;
+        if (loginCustomer == null && !string.IsNullOrWhiteSpace(user.CustomerId))
+        {
+            loginCustomer = await _dbContext.Customers.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == user.CustomerId, cancellationToken);
+        }
+
         return new LoginResponse
         {
             Success = true,
@@ -362,7 +484,7 @@ public class UserService : IUserService
             TokenType = "Bearer",
             ExpiresAt = expiresAt,
             ExpiresInSeconds = expiresInSeconds,
-            User = MapToUserResponse(user, account)
+            User = MapToUserResponse(user, account, loginCustomer)
         };
     }
 
@@ -481,12 +603,14 @@ public class UserService : IUserService
         };
     }
 
-    private static UserResponse MapToUserResponse(User user, Account? account = null)
+    private static UserResponse MapToUserResponse(User user, Account? account = null, Customer? customer = null)
     {
         return new UserResponse
         {
             Id = user.Id ?? string.Empty,
-            CustomerId = user.CustomerId ?? account?.CustomerId,
+            CustomerId = user.CustomerId ?? account?.CustomerId ?? customer?.Id,
+            CustomerCode = customer?.Code,
+            CustomerName = customer?.Name,
             FullName = user.FullName,
             Email = user.Email ?? string.Empty,
             PhoneNumber = user.PhoneNumber,

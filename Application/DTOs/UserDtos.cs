@@ -57,38 +57,127 @@ public class CreateUserRequest
 
 /// <summary>
 /// Yêu cầu đăng ký tài khoản dùng thử từ phía người dùng bên ngoài (Self-Registration).
-/// Tự động gán quyền 'Trial' kèm thời hạn dùng thử mặc định (14 ngày).
+/// Tự động khởi tạo Khách hàng / Đơn vị mới trong bảng Customer và gán quyền 'Trial' cho tài khoản với thời hạn 14 ngày.
 /// </summary>
 public class RegisterTrialRequest
 {
+    private string? _tenCustomer;
+    private string? _maCustomer;
+
+    /// <summary>
+    /// Tên khách hàng / Tên đơn vị đăng ký dùng thử (Bắt buộc, ví dụ: 'Công an phường Tây Mỗ').
+    /// </summary>
+    [Required(ErrorMessage = "Tên đơn vị / khách hàng không được để trống.")]
+    [MaxLength(250, ErrorMessage = "Tên đơn vị / khách hàng không được vượt quá 250 ký tự.")]
+    public string TenCustomer
+    {
+        get => _tenCustomer ?? string.Empty;
+        set => _tenCustomer = value;
+    }
+
+    /// <summary>
+    /// Tên đơn vị (Bí danh tương đương với TenCustomer).
+    /// </summary>
+    public string? TenDonVi
+    {
+        get => _tenCustomer;
+        set
+        {
+            if (string.IsNullOrWhiteSpace(_tenCustomer))
+                _tenCustomer = value;
+        }
+    }
+
+    /// <summary>
+    /// Tên khách hàng (Bí danh tương đương với TenCustomer).
+    /// </summary>
+    public string? CustomerName
+    {
+        get => _tenCustomer;
+        set
+        {
+            if (string.IsNullOrWhiteSpace(_tenCustomer))
+                _tenCustomer = value;
+        }
+    }
+
+    /// <summary>
+    /// Mã khách hàng / đơn vị đăng ký dùng thử (Bắt buộc, ví dụ: 'CAP_TAYMO'). Sẽ lưu vào bảng Customer và dùng để đăng nhập.
+    /// </summary>
+    [Required(ErrorMessage = "Mã khách hàng / đơn vị không được để trống.")]
+    [MaxLength(50, ErrorMessage = "Mã khách hàng / đơn vị không được vượt quá 50 ký tự.")]
+    public string MaCustomer
+    {
+        get => _maCustomer ?? string.Empty;
+        set => _maCustomer = value;
+    }
+
+    /// <summary>
+    /// Mã khách hàng / đơn vị (Bí danh tương đương với MaCustomer).
+    /// </summary>
+    public string? CustomerCode
+    {
+        get => _maCustomer;
+        set
+        {
+            if (string.IsNullOrWhiteSpace(_maCustomer))
+                _maCustomer = value;
+        }
+    }
+
+    /// <summary>
+    /// Lấy tên khách hàng / đơn vị hợp lệ từ các trường TenCustomer, TenDonVi, CustomerName.
+    /// </summary>
+    public string GetEffectiveCustomerName() =>
+        (!string.IsNullOrWhiteSpace(_tenCustomer) ? _tenCustomer :
+         !string.IsNullOrWhiteSpace(TenDonVi) ? TenDonVi :
+         CustomerName ?? string.Empty).Trim();
+
+    /// <summary>
+    /// Lấy mã khách hàng / đơn vị hợp lệ từ các trường MaCustomer, CustomerCode.
+    /// </summary>
+    public string GetEffectiveCustomerCode() =>
+        (!string.IsNullOrWhiteSpace(_maCustomer) ? _maCustomer :
+         CustomerCode ?? string.Empty).Trim();
+
+    /// <summary>
+    /// Họ và tên đầy đủ của người dùng (tối đa 150 ký tự).
+    /// </summary>
     [Required(ErrorMessage = "Họ và tên không được để trống.")]
     [MaxLength(150, ErrorMessage = "Họ và tên không được vượt quá 150 ký tự.")]
     public string FullName { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Địa chỉ Email liên hệ (duy nhất trên toàn hệ thống).
+    /// </summary>
     [Required(ErrorMessage = "Email không được để trống.")]
     [EmailAddress(ErrorMessage = "Địa chỉ email không đúng định dạng.")]
     [MaxLength(150, ErrorMessage = "Email không được vượt quá 150 ký tự.")]
     public string Email { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Số điện thoại liên hệ (tùy chọn, tối đa 20 ký tự).
+    /// </summary>
     [Phone(ErrorMessage = "Số điện thoại không đúng định dạng.")]
     [MaxLength(20, ErrorMessage = "Số điện thoại không được vượt quá 20 ký tự.")]
     public string? PhoneNumber { get; set; }
 
+    /// <summary>
+    /// Tên đăng nhập (từ 3 - 50 ký tự; chỉ gồm chữ cái, chữ số, gạch dưới, dấu chấm; không trùng Admin và duy nhất trong đơn vị).
+    /// </summary>
     [Required(ErrorMessage = "Tên đăng nhập không được để trống.")]
     [MinLength(3, ErrorMessage = "Tên đăng nhập phải có ít nhất 3 ký tự.")]
     [MaxLength(50, ErrorMessage = "Tên đăng nhập không được vượt quá 50 ký tự.")]
     [RegularExpression(@"^[a-zA-Z0-9_.]+$", ErrorMessage = "Tên đăng nhập chỉ được chứa chữ cái, số, dấu gạch dưới hoặc dấu chấm.")]
     public string Username { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Mật khẩu đăng nhập (từ 6 - 100 ký tự; sẽ được băm một chiều bằng BCrypt trước khi lưu).
+    /// </summary>
     [Required(ErrorMessage = "Mật khẩu không được để trống.")]
     [MinLength(6, ErrorMessage = "Mật khẩu phải có ít nhất 6 ký tự.")]
     [MaxLength(100, ErrorMessage = "Mật khẩu không được vượt quá 100 ký tự.")]
     public string Password { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Mã khách hàng / đơn vị đăng ký dùng thử (tùy chọn).
-    /// </summary>
-    public string? MaCustomer { get; set; }
 }
 
 /// <summary>
@@ -120,6 +209,17 @@ public class UserResponse
 {
     public string Id { get; set; } = string.Empty;
     public string? CustomerId { get; set; }
+
+    /// <summary>
+    /// Mã khách hàng / đơn vị trực thuộc.
+    /// </summary>
+    public string? CustomerCode { get; set; }
+
+    /// <summary>
+    /// Tên khách hàng / đơn vị trực thuộc.
+    /// </summary>
+    public string? CustomerName { get; set; }
+
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string? PhoneNumber { get; set; }
