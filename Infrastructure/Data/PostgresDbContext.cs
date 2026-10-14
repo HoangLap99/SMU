@@ -141,6 +141,11 @@ public class PostgresDbContext : DbContext
     /// </summary>
     public DbSet<MucThuLePhiKhuVuc> MucThuLePhiKhuVucs => Set<MucThuLePhiKhuVuc>();
 
+    /// <summary>
+    /// Bảng lưu vết lịch sử các lần đăng ký mới, gia hạn, nâng cấp gói thuê bao của khách hàng / đơn vị.
+    /// </summary>
+    public DbSet<LichSuGoiThueBao> LichSuGoiThueBaos => Set<LichSuGoiThueBao>();
+
     #endregion
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -164,6 +169,13 @@ public class PostgresDbContext : DbContext
             entity.ToTable("Customer");
             entity.HasIndex(p => p.Code).IsUnique();
             entity.Property(p => p.Status).HasConversion<string>();
+        });
+
+        modelBuilder.Entity<LichSuGoiThueBao>(entity =>
+        {
+            entity.ToTable("LichSuGoiThueBao");
+            entity.HasIndex(e => e.CustomerId);
+            entity.HasIndex(e => e.Created);
         });
 
         #region Cấu hình các bảng danh mục (Table name không có dấu gạch dưới)

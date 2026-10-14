@@ -91,7 +91,7 @@ public class CustomersController : ControllerBase
     /// <param name="id">Mã GUID của khách hàng / đơn vị.</param>
     /// <param name="request">Thông tin cần cập nhật.</param>
     /// <param name="cancellationToken">Token hủy yêu cầu.</param>
-    [HttpPut("{id}")]
+    [HttpPost("{id}")]
     [ProducesResponseType(typeof(CustomerResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -356,4 +356,186 @@ public class CustomersController : ControllerBase
 
         return NoContent();
     }
+
+    #region Gia hạn và Lịch sử Gói thuê bao (Subscription Renewal & History)
+
+    /// <summary>
+    /// API Gia hạn hoặc nâng cấp/đổi gói thuê bao cho Khách hàng / Đơn vị theo ID.
+    /// Tự động cập nhật ngày hết hạn, hạn mức User (Quota), trạng thái và ghi vết lịch sử giao dịch.
+    /// </summary>
+    /// <param name="id">Mã GUID của khách hàng.</param>
+    /// <param name="request">Thông tin gia hạn: số tháng, ngày bắt đầu/kết thúc mới, gói thuê bao mới, số tiền, ghi chú...</param>
+    /// <param name="cancellationToken">Token hủy yêu cầu.</param>
+    [HttpPost("{id}/gia-han")]
+    [ProducesResponseType(typeof(LichSuGoiThueBaoResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<LichSuGoiThueBaoResponse>> GiaHanGoiThueBaoTheoId(
+        string id,
+        [FromBody] GiaHanGoiThueBaoRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _customerService.GiaHanGoiThueBaoAsync(id, request, cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Không tìm thấy đối tượng",
+                Detail = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Dữ liệu gia hạn không hợp lệ",
+                Detail = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// API Gia hạn hoặc nâng cấp/đổi gói thuê bao cho chính Khách hàng / Đơn vị của user đang đăng nhập (hoặc truyền CustomerId trong body).
+    /// </summary>
+    /// <param name="request">Thông tin gia hạn: CustomerId (tùy chọn), số tháng, ngày bắt đầu/kết thúc mới, gói mới, số tiền...</param>
+    /// <param name="cancellationToken">Token hủy yêu cầu.</param>
+    [HttpPost("gia-han")]
+    [ProducesResponseType(typeof(LichSuGoiThueBaoResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<LichSuGoiThueBaoResponse>> GiaHanGoiThueBao(
+        [FromBody] GiaHanGoiThueBaoRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _customerService.GiaHanGoiThueBaoAsync(request.CustomerId, request, cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Không tìm thấy đối tượng",
+                Detail = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Dữ liệu gia hạn không hợp lệ",
+                Detail = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// API Xem thông tin trạng thái gói thuê bao hiện tại và toàn bộ lịch sử các lần đăng ký, gia hạn của một Khách hàng / Đơn vị theo Id.
+    /// </summary>
+    /// <param name="id">Mã GUID của khách hàng / đơn vị.</param>
+    /// <param name="cancellationToken">Token hủy yêu cầu.</param>
+    [HttpGet("{id}/lich-su-thue-bao")]
+    [ProducesResponseType(typeof(ThongTinGoiThueBaoCustomerResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ThongTinGoiThueBaoCustomerResponse>> LayThongTinVaLichSuGoiThueBaoTheoId(
+        string id,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _customerService.LayThongTinVaLichSuGoiThueBaoAsync(id, cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Không tìm thấy khách hàng",
+                Detail = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// API Xem thông tin trạng thái gói thuê bao hiện tại và toàn bộ lịch sử các lần đăng ký, gia hạn của chính đơn vị user đang đăng nhập (hoặc theo CustomerId query).
+    /// </summary>
+    /// <param name="customerId">Mã GUID của khách hàng (tùy chọn, mặc định lấy theo tài khoản đăng nhập).</param>
+    /// <param name="cancellationToken">Token hủy yêu cầu.</param>
+    [HttpGet("lich-su-thue-bao")]
+    [ProducesResponseType(typeof(ThongTinGoiThueBaoCustomerResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ThongTinGoiThueBaoCustomerResponse>> LayThongTinVaLichSuGoiThueBao(
+        [FromQuery] string? customerId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _customerService.LayThongTinVaLichSuGoiThueBaoAsync(customerId, cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Không tìm thấy khách hàng",
+                Detail = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Yêu cầu không hợp lệ",
+                Detail = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// API Lấy danh sách lịch sử đăng ký và gia hạn gói thuê bao của Khách hàng / Đơn vị (dạng mảng danh sách).
+    /// </summary>
+    /// <param name="id">Mã GUID của khách hàng / đơn vị.</param>
+    /// <param name="cancellationToken">Token hủy yêu cầu.</param>
+    [HttpGet("{id}/lich-su-thue-bao/danh-sach")]
+    [ProducesResponseType(typeof(IReadOnlyList<LichSuGoiThueBaoResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<IReadOnlyList<LichSuGoiThueBaoResponse>>> LayDanhSachLichSuGoiThueBao(
+        string id,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _customerService.LayLichSuGoiThueBaoAsync(id, cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Không tìm thấy khách hàng",
+                Detail = ex.Message
+            });
+        }
+    }
+
+    #endregion
 }

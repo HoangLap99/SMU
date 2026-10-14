@@ -97,4 +97,58 @@ public class NhapKhoController : ControllerBase
 
         return Ok(new { success = true, message = $"Đã xóa đợt nhập kho với Id '{id}' thành công." });
     }
+
+    /// <summary>
+    /// API 5: (GET) Lấy thông tin tệp tin Excel mẫu nhập kho biển số xe (MauBaoCao/NhapKhoBienSo.xlsx).
+    /// Output trả về object chứa filename và path (mã hóa Base64 theo cấu hình StorageFolder của appsettings)
+    /// đóng vai trò là input cho API tải file /api/FileUpload/download?filename=...&amp;path=...
+    /// </summary>
+    [HttpGet("export-mau")]
+    [HttpGet("mau-excel")]
+    [ProducesResponseType(typeof(ExportMauNhapKhoResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ExportMauNhapKhoResponse>> ExportFileMau(CancellationToken cancellationToken)
+    {
+        var result = await _nhapKhoService.ExportFileMauNhapKhoAsync(cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 6: (POST) Đọc dữ liệu danh sách biển số xe từ file Excel theo file mẫu với input là FileName (đường dẫn lấy file theo StorageFolder của appsettings).
+    /// Output trả về List&lt;BienSoChiTietItemRequest&gt;.
+    /// </summary>
+    /// <param name="request">Yêu cầu chứa FileName đã upload lên thư mục StorageFolder.</param>
+    /// <param name="fileName">Tùy chọn truyền tên file qua query string.</param>
+    /// <param name="cancellationToken">Token hủy yêu cầu.</param>
+    [HttpPost("import-excel")]
+    [ProducesResponseType(typeof(List<BienSoChiTietItemRequest>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<List<BienSoChiTietItemRequest>>> ImportExcel(
+        [FromBody] ImportExcelBienSoRequest? request,
+        [FromQuery] string? fileName,
+        CancellationToken cancellationToken)
+    {
+        var targetFile = !string.IsNullOrWhiteSpace(request?.FileName) ? request.FileName : fileName;
+        if (string.IsNullOrWhiteSpace(targetFile))
+        {
+            return BadRequest(new { message = "Vui lòng truyền tên file (FileName) cần import." });
+        }
+
+        try
+        {
+            var result = await _nhapKhoService.ImportExcelBienSoAsync(targetFile, cancellationToken);
+            return Ok(result);
+        }
+        catch (FileNotFoundException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = $"Lỗi xử lý file Excel: {ex.Message}" });
+        }
+    }
 }

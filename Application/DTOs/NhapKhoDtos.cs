@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SMU.Application.DTOs;
 
@@ -129,6 +130,49 @@ public class BienSoChiTietItemRequest
     public bool LaBienDauGia { get; set; } = false;
 
     public string? GhiChu { get; set; }
+}
+
+/// <summary>
+/// Yêu cầu đọc danh sách biển số xe từ file Excel mẫu đã tải lên thư mục lưu trữ (StorageFolder).
+/// </summary>
+public class ImportExcelBienSoRequest
+{
+    /// <summary>
+    /// Tên file đã lưu trong thư mục cấu hình StorageFolder của appsettings (Ví dụ: "NhapKhoBienSo.xlsx" hoặc mã file GUID upload).
+    /// </summary>
+    [Required(ErrorMessage = "Tên tệp tin (FileName) không được để trống.")]
+    public string FileName { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Kết quả trả về của API export file mẫu nhập kho biển số xe.
+/// Chứa các tham số phục vụ gọi trực tiếp API tải file: /api/FileUpload/download?filename=...&amp;path=...
+/// </summary>
+public class ExportMauNhapKhoResponse
+{
+    /// <summary>
+    /// Tham số filename mã hóa Base64 cho API tải file: ?filename=...
+    /// </summary>
+    [JsonPropertyName("filename")]
+    public string FileName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tham số path mã hóa Base64 từ đường dẫn StorageFolder của appsettings: &amp;path=...
+    /// </summary>
+    [JsonPropertyName("path")]
+    public string Path { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Đường dẫn API hoàn chỉnh kèm query string để client tải file trực tiếp.
+    /// </summary>
+    [JsonPropertyName("downloadUrl")]
+    public string DownloadUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tên file gốc trước khi mã hóa (vd: NhapKhoBienSo.xlsx).
+    /// </summary>
+    [JsonPropertyName("originalFileName")]
+    public string OriginalFileName { get; set; } = "NhapKhoBienSo.xlsx";
 }
 
 /// <summary>

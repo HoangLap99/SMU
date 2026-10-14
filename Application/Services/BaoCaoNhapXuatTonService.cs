@@ -56,8 +56,13 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
             query = query.Where(x => x.MauBienSoId == request.MauBienSoId);
         }
 
+        // Tải thông tin ngày nhập kho từ Đợt nhập kho để đảm bảo chuẩn xác tuyệt đối với ngày nghiệp vụ
+        var dotNhapMap = await _dbContext.DotNhapKhos.AsNoTracking()
+            .Where(d => d.Id != null)
+            .ToDictionaryAsync(d => d.Id!, d => d.NgayNhapKho, cancellationToken);
+
         // Lấy danh sách biển số
-        var plates = await query
+        var rawPlates = await query
             .Select(x => new
             {
                 x.BienKiemSoat,
@@ -70,6 +75,18 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
                 x.NgayXuatKho
             })
             .ToListAsync(cancellationToken);
+
+        var plates = rawPlates.Select(x => new
+        {
+            x.BienKiemSoat,
+            x.LoaiXeId,
+            x.MauBienSoId,
+            x.DauBienSoId,
+            x.DotNhapKhoId,
+            NgayNhapKho = (x.DotNhapKhoId != null && dotNhapMap.TryGetValue(x.DotNhapKhoId, out var dnDate)) ? dnDate : x.NgayNhapKho,
+            x.DaXuatKho,
+            x.NgayXuatKho
+        }).ToList();
 
         // 2. Tải danh mục tra cứu
         var loaiXeMap = await _dbContext.LoaiXes.AsNoTracking()
@@ -114,11 +131,16 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
             })
             .Select(g =>
             {
-                // Tồn đầu kỳ: Nhập trước TuNgay (hoặc thuộc đợt tồn đầu ban đầu) và chưa xuất trước TuNgay
-                int tonDauKy = g.Count(x =>
-                    (x.NgayNhapKho < fromDate || (tonDauSet.Contains(x.DotNhapKhoId) && x.NgayNhapKho <= fromDate))
-                    && (!x.DaXuatKho || x.NgayXuatKho == null || x.NgayXuatKho >= fromDate)
+                // Tồn đầu kỳ: Tổng số biển đã nhập trừ đi tổng số biển đã xuất trước TuNgay (theo đúng yêu cầu người dùng)
+                int tongNhapTruocKy = g.Count(x =>
+                    x.NgayNhapKho < fromDate || (tonDauSet.Contains(x.DotNhapKhoId) && x.NgayNhapKho <= fromDate)
                 );
+
+                int tongXuatTruocKy = g.Count(x =>
+                    x.DaXuatKho && x.NgayXuatKho != null && x.NgayXuatKho < fromDate
+                );
+
+                int tonDauKy = Math.Max(0, tongNhapTruocKy - tongXuatTruocKy);
 
                 // Nhập trong kỳ: Nhập từ TuNgay đến DenNgay (không tính đợt tồn đầu đã vào Tồn đầu kỳ)
                 int nhapTrongKy = g.Count(x =>
@@ -155,6 +177,9 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
                 };
             });
 
+        // Chỉ hiển thị các đầu biển có tồn đầu kỳ > 0 hoặc có biến động nhập/xuất trong kỳ
+        groups = groups.Where(x => x.TonDauKy > 0 || x.NhapTrongKy > 0 || x.XuatTrongKy > 0 || x.TonCuoiKy > 0);
+
         // 4. Lọc theo từ khóa tìm kiếm Đầu biển nếu có
         if (!string.IsNullOrWhiteSpace(request.TimDauBien))
         {
@@ -182,10 +207,13 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
             TongXuatTrongKy = sortedList.Sum(x => x.XuatTrongKy)
         };
 
+        var displayFrom = fromDate.TimeOfDay.Hours >= 16 ? fromDate.AddHours(7) : fromDate;
+        var displayTo = toDate.TimeOfDay.Hours >= 16 ? toDate.AddHours(7) : toDate;
+
         return new BaoCaoNhapXuatTonResponse
         {
             TieuDe = "BÁO CÁO NHẬP - XUẤT - TỒN BIỂN SỐ XE",
-            KyBaoCaoHienThi = $"Kỳ báo cáo từ ngày {fromDate:dd/MM/yyyy} đến ngày {toDate:dd/MM/yyyy}",
+            KyBaoCaoHienThi = $"Kỳ báo cáo từ ngày {displayFrom:dd/MM/yyyy} đến ngày {displayTo:dd/MM/yyyy}",
             GhiChuInA4 = "Dữ liệu màn hình và bản in A4 được đồng bộ tuyệt đối theo các bộ lọc hiện tại.",
             TuNgay = fromDate,
             DenNgay = toDate,
@@ -688,17 +716,21 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
 
         if (tuNgay.HasValue && denNgay.HasValue)
         {
-            fromDate = DateTime.SpecifyKind(tuNgay.Value.Date, DateTimeKind.Utc);
-            toDate = DateTime.SpecifyKind(denNgay.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
+            var d1 = tuNgay.Value;
+            var d2 = denNgay.Value;
+            if (d1 > d2) (d1, d2) = (d2, d1);
+
+            fromDate = NormalizeStartDate(d1);
+            toDate = NormalizeEndDate(d2);
         }
         else if (tuNgay.HasValue)
         {
-            fromDate = DateTime.SpecifyKind(tuNgay.Value.Date, DateTimeKind.Utc);
+            fromDate = NormalizeStartDate(tuNgay.Value);
             toDate = DateTime.SpecifyKind(fromDate.AddMonths(3).AddTicks(-1), DateTimeKind.Utc);
         }
         else if (denNgay.HasValue)
         {
-            toDate = DateTime.SpecifyKind(denNgay.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
+            toDate = NormalizeEndDate(denNgay.Value);
             fromDate = DateTime.SpecifyKind(toDate.AddMonths(-3).Date, DateTimeKind.Utc);
         }
         else
@@ -709,6 +741,27 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
         }
 
         return (fromDate, toDate);
+    }
+
+    private static DateTime NormalizeStartDate(DateTime dt)
+    {
+        // Nếu client gửi 17:00:00 UTC (tương đương 00:00:00 ngày hôm sau theo giờ VN GMT+7)
+        if (dt.Kind == DateTimeKind.Utc && dt.TimeOfDay.Hours >= 16 && dt.TimeOfDay.Hours <= 18)
+        {
+            return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+        }
+
+        return DateTime.SpecifyKind(dt.Date, DateTimeKind.Utc);
+    }
+
+    private static DateTime NormalizeEndDate(DateTime dt)
+    {
+        if (dt.Kind == DateTimeKind.Utc && dt.TimeOfDay.Hours >= 16 && dt.TimeOfDay.Hours <= 18)
+        {
+            return DateTime.SpecifyKind(dt.AddTicks(-1), DateTimeKind.Utc);
+        }
+
+        return DateTime.SpecifyKind(dt.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
     }
 
     private static string FormatDauBienStr(string? raw)

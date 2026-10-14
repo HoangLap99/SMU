@@ -141,6 +141,22 @@ Content-Type: application/json
 ### Lưu ID khách hàng vừa tạo
 @customerId = {{createCustomer.response.body.id}}
 
+### 6.1. Cập nhật thông tin Khách hàng / Đơn vị (Hỗ trợ cả PUT và POST)
+# @name updateCustomer
+PUT {{SMU_HostAddress}}/api/Customers/{{customerId}}
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "code": "CUS-AI-01-UPDATED",
+  "name": "Đơn vị Tự động hóa Tài liệu AI (Đã cập nhật)",
+  "description": "Cập nhật mô tả hoạt động của đơn vị",
+  "startDate": "2026-01-01T00:00:00Z",
+  "endDate": "2027-12-31T00:00:00Z",
+  "status": 0,
+  "isActive": true
+}
+
 ### 7. Lấy định mức tài khoản đơn vị (Quota)
 GET {{SMU_HostAddress}}/api/Customers/{{customerId}}/quota
 Authorization: Bearer {{authToken}}
@@ -234,6 +250,51 @@ Content-Type: application/json
 DELETE {{SMU_HostAddress}}/api/Customers/{{customerId}}/members/{{newMemberUserId}}
 Authorization: Bearer {{authToken}}
 
+### 12.1. Gia hạn / Nâng cấp gói thuê bao theo Customer ID (Admin hoặc Customer tự gia hạn)
+# @name giaHanThueBaoTheoId
+POST {{SMU_HostAddress}}/api/Customers/{{customerId}}/gia-han
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "goiThueBaoId": null,
+  "soThang": 12,
+  "gioiHanUser": 10,
+  "soTien": 12000000,
+  "soHopDong": "HD-2026/001-GH",
+  "ghiChu": "Gia hạn dịch vụ thêm 12 tháng, mở rộng 10 người dùng"
+}
+
+### 12.2. Gia hạn / Nâng cấp gói thuê bao cho Customer hiện tại đang đăng nhập (tự động nhận diện CustomerId từ Token)
+# @name giaHanThueBaoMe
+POST {{SMU_HostAddress}}/api/Customers/gia-han
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "soThang": 6,
+  "ghiChu": "Customer tự gia hạn online 6 tháng"
+}
+
+### 12.3. Xem thông tin gói hiện tại, thời hạn, số ngày còn lại & toàn bộ lịch sử đăng ký/gia hạn theo CustomerId
+# @name getLichSuThueBaoTheoId
+GET {{SMU_HostAddress}}/api/Customers/{{customerId}}/lich-su-thue-bao
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 12.4. Xem thông tin gói hiện tại & lịch sử cho Customer đang đăng nhập (Tự lấy từ Token)
+# @name getLichSuThueBaoMe
+GET {{SMU_HostAddress}}/api/Customers/lich-su-thue-bao
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 12.5. Chỉ lấy danh sách lịch sử các lần đăng ký và gia hạn của Customer (Dạng mảng gọn)
+# @name getDanhSachLichSuThueBao
+GET {{SMU_HostAddress}}/api/Customers/{{customerId}}/lich-su-thue-bao/danh-sach
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+
 ### 13. Lấy danh sách định dạng tài liệu được hỗ trợ (Yêu cầu Authorization)
 GET {{SMU_HostAddress}}/api/DocumentAi/supported-formats
 Authorization: Bearer {{authToken}}
@@ -281,6 +342,14 @@ Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 
 Nội dung file mẫu dùng để kiểm thử tính năng upload file.
 --boundary--
+
+### 16.1. Tải file về máy với filename và path mã hóa Base64 (Hỗ trợ AllowAnonymous / Browser link)
+# @name downloadFileBase64
+GET {{SMU_HostAddress}}/api/FileUpload/download?filename=QmFvQ2FvLnhsc3g=&path=QzpcdXBsb2FkZXJcQXBwX0RhdGFcdXBsb2Fkc1xCYW9DYW9fNDYzMDkuNjg5MjQ5NTQ4NjEueGxzeA==
+
+### 16.2. Tải file về qua alias /api/FileUpload?filename=...&path=...
+# @name downloadFileBase64Direct
+GET {{SMU_HostAddress}}/api/FileUpload?filename=QmFvQ2FvLnhsc3g=&path=QzpcdXBsb2FkZXJcQXBwX0RhdGFcdXBsb2Fkc1xCYW9DYW9fNDYzMDkuNjg5MjQ5NTQ4NjEueGxzeA==
 
 ### =================================================================
 ### CÁC API CHUẨN CHO TỪNG DANH MỤC (Route không dấu gạch dưới)
@@ -1316,6 +1385,30 @@ Content-Type: application/json
   "denNgay": "2026-10-31T23:59:59Z"
 }
 
+### 6.1. (POST) DASHBOARD LỌC THEO KHOẢNG NGÀY TÙY CHỌN (Ví dụ: Tháng 10/2026 từ 01/10/2026 đến 31/10/2026)
+# @name getDashboardThang10
+POST {{SMU_HostAddress}}/api/BaoCaoBienThien/dashboard
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "gomTheo": "Thang",
+  "tuNgay": "2026-10-01T00:00:00Z",
+  "denNgay": "2026-10-31T23:59:59Z"
+}
+
+### 6.2. (POST) DASHBOARD LỌC THEO NGÀY ĐỊNH DẠNG VIỆT NAM (dd/MM/yyyy)
+# @name getDashboardThang10DinhDangVN
+POST {{SMU_HostAddress}}/api/BaoCaoBienThien/dashboard
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "gomTheo": "Ngay",
+  "tuNgay": "01/10/2026",
+  "denNgay": "31/10/2026"
+}
+
 ### 7. (GET) LẤY DANH SÁCH BỘ LỌC 'GOM THEO' (Theo tháng, Theo ngày)
 # @name getBoLocGomTheo
 GET {{SMU_HostAddress}}/api/BaoCaoBienThien/bo-loc/gom-theo
@@ -1431,6 +1524,34 @@ Content-Type: application/json
   "denNgay": "2026-10-31T23:59:59Z",
   "timKiem": null
 }
+
+### ==============================================================================
+### PHẦN IX: QUẢN LÝ NHẬP KHO BIỂN SỐ XE (EXCEL EPPLUS)
+### ==============================================================================
+
+### 1. (GET) Lấy input tải file mẫu Excel nhập kho (Output là input cho API /api/FileUpload/download)
+# @name exportMauNhapKho
+GET {{SMU_HostAddress}}/api/NhapKho/export-mau
+Authorization: Bearer {{authToken}}
+
+### 1.1. (GET) Alias xuất file mẫu qua /mau-excel
+# @name getMauExcel
+GET {{SMU_HostAddress}}/api/NhapKho/mau-excel
+Authorization: Bearer {{authToken}}
+
+### 1.2. (GET) Tải trực tiếp file mẫu theo kết quả trả về từ api export-mau
+GET {{SMU_HostAddress}}{{exportMauNhapKho.response.body.downloadUrl}}
+
+### 2. (POST) Đọc / Import dữ liệu biển số từ file Excel trong thư mục StorageFolder (Uploads)
+# @name importExcelBienSo
+POST {{SMU_HostAddress}}/api/NhapKho/import-excel
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "fileName": "test_import.xlsx"
+}
+
 
 
 

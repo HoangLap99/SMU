@@ -1,6 +1,9 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using OfficeOpenXml;
 using SMU.Application.DTOs;
 using SMU.Application.Interfaces;
 using SMU.Core.Entities;
@@ -10,25 +13,33 @@ namespace SMU.Application.Services;
 
 /// <summary>
 /// Dịch vụ quản lý nghiệp vụ Đợt nhập kho và Kho biển số xe.
-/// Cung cấp 4 chức năng cốt lõi:
+/// Cung cấp 6 chức năng cốt lõi:
 /// 1. (POST) Lấy danh sách đợt nhập kho có phân trang và bộ lọc.
 /// 2. (POST) Thêm mới và update đợt nhập kho. Nếu update và DaNhapKho == true thì sẽ lưu kho (bỏ qua biển số LaBienDauGia == true).
 /// 3. (GET) Lấy thông tin 1 đợt nhập kho theo Id.
 /// 4. (GET) Xóa đợt nhập kho theo Id.
+/// 5. (GET) Xuất / Tải tệp tin Excel mẫu nhập kho biển số xe (MauBaoCao/NhapKhoBienSo.xlsx).
+/// 6. (POST) Đọc dữ liệu danh sách biển số xe từ file Excel mẫu theo FileName trong StorageFolder.
 /// </summary>
 public class NhapKhoService : INhapKhoService
 {
     private readonly PostgresDbContext _dbContext;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IWebHostEnvironment _environment;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<NhapKhoService> _logger;
 
     public NhapKhoService(
         PostgresDbContext dbContext,
         ICurrentUserService currentUserService,
+        IWebHostEnvironment environment,
+        IConfiguration configuration,
         ILogger<NhapKhoService> logger)
     {
         _dbContext = dbContext;
         _currentUserService = currentUserService;
+        _environment = environment;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -471,7 +482,7 @@ public class NhapKhoService : INhapKhoService
                     MauBienSoId = item.MauBienSoId ?? dotNhap.MauBienSoId,
                     DauBienSoId = dauBienId,
                     GhiChu = item.GhiChu ?? "Nhập kho chính thức",
-                    NgayNhapKho = dotNhap.NgayNhapKhoThucTe ?? DateTime.UtcNow
+                    NgayNhapKho = dotNhap.NgayNhapKho
                 };
             }).ToList();
 
@@ -702,5 +713,229 @@ public class NhapKhoService : INhapKhoService
         }
 
         return bks;
+    }
+
+    /// <summary>
+    /// 5. (GET) Lấy thông tin tệp tin Excel mẫu nhập kho biển số xe (MauBaoCao/NhapKhoBienSo.xlsx).
+    /// Output trả về các tham số filename và path (mã hóa Base64) là input cho API tải file /api/FileUpload/download.
+    /// </summary>
+    public async Task<ExportMauNhapKhoResponse> ExportFileMauNhapKhoAsync(CancellationToken cancellationToken = default)
+    {
+        // 1. Xác định thư mục StorageFolder từ cấu hình appsettings
+        var storageFolder = _configuration["FileStorage:StorageFolder"] ?? "Uploads";
+        var storageDir = Path.IsPathRooted(storageFolder)
+            ? storageFolder
+            : Path.Combine(_environment.ContentRootPath, storageFolder);
+
+        if (!Directory.Exists(storageDir))
+        {
+            Directory.CreateDirectory(storageDir);
+        }
+
+        var templateFileName = "NhapKhoBienSo.xlsx";
+        var targetFilePath = Path.Combine(storageDir, templateFileName);
+
+        // 2. Đảm bảo file tồn tại trong StorageFolder (sao chép từ MauBaoCao hoặc tự động sinh chuẩn bằng EPPlus)
+        var sourceTemplate = Path.Combine(_environment.ContentRootPath, "MauBaoCao", templateFileName);
+        if (File.Exists(sourceTemplate))
+        {
+            File.Copy(sourceTemplate, targetFilePath, overwrite: true);
+        }
+        else if (!File.Exists(targetFilePath))
+        {
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            using var package = new ExcelPackage();
+            var ws = package.Workbook.Worksheets.Add("Sheet1");
+
+            // Tiêu đề
+            ws.Cells[1, 1].Value = "DANH SÁCH BIỂN KIỂM SOÁT";
+            ws.Cells[1, 1, 1, 2].Merge = true;
+            ws.Cells[1, 1].Style.Font.Bold = true;
+            ws.Cells[1, 1].Style.Font.Size = 16;
+            ws.Cells[1, 1].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+
+            // Dòng header
+            ws.Cells[3, 1].Value = "STT";
+            ws.Cells[3, 2].Value = "Biển kiểm soát";
+            for (int c = 1; c <= 2; c++)
+            {
+                ws.Cells[3, c].Style.Font.Bold = true;
+                ws.Cells[3, c].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                ws.Cells[3, c].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(220, 230, 242));
+                ws.Cells[3, c].Style.Border.BorderAround(OfficeOpenXml.Style.ExcelBorderStyle.Thin);
+                ws.Cells[3, c].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+            }
+
+            ws.Column(1).Width = 10;
+            ws.Column(2).Width = 25;
+
+            await package.SaveAsAsync(new FileInfo(targetFilePath), cancellationToken);
+        }
+
+        // 3. Mã hóa Base64 filename và path theo cấu hình StorageFolder
+        var encodedFileName = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(templateFileName));
+        var encodedPath = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(targetFilePath));
+        var downloadUrl = $"/api/FileUpload/download?filename={Uri.EscapeDataString(encodedFileName)}&path={Uri.EscapeDataString(encodedPath)}";
+
+        _logger.LogInformation("Export mẫu nhập kho: Trả về input cho download file: filename='{FileName}', path='{Path}'", encodedFileName, encodedPath);
+
+        return new ExportMauNhapKhoResponse
+        {
+            FileName = encodedFileName,
+            Path = encodedPath,
+            DownloadUrl = downloadUrl,
+            OriginalFileName = templateFileName
+        };
+    }
+
+    /// <summary>
+    /// 6. (POST) Đọc dữ liệu danh sách biển số xe từ file Excel mẫu theo FileName trong thư mục StorageFolder của appsettings.
+    /// Output trả về List&lt;BienSoChiTietItemRequest&gt;.
+    /// </summary>
+    public async Task<List<BienSoChiTietItemRequest>> ImportExcelBienSoAsync(string fileName, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            throw new ArgumentException("Tên file (FileName) không được để trống.", nameof(fileName));
+        }
+
+        // 1. Xác định đường dẫn thư mục lưu trữ từ appsettings.json
+        var storageFolder = _configuration["FileStorage:StorageFolder"] ?? "Uploads";
+        var baseDir = Path.IsPathRooted(storageFolder)
+            ? storageFolder
+            : Path.Combine(_environment.ContentRootPath, storageFolder);
+
+        // 2. Tìm tệp tin mục tiêu
+        var cleanName = fileName.Replace('\\', '/').Trim();
+        var folderPrefix = storageFolder.Replace('\\', '/').TrimEnd('/') + "/";
+        if (cleanName.StartsWith(folderPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            cleanName = cleanName.Substring(folderPrefix.Length);
+        }
+        var safeFileName = Path.GetFileName(cleanName);
+        var filePath = Path.Combine(baseDir, safeFileName);
+
+        if (!File.Exists(filePath))
+        {
+            // Kiểm tra các đường dẫn phụ phòng trường hợp client gửi relative path khác
+            if (File.Exists(fileName))
+            {
+                filePath = fileName;
+            }
+            else
+            {
+                var altPath = Path.Combine(_environment.ContentRootPath, fileName.TrimStart('/', '\\'));
+                if (File.Exists(altPath))
+                {
+                    filePath = altPath;
+                }
+                else
+                {
+                    throw new FileNotFoundException($"Không tìm thấy tệp tin '{fileName}' trong thư mục lưu trữ '{storageFolder}'.", fileName);
+                }
+            }
+        }
+
+        // 3. Đọc dữ liệu bằng EPPlus
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+        // Tải danh mục trạng thái biển số mặc định nếu có ("Biển được bấm (Tồn kho)")
+        var defaultTrangThai = await _dbContext.TrangThaiBienSos.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Ma == "DUOC_BAM" || x.Ten.Contains("được bấm") || x.Ten.Contains("Tồn kho"), cancellationToken);
+
+        var listResult = new List<BienSoChiTietItemRequest>();
+
+        using var package = new ExcelPackage(new FileInfo(filePath));
+        var ws = package.Workbook.Worksheets.FirstOrDefault();
+        if (ws == null || ws.Dimension == null)
+        {
+            return listResult;
+        }
+
+        // 4. Nhận diện dòng tiêu đề (Dòng 3 như file mẫu MauBaoCao/NhapKhoBienSo.xlsx hoặc quét linh hoạt)
+        int headerRow = 3;
+        int bienSoCol = 2;
+        int sttCol = 1;
+        int ghiChuCol = 3;
+
+        int maxScanRow = Math.Min(10, ws.Dimension.End.Row);
+        for (int r = 1; r <= maxScanRow; r++)
+        {
+            for (int c = 1; c <= ws.Dimension.End.Column; c++)
+            {
+                var text = ws.Cells[r, c].Text?.Trim().ToLowerInvariant();
+                if (text != null && (text.Contains("biển") || text.Contains("bien") || text.Contains("bks")))
+                {
+                    headerRow = r;
+                    bienSoCol = c;
+                    break;
+                }
+            }
+            if (headerRow != 3 || bienSoCol != 2)
+            {
+                for (int c = 1; c <= ws.Dimension.End.Column; c++)
+                {
+                    var text = ws.Cells[headerRow, c].Text?.Trim().ToLowerInvariant();
+                    if (text != null && (text == "stt" || text.Contains("thứ tự") || text.Contains("thu tu")))
+                    {
+                        sttCol = c;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+
+        int currentOrder = 1;
+
+        // 5. Duyệt từ dòng kế tiếp của header đến hết bảng
+        for (int row = headerRow + 1; row <= ws.Dimension.End.Row; row++)
+        {
+            var rawBienSo = ws.Cells[row, bienSoCol].Text?.Trim();
+            if (string.IsNullOrWhiteSpace(rawBienSo))
+            {
+                continue;
+            }
+
+            // Chuẩn hóa biển số: chữ hoa, xóa khoảng trắng thừa
+            var bienKiemSoat = rawBienSo.ToUpperInvariant().Replace(" ", "");
+
+            // STT
+            int thuTu = currentOrder++;
+            var rawStt = ws.Cells[row, sttCol].Text?.Trim();
+            if (int.TryParse(rawStt, out var parsedStt) && parsedStt > 0)
+            {
+                thuTu = parsedStt;
+            }
+
+            // Ghi chú nếu có cột 3
+            string? ghiChu = null;
+            if (ws.Dimension.End.Column >= ghiChuCol && ghiChuCol != bienSoCol && ghiChuCol != sttCol)
+            {
+                ghiChu = ws.Cells[row, ghiChuCol].Text?.Trim();
+            }
+
+            // Đánh dấu biển đấu giá nếu ghi chú ghi nhận
+            bool laBienDauGia = false;
+            if (!string.IsNullOrWhiteSpace(ghiChu) && (ghiChu.ToLower().Contains("đấu giá") || ghiChu.ToLower().Contains("dau gia")))
+            {
+                laBienDauGia = true;
+            }
+
+            listResult.Add(new BienSoChiTietItemRequest
+            {
+                ThuTu = thuTu,
+                BienKiemSoat = bienKiemSoat,
+                TrangThaiBienSoId = defaultTrangThai?.Id,
+                TrangThaiBienSoTen = defaultTrangThai?.Ten ?? "Biển được bấm (Tồn kho)",
+                MauSacHienThi = "success",
+                LaBienDauGia = laBienDauGia,
+                GhiChu = ghiChu
+            });
+        }
+
+        _logger.LogInformation("Import Excel thành công: Đã trích xuất {Count} biển số từ file '{FileName}'", listResult.Count, fileName);
+
+        return listResult;
     }
 }
