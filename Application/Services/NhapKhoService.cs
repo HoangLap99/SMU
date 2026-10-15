@@ -159,9 +159,9 @@ public class NhapKhoService : INhapKhoService
 
         // Lấy danh mục trạng thái biển số mặc định
         var defaultStatus = await _dbContext.TrangThaiBienSos
-            .FirstOrDefaultAsync(x => x.Ma == "DUOC_BAM" || x.Ten.Contains("bấm"), cancellationToken);
+            .FirstOrDefaultAsync(x => x.Ma == "DUOC_BAM" || x.Ten.ToLower().Contains("được bấm") || x.Ten.ToLower().Contains("bấm") || x.Ten.ToLower().Contains("tồn kho"), cancellationToken);
         var statusDauGia = await _dbContext.TrangThaiBienSos
-            .FirstOrDefaultAsync(x => x.Ma == "CHO_DAU_GIA" || x.Ten.Contains("đấu giá"), cancellationToken);
+            .FirstOrDefaultAsync(x => x.Ma == "CHO_DAU_GIA" || x.Ten.ToLower().Contains("đấu giá"), cancellationToken);
 
         // Kiểm tra xem là Thêm mới hay Update
         DotNhapKho? dotNhap = null;
@@ -205,16 +205,40 @@ public class NhapKhoService : INhapKhoService
             foreach (var item in request.DanhSachBienSo.Where(x => !string.IsNullOrWhiteSpace(x.BienKiemSoat)))
             {
                 var isDauGia = item.LaBienDauGia || (item.TrangThaiBienSoTen != null && item.TrangThaiBienSoTen.Contains("đấu giá", StringComparison.OrdinalIgnoreCase));
-                var st = isDauGia ? (statusDauGia ?? defaultStatus) : defaultStatus;
+                
+                string? ttId;
+                string ttTen;
+                string ttMau;
+
+                if (isDauGia)
+                {
+                    ttId = statusDauGia?.Id ?? item.TrangThaiBienSoId;
+                    ttTen = statusDauGia?.Ten ?? "Chờ đấu giá";
+                    ttMau = statusDauGia?.MauSacHienThi ?? "warning";
+                }
+                else if (request.DaNhapKho)
+                {
+                    // KHI XÁC NHẬN NHẬP KHO: Trạng thái biển luôn là "Được bấm"
+                    ttId = defaultStatus?.Id ?? item.TrangThaiBienSoId;
+                    ttTen = defaultStatus?.Ten ?? "Biển được bấm (Tồn kho)";
+                    ttMau = defaultStatus?.MauSacHienThi ?? "success";
+                }
+                else
+                {
+                    // Lưu tạm / Bản nháp
+                    ttId = item.TrangThaiBienSoId ?? defaultStatus?.Id;
+                    ttTen = item.TrangThaiBienSoTen ?? "Lưu tạm";
+                    ttMau = item.MauSacHienThi ?? "secondary";
+                }
 
                 listBienSoItems.Add(new ChiTietDotNhapBienSo
                 {
                     CustomerId = customerId,
                     ThuTu = item.ThuTu > 0 ? item.ThuTu : stt++,
                     BienKiemSoat = item.BienKiemSoat.Trim().ToUpperInvariant(),
-                    TrangThaiBienSoId = item.TrangThaiBienSoId ?? st?.Id,
-                    TrangThaiBienSoTen = item.TrangThaiBienSoTen ?? st?.Ten ?? (isDauGia ? "Chờ đấu giá" : "Biển được bấm (Tồn kho)"),
-                    MauSacHienThi = item.MauSacHienThi ?? st?.MauSacHienThi ?? (isDauGia ? "warning" : "success"),
+                    TrangThaiBienSoId = ttId,
+                    TrangThaiBienSoTen = ttTen,
+                    MauSacHienThi = ttMau,
                     LaBienDauGia = isDauGia,
                     LoaiXeId = request.LoaiXeId,
                     MauBienSoId = request.MauBienSoId,
@@ -236,8 +260,8 @@ public class NhapKhoService : INhapKhoService
                     ThuTu = stt++,
                     BienKiemSoat = formatted,
                     TrangThaiBienSoId = defaultStatus?.Id,
-                    TrangThaiBienSoTen = defaultStatus?.Ten ?? "Biển được bấm (Tồn kho)",
-                    MauSacHienThi = defaultStatus?.MauSacHienThi ?? "success",
+                    TrangThaiBienSoTen = request.DaNhapKho ? (defaultStatus?.Ten ?? "Biển được bấm (Tồn kho)") : "Lưu tạm",
+                    MauSacHienThi = request.DaNhapKho ? (defaultStatus?.MauSacHienThi ?? "success") : "secondary",
                     LaBienDauGia = false,
                     LoaiXeId = request.LoaiXeId,
                     MauBienSoId = request.MauBienSoId,
@@ -361,29 +385,143 @@ public class NhapKhoService : INhapKhoService
             dotNhap.SoBienDuocBam = soBienDuocBam;
             dotNhap.SoBienChoDauGia = soBienChoDauGia;
             dotNhap.Modified = DateTime.UtcNow;
+        }
 
-            // Xóa các dòng biển số chi tiết cũ của đợt nhập để đồng bộ lại
-            var oldChiTiets = await _dbContext.ChiTietDotNhapBienSos
-                .Where(x => x.DotNhapKhoId == dotNhap.Id)
+        // 1. Tự động trích xuất các đầu biển số từ danh sách biển số nhập kho và lưu vào danh mục DauBienSo
+        var dauBienMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var distinctDauBiens = listBienSoItems
+            .Select(x => TrichXuatDauBienSo(x.BienKiemSoat))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (distinctDauBiens.Count > 0)
+        {
+            var existingDauBiens = await _dbContext.DauBienSos
+                .Where(x => (dotNhap.CustomerId == null ? x.CustomerId == null : x.CustomerId == dotNhap.CustomerId))
                 .ToListAsync(cancellationToken);
-            if (oldChiTiets.Count > 0)
+
+            var existingMap = existingDauBiens
+                .Where(x => distinctDauBiens.Contains(x.Ma, StringComparer.OrdinalIgnoreCase))
+                .ToDictionary(x => x.Ma, x => x.Id!, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var dbCode in distinctDauBiens)
             {
-                _dbContext.ChiTietDotNhapBienSos.RemoveRange(oldChiTiets);
+                if (existingMap.TryGetValue(dbCode, out var existingId))
+                {
+                    dauBienMap[dbCode] = existingId;
+                }
+                else
+                {
+                    var newDauBien = new DauBienSo
+                    {
+                        CustomerId = dotNhap.CustomerId,
+                        Ma = dbCode,
+                        Ten = dbCode,
+                        KyHieuSeries = dbCode,
+                        ThuTu = 0,
+                        IsActive = true
+                    };
+                    _dbContext.DauBienSos.Add(newDauBien);
+                    dauBienMap[dbCode] = newDauBien.Id!;
+                    _logger.LogInformation("Tự động thêm mới Đầu biển số '{Ma}' vào danh mục DauBienSo cho CustomerId: '{CustomerId}'", dbCode, dotNhap.CustomerId);
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(dotNhap.KyHieuDaiDauBien))
+            {
+                dotNhap.KyHieuDaiDauBien = JsonSerializer.Serialize(distinctDauBiens);
             }
         }
 
-        // Gán DotNhapKhoId cho các dòng biển số chi tiết và thêm vào ChiTietDotNhapBienSo
+        // Gán DauBienSoId cho từng ChiTietDotNhapBienSo
+        foreach (var item in listBienSoItems)
+        {
+            var code = TrichXuatDauBienSo(item.BienKiemSoat);
+            if (code != null && dauBienMap.TryGetValue(code, out var dbId))
+            {
+                item.DauBienSoId ??= dbId;
+            }
+        }
+
+        // 2. Đồng bộ bảng ChiTietDotNhapBienSo và bảng KhoBienSo
+        var oldChiTiets = await _dbContext.ChiTietDotNhapBienSos
+            .Where(x => x.DotNhapKhoId == dotNhap.Id)
+            .ToListAsync(cancellationToken);
+
+        var oldKhoEntities = await _dbContext.KhoBienSos
+            .Where(x => x.DotNhapKhoId == dotNhap.Id)
+            .ToListAsync(cancellationToken);
+
+        var matchedChiTietIds = new HashSet<string>();
+        var matchedKhoIds = new HashSet<string>();
+
+        // Đồng bộ ChiTietDotNhapBienSo
         foreach (var item in listBienSoItems)
         {
             item.DotNhapKhoId = dotNhap.Id!;
+
+            var oldChiTiet = oldChiTiets.FirstOrDefault(x => !matchedChiTietIds.Contains(x.Id!) && !string.IsNullOrEmpty(item.Id) && x.Id == item.Id)
+                          ?? oldChiTiets.FirstOrDefault(x => !matchedChiTietIds.Contains(x.Id!) && string.Equals(x.BienKiemSoat.Trim(), item.BienKiemSoat.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            if (oldChiTiet != null)
+            {
+                matchedChiTietIds.Add(oldChiTiet.Id!);
+                oldChiTiet.ThuTu = item.ThuTu;
+                oldChiTiet.BienKiemSoat = item.BienKiemSoat;
+
+                if (item.LaBienDauGia)
+                {
+                    oldChiTiet.TrangThaiBienSoId = statusDauGia?.Id ?? item.TrangThaiBienSoId;
+                    oldChiTiet.TrangThaiBienSoTen = statusDauGia?.Ten ?? "Chờ đấu giá";
+                    oldChiTiet.MauSacHienThi = statusDauGia?.MauSacHienThi ?? "warning";
+                }
+                else if (request.DaNhapKho)
+                {
+                    // Khi xác nhận nhập kho thì trạng thái biển là ĐƯỢC BẤM
+                    oldChiTiet.TrangThaiBienSoId = defaultStatus?.Id ?? item.TrangThaiBienSoId;
+                    oldChiTiet.TrangThaiBienSoTen = defaultStatus?.Ten ?? "Biển được bấm (Tồn kho)";
+                    oldChiTiet.MauSacHienThi = defaultStatus?.MauSacHienThi ?? "success";
+                }
+                else
+                {
+                    oldChiTiet.TrangThaiBienSoId = item.TrangThaiBienSoId;
+                    oldChiTiet.TrangThaiBienSoTen = item.TrangThaiBienSoTen ?? "Lưu tạm";
+                    oldChiTiet.MauSacHienThi = item.MauSacHienThi ?? "secondary";
+                }
+
+                oldChiTiet.LaBienDauGia = item.LaBienDauGia;
+                oldChiTiet.LoaiXeId = item.LoaiXeId ?? dotNhap.LoaiXeId;
+                oldChiTiet.MauBienSoId = item.MauBienSoId ?? dotNhap.MauBienSoId;
+                oldChiTiet.DauBienSoId = item.DauBienSoId;
+                oldChiTiet.GhiChu = item.GhiChu ?? dotNhap.GhiChu;
+                oldChiTiet.Modified = DateTime.UtcNow;
+
+                item.Id = oldChiTiet.Id;
+                item.TrangThaiBienSoId = oldChiTiet.TrangThaiBienSoId;
+                item.TrangThaiBienSoTen = oldChiTiet.TrangThaiBienSoTen;
+                item.MauSacHienThi = oldChiTiet.MauSacHienThi;
+            }
+            else
+            {
+                await _dbContext.ChiTietDotNhapBienSos.AddAsync(item, cancellationToken);
+            }
         }
 
-        if (listBienSoItems.Count > 0)
+        // Xóa các ChiTiet thừa (những biển không còn trong danh sách gửi lên)
+        var unMatchedChiTiets = oldChiTiets.Where(x => !matchedChiTietIds.Contains(x.Id!)).ToList();
+        foreach (var un in unMatchedChiTiets)
         {
-            await _dbContext.ChiTietDotNhapBienSos.AddRangeAsync(listBienSoItems, cancellationToken);
+            var linkedKho = oldKhoEntities.FirstOrDefault(k => k.ChiTietDotNhapBienSoId == un.Id || string.Equals(k.BienKiemSoat.Trim(), un.BienKiemSoat.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (linkedKho != null && linkedKho.DaXuatKho)
+            {
+                throw new InvalidOperationException($"Biển kiểm soát '{linkedKho.BienKiemSoat}' đã được xuất kho, không thể xóa khỏi đợt nhập.");
+            }
+            _dbContext.ChiTietDotNhapBienSos.Remove(un);
         }
 
-        // NẾU update (hoặc tạo mới) VÀ DaNhapKho == true: THỰC HIỆN LƯU KHO
+        // 3. Đồng bộ KhoBienSo
         if (request.DaNhapKho)
         {
             dotNhap.DaNhapKho = true;
@@ -391,108 +529,108 @@ public class NhapKhoService : INhapKhoService
             dotNhap.NgayNhapKhoThucTe ??= DateTime.UtcNow;
             dotNhap.NguoiNhapKho ??= (_currentUserService.FullName ?? _currentUserService.Username ?? "Quản trị viên");
 
-            // Xóa dữ liệu cũ trong KhoBienSo của đợt nhập này nếu trước đó đã từng lưu kho
-            var oldKhoEntities = await _dbContext.KhoBienSos
-                .Where(x => x.DotNhapKhoId == dotNhap.Id)
-                .ToListAsync(cancellationToken);
-            if (oldKhoEntities.Count > 0)
-            {
-                _dbContext.KhoBienSos.RemoveRange(oldKhoEntities);
-            }
+            var loaiXeEntity = !string.IsNullOrEmpty(dotNhap.LoaiXeId)
+                ? await _dbContext.LoaiXes.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dotNhap.LoaiXeId || x.Ma == dotNhap.LoaiXeId, cancellationToken)
+                : null;
+            var mauBienEntity = !string.IsNullOrEmpty(dotNhap.MauBienSoId)
+                ? await _dbContext.MauBienSos.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dotNhap.MauBienSoId || x.Ma == dotNhap.MauBienSoId, cancellationToken)
+                : null;
+            var loaiXeTen = loaiXeEntity?.Ten ?? "Ô tô";
+            var mauBienTen = mauBienEntity?.Ten ?? "Biển Trắng";
 
-            // 1. Tự động trích xuất các đầu biển số từ danh sách biển số nhập kho và lưu vào danh mục DauBienSo
-            // Quy tắc: bỏ 2 số cuối đi, ví dụ 30H-123456 -> Ma = Ten = 30H-123, 30H-000.01 -> 30H-000
-            // CustomerId = CustomerId của đợt nhập
-            var dauBienMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            var distinctDauBiens = listBienSoItems
-                .Select(x => TrichXuatDauBienSo(x.BienKiemSoat))
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Select(x => x!)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            if (distinctDauBiens.Count > 0)
-            {
-                var existingDauBiens = await _dbContext.DauBienSos
-                    .Where(x => (dotNhap.CustomerId == null ? x.CustomerId == null : x.CustomerId == dotNhap.CustomerId))
-                    .ToListAsync(cancellationToken);
-
-                var existingMap = existingDauBiens
-                    .Where(x => distinctDauBiens.Contains(x.Ma, StringComparer.OrdinalIgnoreCase))
-                    .ToDictionary(x => x.Ma, x => x.Id!, StringComparer.OrdinalIgnoreCase);
-
-                foreach (var dbCode in distinctDauBiens)
-                {
-                    if (existingMap.TryGetValue(dbCode, out var existingId))
-                    {
-                        dauBienMap[dbCode] = existingId;
-                    }
-                    else
-                    {
-                        var newDauBien = new DauBienSo
-                        {
-                            CustomerId = dotNhap.CustomerId,
-                            Ma = dbCode,
-                            Ten = dbCode,
-                            KyHieuSeries = dbCode,
-                            ThuTu = 0,
-                            IsActive = true
-                        };
-                        _dbContext.DauBienSos.Add(newDauBien);
-                        dauBienMap[dbCode] = newDauBien.Id!;
-                        _logger.LogInformation("Tự động thêm mới Đầu biển số '{Ma}' vào danh mục DauBienSo cho CustomerId: '{CustomerId}'", dbCode, dotNhap.CustomerId);
-                    }
-                }
-
-                if (string.IsNullOrWhiteSpace(dotNhap.KyHieuDaiDauBien))
-                {
-                    dotNhap.KyHieuDaiDauBien = JsonSerializer.Serialize(distinctDauBiens);
-                }
-            }
-
-            // Gán DauBienSoId cho từng ChiTietDotNhapBienSo
-            foreach (var item in listBienSoItems)
-            {
-                var code = TrichXuatDauBienSo(item.BienKiemSoat);
-                if (code != null && dauBienMap.TryGetValue(code, out var dbId))
-                {
-                    item.DauBienSoId ??= dbId;
-                }
-            }
-
-            // ĐIỀU KIỆN QUAN TRỌNG: Biển số đem đấu giá (LaBienDauGia == true) thì SẼ KHÔNG LƯU vào bảng KhoBienSo
             var bienSoLuuKho = listBienSoItems.Where(x => !x.LaBienDauGia).ToList();
-            var listKhoEntities = bienSoLuuKho.Select(item =>
+
+            foreach (var item in bienSoLuuKho)
             {
                 var code = TrichXuatDauBienSo(item.BienKiemSoat);
                 var dauBienId = (code != null && dauBienMap.TryGetValue(code, out var dbId)) ? dbId : item.DauBienSoId;
-                return new KhoBienSo
-                {
-                    CustomerId = dotNhap.CustomerId,
-                    DotNhapKhoId = dotNhap.Id!,
-                    ChiTietDotNhapBienSoId = item.Id!,
-                    ThuTu = item.ThuTu,
-                    BienKiemSoat = item.BienKiemSoat,
-                    TrangThaiBienSoId = item.TrangThaiBienSoId,
-                    TrangThai = "DuocBam",
-                    TrangThaiTen = item.TrangThaiBienSoTen,
-                    LaBienDauGia = false,
-                    LoaiXeId = item.LoaiXeId ?? dotNhap.LoaiXeId,
-                    MauBienSoId = item.MauBienSoId ?? dotNhap.MauBienSoId,
-                    DauBienSoId = dauBienId,
-                    GhiChu = item.GhiChu ?? "Nhập kho chính thức",
-                    NgayNhapKho = dotNhap.NgayNhapKho
-                };
-            }).ToList();
 
-            if (listKhoEntities.Count > 0)
-            {
-                await _dbContext.KhoBienSos.AddRangeAsync(listKhoEntities, cancellationToken);
+                var existingKho = oldKhoEntities.FirstOrDefault(x => !matchedKhoIds.Contains(x.Id!) && !string.IsNullOrEmpty(item.Id) && (x.ChiTietDotNhapBienSoId == item.Id || x.Id == item.Id))
+                               ?? oldKhoEntities.FirstOrDefault(x => !matchedKhoIds.Contains(x.Id!) && string.Equals(x.BienKiemSoat.Trim(), item.BienKiemSoat.Trim(), StringComparison.OrdinalIgnoreCase));
+
+                if (existingKho != null)
+                {
+                    matchedKhoIds.Add(existingKho.Id!);
+
+                    existingKho.CustomerId = dotNhap.CustomerId;
+                    existingKho.ChiTietDotNhapBienSoId = item.Id!;
+                    existingKho.ThuTu = item.ThuTu;
+                    existingKho.BienKiemSoat = item.BienKiemSoat;
+                    existingKho.LoaiXeId = item.LoaiXeId ?? dotNhap.LoaiXeId;
+                    existingKho.MauBienSoId = item.MauBienSoId ?? dotNhap.MauBienSoId;
+                    existingKho.DauBienSoId = dauBienId;
+                    existingKho.GhiChu = item.GhiChu ?? dotNhap.GhiChu ?? existingKho.GhiChu;
+                    existingKho.NgayNhapKho = dotNhap.NgayNhapKhoThucTe ?? dotNhap.NgayNhapKho;
+                    existingKho.Modified = DateTime.UtcNow;
+
+                    if (existingKho.DaXuatKho)
+                    {
+                        // ĐÃ XUẤT KHO: Giữ nguyên trạng thái DaBam
+                        existingKho.TrangThai = "DaBam";
+                        existingKho.TrangThaiTen = "Đã bấm (Đã cấp)";
+
+                        // Đồng bộ toàn bộ thông tin mới sang phiếu Xuất kho liên kết
+                        var xuatKho = await _dbContext.XuatKhoBienSos
+                            .FirstOrDefaultAsync(x => x.KhoBienSoId == existingKho.Id || (!string.IsNullOrEmpty(existingKho.XuatKhoId) && x.Id == existingKho.XuatKhoId), cancellationToken);
+                        if (xuatKho != null)
+                        {
+                            xuatKho.BienKiemSoat = existingKho.BienKiemSoat;
+                            xuatKho.LoaiXeId = existingKho.LoaiXeId;
+                            xuatKho.LoaiXeTen = loaiXeTen;
+                            xuatKho.MauBienSoId = existingKho.MauBienSoId;
+                            xuatKho.MauBienSoTen = mauBienTen;
+                            xuatKho.DauBienSoId = existingKho.DauBienSoId;
+                            var dbTen = distinctDauBiens.FirstOrDefault(d => TrichXuatDauBienSo(existingKho.BienKiemSoat) == d);
+                            if (!string.IsNullOrEmpty(dbTen))
+                            {
+                                xuatKho.DauBienSoTen = dbTen;
+                            }
+                            xuatKho.Modified = DateTime.UtcNow;
+                        }
+                    }
+                    else
+                    {
+                        // CHƯA XUẤT KHO: Đảm bảo trạng thái 'DuocBam' (Biển được bấm / Tồn kho)
+                        existingKho.TrangThai = "DuocBam";
+                        existingKho.TrangThaiTen = defaultStatus?.Ten ?? "Biển được bấm (Tồn kho)";
+                        existingKho.TrangThaiBienSoId = defaultStatus?.Id ?? item.TrangThaiBienSoId;
+                    }
+                }
+                else
+                {
+                    // Biển mới bổ sung vào đợt nhập: Thêm vào KhoBienSo với trạng thái 'DuocBam'
+                    var newKho = new KhoBienSo
+                    {
+                        CustomerId = dotNhap.CustomerId,
+                        DotNhapKhoId = dotNhap.Id!,
+                        ChiTietDotNhapBienSoId = item.Id!,
+                        ThuTu = item.ThuTu,
+                        BienKiemSoat = item.BienKiemSoat,
+                        TrangThaiBienSoId = defaultStatus?.Id ?? item.TrangThaiBienSoId,
+                        TrangThai = "DuocBam",
+                        TrangThaiTen = defaultStatus?.Ten ?? "Biển được bấm (Tồn kho)",
+                        LaBienDauGia = false,
+                        LoaiXeId = item.LoaiXeId ?? dotNhap.LoaiXeId,
+                        MauBienSoId = item.MauBienSoId ?? dotNhap.MauBienSoId,
+                        DauBienSoId = dauBienId,
+                        GhiChu = item.GhiChu ?? dotNhap.GhiChu ?? "Nhập kho chính thức",
+                        NgayNhapKho = dotNhap.NgayNhapKhoThucTe ?? dotNhap.NgayNhapKho,
+                        DaXuatKho = false
+                    };
+                    await _dbContext.KhoBienSos.AddAsync(newKho, cancellationToken);
+                }
             }
 
-            _logger.LogInformation("Đợt nhập kho '{MaDotNhap}' đã lưu vào bảng KhoBienSo ({Count} biển số bấm ngẫu nhiên; {DauGiaCount} biển đấu giá không lưu vào kho).",
-                dotNhap.MaDotNhap, listKhoEntities.Count, listBienSoItems.Count(x => x.LaBienDauGia));
+            // Xử lý các bản ghi KhoBienSo cũ không còn trong danh sách lưu kho
+            var unmatchedKhos = oldKhoEntities.Where(x => !matchedKhoIds.Contains(x.Id!)).ToList();
+            foreach (var unKho in unmatchedKhos)
+            {
+                if (unKho.DaXuatKho)
+                {
+                    throw new InvalidOperationException($"Biển kiểm soát '{unKho.BienKiemSoat}' đã được xuất kho, không thể xóa khỏi đợt nhập.");
+                }
+                _dbContext.KhoBienSos.Remove(unKho);
+            }
         }
         else
         {
@@ -500,23 +638,215 @@ public class NhapKhoService : INhapKhoService
             dotNhap.DaNhapKho = false;
             dotNhap.TrangThai = "LuuTam";
 
-            // Nếu trước đó đã từng có trong KhoBienSo thì xóa đi vì đã chuyển về nháp
-            var oldKhoEntities = await _dbContext.KhoBienSos
-                .Where(x => x.DotNhapKhoId == dotNhap.Id)
-                .ToListAsync(cancellationToken);
+            var exportedInBatch = oldKhoEntities.Where(x => x.DaXuatKho).ToList();
+            if (exportedInBatch.Count > 0)
+            {
+                throw new InvalidOperationException($"Đợt nhập đã có {exportedInBatch.Count} biển số đã xuất kho ({exportedInBatch[0].BienKiemSoat}), không thể chuyển về lưu tạm.");
+            }
+
             if (oldKhoEntities.Count > 0)
             {
                 _dbContext.KhoBienSos.RemoveRange(oldKhoEntities);
             }
         }
 
+        dotNhap.TongSoBien = listBienSoItems.Count;
+        dotNhap.SoBienDuocBam = listBienSoItems.Count(x => !x.LaBienDauGia);
+        dotNhap.SoBienChoDauGia = listBienSoItems.Count(x => x.LaBienDauGia);
+        dotNhap.SoBienDaBam = oldKhoEntities.Count(x => x.DaXuatKho);
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Đã lưu đợt nhập kho '{MaDotNhap}' thành công (DaNhapKho = {DaNhapKho})",
-            dotNhap.MaDotNhap, dotNhap.DaNhapKho);
+        _logger.LogInformation("Đã lưu đợt nhập kho '{MaDotNhap}' thành công (DaNhapKho = {DaNhapKho}, Tổng biển = {Tong})",
+            dotNhap.MaDotNhap, dotNhap.DaNhapKho, dotNhap.TongSoBien);
 
         return (await LayChiTietDotNhapAsync(dotNhap.Id!, cancellationToken))
             ?? throw new InvalidOperationException("Không thể tải thông tin đợt nhập sau khi lưu.");
+    }
+
+    /// <summary>
+    /// Cập nhật dữ liệu đợt nhập kho và đồng bộ toàn bộ bảng KhoBienSo theo dữ liệu mới.
+    /// Đối với các biển số đã xuất kho trước đó, giữ nguyên trạng thái xuất kho và đồng bộ dữ liệu sang phiếu xuất kho liên kết.
+    /// </summary>
+    public async Task<DotNhapKhoResponse> UpdateDotNhapKhoAsync(SetDotNhapKhoRequest request, CancellationToken cancellationToken = default)
+    {
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        if (string.IsNullOrWhiteSpace(request.Id))
+        {
+            throw new ArgumentException("Vui lòng cung cấp Id của đợt nhập kho cần cập nhật.");
+        }
+        return await SetDotNhapKhoAsync(request, cancellationToken);
+    }
+
+    /// <summary>
+    /// Xác nhận nhập kho theo Id đợt nhập kho.
+    /// Khóa phiếu (DaNhapKho = true, TrangThai = 'DaNhapKho') và chuyển toàn bộ biển số trong kho sang trạng thái 'DuocBam' (Biển được bấm / Tồn kho).
+    /// </summary>
+    public async Task<DotNhapKhoResponse> XacNhanNhapKhoAsync(string id, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            throw new ArgumentException("Vui lòng cung cấp Id của đợt nhập kho cần xác nhận.");
+        }
+
+        var dotNhap = await _dbContext.DotNhapKhos
+            .FirstOrDefaultAsync(x => x.Id == id || x.MaDotNhap.ToLower() == id.ToLower(), cancellationToken);
+
+        if (dotNhap == null)
+        {
+            throw new KeyNotFoundException($"Không tìm thấy đợt nhập kho với Id '{id}'.");
+        }
+
+        // Lấy danh mục trạng thái biển số mặc định
+        var defaultStatus = await _dbContext.TrangThaiBienSos
+            .FirstOrDefaultAsync(x => x.Ma == "DUOC_BAM" || x.Ten.ToLower().Contains("được bấm") || x.Ten.ToLower().Contains("bấm") || x.Ten.ToLower().Contains("tồn kho"), cancellationToken);
+        var statusDauGia = await _dbContext.TrangThaiBienSos
+            .FirstOrDefaultAsync(x => x.Ma == "CHO_DAU_GIA" || x.Ten.ToLower().Contains("đấu giá"), cancellationToken);
+
+        // Cập nhật trạng thái đợt nhập
+        dotNhap.DaNhapKho = true;
+        dotNhap.TrangThai = "DaNhapKho";
+        dotNhap.NgayNhapKhoThucTe ??= DateTime.UtcNow;
+        dotNhap.NguoiNhapKho ??= (_currentUserService.FullName ?? _currentUserService.Username ?? "Quản trị viên");
+        dotNhap.Modified = DateTime.UtcNow;
+
+        // Lấy toàn bộ danh sách ChiTietDotNhapBienSo của đợt này
+        var chiTiets = await _dbContext.ChiTietDotNhapBienSos
+            .Where(x => x.DotNhapKhoId == dotNhap.Id)
+            .OrderBy(x => x.ThuTu)
+            .ToListAsync(cancellationToken);
+
+        // Cập nhật trạng thái các biển số trong ChiTietDotNhapBienSo
+        foreach (var ct in chiTiets)
+        {
+            var isDauGia = ct.LaBienDauGia || (!string.IsNullOrEmpty(ct.TrangThaiBienSoTen) && ct.TrangThaiBienSoTen.Contains("đấu giá", StringComparison.OrdinalIgnoreCase));
+            if (isDauGia)
+            {
+                ct.LaBienDauGia = true;
+                ct.TrangThaiBienSoId = statusDauGia?.Id ?? ct.TrangThaiBienSoId;
+                ct.TrangThaiBienSoTen = statusDauGia?.Ten ?? "Chờ đấu giá";
+                ct.MauSacHienThi = statusDauGia?.MauSacHienThi ?? "warning";
+            }
+            else
+            {
+                // Khi xác nhận nhập kho: Trạng thái biển luôn là ĐƯỢC BẤM
+                ct.TrangThaiBienSoId = defaultStatus?.Id ?? ct.TrangThaiBienSoId;
+                ct.TrangThaiBienSoTen = defaultStatus?.Ten ?? "Biển được bấm (Tồn kho)";
+                ct.MauSacHienThi = defaultStatus?.MauSacHienThi ?? "success";
+            }
+            ct.Modified = DateTime.UtcNow;
+        }
+
+        // Lấy toàn bộ KhoBienSo hiện tại của đợt này
+        var existingKhoList = await _dbContext.KhoBienSos
+            .Where(x => x.DotNhapKhoId == dotNhap.Id)
+            .ToListAsync(cancellationToken);
+
+        var existingKhoMapByChiTietId = existingKhoList
+            .Where(x => !string.IsNullOrEmpty(x.ChiTietDotNhapBienSoId))
+            .ToDictionary(x => x.ChiTietDotNhapBienSoId!, x => x);
+
+        var existingKhoMapByPlate = existingKhoList
+            .GroupBy(x => x.BienKiemSoat.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        // Đồng bộ vào KhoBienSo đối với các biển không phải đấu giá
+        var nonAuctionList = chiTiets.Where(x => !x.LaBienDauGia).ToList();
+        var matchedKhoIds = new HashSet<string>();
+
+        // Trích xuất mã đầu biển để map DauBienSo
+        var distinctCodes = nonAuctionList
+            .Select(x => TrichXuatDauBienSo(x.BienKiemSoat))
+            .Where(c => !string.IsNullOrEmpty(c))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var dauBienMap = await _dbContext.DauBienSos
+            .AsNoTracking()
+            .Where(d => distinctCodes.Contains(d.Ma) || distinctCodes.Contains(d.Ten))
+            .ToDictionaryAsync(d => d.Ma, d => d.Id!, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
+        foreach (var ct in nonAuctionList)
+        {
+            KhoBienSo? existingKho = null;
+            if (ct.Id != null && existingKhoMapByChiTietId.TryGetValue(ct.Id, out var k1)) existingKho = k1;
+            else if (existingKhoMapByPlate.TryGetValue(ct.BienKiemSoat.Trim(), out var k2)) existingKho = k2;
+
+            var code = TrichXuatDauBienSo(ct.BienKiemSoat);
+            var dauBienId = (code != null && dauBienMap.TryGetValue(code, out var dbId)) ? dbId : ct.DauBienSoId;
+
+            if (existingKho != null)
+            {
+                matchedKhoIds.Add(existingKho.Id!);
+                existingKho.CustomerId = dotNhap.CustomerId;
+                existingKho.ChiTietDotNhapBienSoId = ct.Id!;
+                existingKho.ThuTu = ct.ThuTu;
+                existingKho.BienKiemSoat = ct.BienKiemSoat;
+                existingKho.LoaiXeId = ct.LoaiXeId ?? dotNhap.LoaiXeId;
+                existingKho.MauBienSoId = ct.MauBienSoId ?? dotNhap.MauBienSoId;
+                existingKho.DauBienSoId = dauBienId;
+                existingKho.GhiChu = ct.GhiChu ?? dotNhap.GhiChu ?? existingKho.GhiChu;
+                existingKho.NgayNhapKho = dotNhap.NgayNhapKhoThucTe ?? dotNhap.NgayNhapKho;
+                existingKho.Modified = DateTime.UtcNow;
+
+                if (existingKho.DaXuatKho)
+                {
+                    existingKho.TrangThai = "DaBam";
+                    existingKho.TrangThaiTen = "Đã bấm (Đã cấp)";
+                }
+                else
+                {
+                    // Biển chưa xuất kho: trạng thái là được bấm
+                    existingKho.TrangThai = "DuocBam";
+                    existingKho.TrangThaiTen = defaultStatus?.Ten ?? "Biển được bấm (Tồn kho)";
+                    existingKho.TrangThaiBienSoId = defaultStatus?.Id ?? existingKho.TrangThaiBienSoId;
+                }
+            }
+            else
+            {
+                var newKho = new KhoBienSo
+                {
+                    CustomerId = dotNhap.CustomerId,
+                    DotNhapKhoId = dotNhap.Id!,
+                    ChiTietDotNhapBienSoId = ct.Id!,
+                    ThuTu = ct.ThuTu,
+                    BienKiemSoat = ct.BienKiemSoat,
+                    TrangThaiBienSoId = defaultStatus?.Id ?? ct.TrangThaiBienSoId,
+                    TrangThai = "DuocBam",
+                    TrangThaiTen = defaultStatus?.Ten ?? "Biển được bấm (Tồn kho)",
+                    LaBienDauGia = false,
+                    LoaiXeId = ct.LoaiXeId ?? dotNhap.LoaiXeId,
+                    MauBienSoId = ct.MauBienSoId ?? dotNhap.MauBienSoId,
+                    DauBienSoId = dauBienId,
+                    GhiChu = ct.GhiChu ?? dotNhap.GhiChu ?? "Nhập kho chính thức",
+                    NgayNhapKho = dotNhap.NgayNhapKhoThucTe ?? dotNhap.NgayNhapKho,
+                    DaXuatKho = false
+                };
+                await _dbContext.KhoBienSos.AddAsync(newKho, cancellationToken);
+            }
+        }
+
+        // Xóa các kho bản ghi nếu có biển đấu giá đã từng bị lưu vào kho
+        var auctionKhoList = existingKhoList.Where(x => !matchedKhoIds.Contains(x.Id!) && nonAuctionList.All(na => na.BienKiemSoat != x.BienKiemSoat)).ToList();
+        foreach (var unKho in auctionKhoList)
+        {
+            if (!unKho.DaXuatKho)
+            {
+                _dbContext.KhoBienSos.Remove(unKho);
+            }
+        }
+
+        dotNhap.TongSoBien = chiTiets.Count;
+        dotNhap.SoBienDuocBam = chiTiets.Count(x => !x.LaBienDauGia);
+        dotNhap.SoBienChoDauGia = chiTiets.Count(x => x.LaBienDauGia);
+        dotNhap.SoBienDaBam = existingKhoList.Count(x => x.DaXuatKho);
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Đã xác nhận nhập kho thành công cho đợt nhập '{MaDotNhap}' (Id: {Id})", dotNhap.MaDotNhap, dotNhap.Id);
+
+        return (await LayChiTietDotNhapAsync(dotNhap.Id!, cancellationToken))
+            ?? throw new InvalidOperationException("Không thể tải thông tin đợt nhập sau khi xác nhận.");
     }
 
     /// <summary>
@@ -537,33 +867,89 @@ public class NhapKhoService : INhapKhoService
             .OrderBy(x => x.ThuTu)
             .ToListAsync(cancellationToken);
 
-        // Lấy danh sách ID các biển số đã thực sự được lưu vào KhoBienSo
-        var daLuuKhoChiTietIds = dotNhap.DaNhapKho
+        // Lấy danh sách biển số trong KhoBienSo
+        var khoBienSos = dotNhap.DaNhapKho
             ? await _dbContext.KhoBienSos
                 .AsNoTracking()
                 .Where(x => x.DotNhapKhoId == dotNhap.Id)
-                .Select(x => x.ChiTietDotNhapBienSoId)
                 .ToListAsync(cancellationToken)
-            : new List<string?>();
+            : new List<KhoBienSo>();
+
+        var khoMapByChiTietId = khoBienSos
+            .Where(x => !string.IsNullOrEmpty(x.ChiTietDotNhapBienSoId))
+            .ToDictionary(x => x.ChiTietDotNhapBienSoId!, x => x);
+
+        var khoMapByPlate = khoBienSos
+            .GroupBy(x => x.BienKiemSoat, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         var listPlates = itemsChiTiet.Select(b =>
         {
-            // Biển số chỉ coi là đã lưu kho khi đợt nhập đã nhập kho, biển KHÔNG phải đấu giá, và có trong bảng KhoBienSo
-            bool daLuu = dotNhap.DaNhapKho && !b.LaBienDauGia && daLuuKhoChiTietIds.Contains(b.Id);
+            KhoBienSo? k = null;
+            if (b.Id != null && khoMapByChiTietId.TryGetValue(b.Id, out var kb1)) k = kb1;
+            else if (khoMapByPlate.TryGetValue(b.BienKiemSoat, out var kb2)) k = kb2;
+
+            bool daLuu = dotNhap.DaNhapKho && !b.LaBienDauGia && k != null;
+            bool daXuat = k?.DaXuatKho ?? false;
+            bool isDauGia = b.LaBienDauGia || (!string.IsNullOrEmpty(b.TrangThaiBienSoTen) && b.TrangThaiBienSoTen.Contains("đấu giá", StringComparison.OrdinalIgnoreCase));
+
+            string trangThai;
+            string trangThaiTen;
+            string mauSac;
+            string? trangThaiBienSoId;
+
+            if (daXuat)
+            {
+                trangThai = "DaBam";
+                trangThaiTen = "Đã bấm (Đã cấp)";
+                mauSac = "secondary";
+                trangThaiBienSoId = k?.TrangThaiBienSoId ?? b.TrangThaiBienSoId;
+            }
+            else if (isDauGia)
+            {
+                trangThai = "ChoDauGia";
+                trangThaiTen = "Chờ đấu giá";
+                mauSac = "warning";
+                trangThaiBienSoId = b.TrangThaiBienSoId;
+            }
+            else if (dotNhap.DaNhapKho)
+            {
+                // Khi đợt nhập đã xác nhận nhập kho: Trạng thái biển là ĐƯỢC BẤM
+                trangThai = "DuocBam";
+                trangThaiTen = k?.TrangThaiTen ?? b.TrangThaiBienSoTen;
+                if (string.IsNullOrWhiteSpace(trangThaiTen) || trangThaiTen == "Lưu tạm")
+                {
+                    trangThaiTen = "Biển được bấm (Tồn kho)";
+                }
+                mauSac = "success";
+                trangThaiBienSoId = k?.TrangThaiBienSoId ?? b.TrangThaiBienSoId;
+            }
+            else
+            {
+                // Bản nháp / Chưa nhập kho
+                trangThai = "LuuTam";
+                trangThaiTen = !string.IsNullOrWhiteSpace(b.TrangThaiBienSoTen) ? b.TrangThaiBienSoTen : "Lưu tạm";
+                mauSac = b.MauSacHienThi ?? "secondary";
+                trangThaiBienSoId = b.TrangThaiBienSoId;
+            }
+
             return new KhoBienSoItemResponse
             {
                 Id = b.Id!,
                 STT = b.ThuTu,
                 BienKiemSoat = b.BienKiemSoat,
-                TrangThaiBienSoId = b.TrangThaiBienSoId,
-                TrangThai = (b.LaBienDauGia || b.TrangThaiBienSoTen.Contains("Đấu giá")) ? "ChoDauGia" : "DuocBam",
-                TrangThaiTen = b.TrangThaiBienSoTen,
-                MauSacHienThi = (b.LaBienDauGia || b.MauSacHienThi == "warning" || b.TrangThaiBienSoTen.Contains("Đấu giá")) ? "warning" : (b.MauSacHienThi ?? "success"),
-                LaBienDauGia = b.LaBienDauGia || b.TrangThaiBienSoTen.Contains("Đấu giá"),
-                GhiChu = b.GhiChu,
+                TrangThaiBienSoId = trangThaiBienSoId,
+                TrangThai = trangThai,
+                TrangThaiTen = trangThaiTen,
+                MauSacHienThi = mauSac,
+                LaBienDauGia = isDauGia,
+                GhiChu = k?.GhiChu ?? b.GhiChu,
                 NgayNhapKho = dotNhap.DaNhapKho ? (dotNhap.NgayNhapKhoThucTe ?? dotNhap.NgayNhapKho) : dotNhap.NgayNhapKho,
                 Modified = b.Modified,
-                DaLuuKho = daLuu
+                DaLuuKho = daLuu,
+                DaXuatKho = daXuat,
+                NgayXuatKho = k?.NgayXuatKho,
+                XuatKhoId = k?.XuatKhoId
             };
         }).ToList();
 

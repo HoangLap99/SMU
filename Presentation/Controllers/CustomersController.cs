@@ -221,38 +221,8 @@ public class CustomersController : ControllerBase
         [FromBody] AddUserToCustomerRequest request,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var member = await _customerService.AddUserToCustomerAsync(id, request, cancellationToken);
-            return CreatedAtAction(nameof(GetCustomerMembers), new { id }, member);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new ProblemDetails
-            {
-                Status = StatusCodes.Status404NotFound,
-                Title = "Không tìm thấy đối tượng",
-                Detail = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Vượt quá định mức tài khoản",
-                Detail = ex.Message
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Dữ liệu không hợp lệ",
-                Detail = ex.Message
-            });
-        }
+        var member = await _customerService.AddUserToCustomerAsync(id, request, cancellationToken);
+        return CreatedAtAction(nameof(GetCustomerMembers), new { id }, member);
     }
 
     /// <summary>
@@ -304,29 +274,8 @@ public class CustomersController : ControllerBase
         string userId,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var member = await _customerService.ToggleUserStatusAsync(id, userId, cancellationToken);
-            return Ok(member);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new ProblemDetails
-            {
-                Status = StatusCodes.Status404NotFound,
-                Title = "Không tìm thấy cán bộ",
-                Detail = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Vượt quá định mức tài khoản",
-                Detail = ex.Message
-            });
-        }
+        var member = await _customerService.ToggleUserStatusAsync(id, userId, cancellationToken);
+        return Ok(member);
     }
 
     /// <summary>
@@ -377,29 +326,8 @@ public class CustomersController : ControllerBase
         [FromBody] GiaHanGoiThueBaoRequest request,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await _customerService.GiaHanGoiThueBaoAsync(id, request, cancellationToken);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new ProblemDetails
-            {
-                Status = StatusCodes.Status404NotFound,
-                Title = "Không tìm thấy đối tượng",
-                Detail = ex.Message
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Dữ liệu gia hạn không hợp lệ",
-                Detail = ex.Message
-            });
-        }
+        var result = await _customerService.GiaHanGoiThueBaoAsync(id, request, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -416,29 +344,8 @@ public class CustomersController : ControllerBase
         [FromBody] GiaHanGoiThueBaoRequest request,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await _customerService.GiaHanGoiThueBaoAsync(request.CustomerId, request, cancellationToken);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new ProblemDetails
-            {
-                Status = StatusCodes.Status404NotFound,
-                Title = "Không tìm thấy đối tượng",
-                Detail = ex.Message
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Dữ liệu gia hạn không hợp lệ",
-                Detail = ex.Message
-            });
-        }
+        var result = await _customerService.GiaHanGoiThueBaoAsync(request.CustomerId, request, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -484,29 +391,8 @@ public class CustomersController : ControllerBase
         [FromQuery] string? customerId,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await _customerService.LayThongTinVaLichSuGoiThueBaoAsync(customerId, cancellationToken);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new ProblemDetails
-            {
-                Status = StatusCodes.Status404NotFound,
-                Title = "Không tìm thấy khách hàng",
-                Detail = ex.Message
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Yêu cầu không hợp lệ",
-                Detail = ex.Message
-            });
-        }
+        var result = await _customerService.LayThongTinVaLichSuGoiThueBaoAsync(customerId, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>

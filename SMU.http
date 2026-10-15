@@ -837,6 +837,42 @@ Content-Type: application/json
   ]
 }
 
+### 2.2 (POST) CẬP NHẬT ĐỢT NHẬP KHO & ĐỒNG BỘ TOÀN BỘ KHOBIENSO (kể cả khi đã nhập kho)
+POST {{SMU_HostAddress}}/api/NhapKho/update
+Content-Type: application/json
+
+{
+  "id": "{{dotNhapId}}",
+  "maDotNhap": "NK-2026-10-15-MOI",
+  "ngayNhapKho": "2026-10-15T00:00:00Z",
+  "loaiXeId": "OTO",
+  "mauBienSoId": "TRANG",
+  "kyHieuDaiDauBien": ["30B", "29RM"],
+  "canBoTiepNhan": "Trung Tá - Mai Cao (Đã hiệu chỉnh)",
+  "tinhChatDotNhapId": "TON_DAU",
+  "soCongVan": "BB-TK-0108/CAP-HC",
+  "ghiChu": "Cập nhật dữ liệu mới và đồng bộ toàn bộ bảng KhoBienSo",
+  "daNhapKho": true,
+  "danhSachBienSo": [
+    {
+      "thuTu": 1,
+      "bienKiemSoat": "30B-530.01",
+      "laBienDauGia": false,
+      "ghiChu": "Biển kiểm soát sau cập nhật"
+    },
+    {
+      "thuTu": 2,
+      "bienKiemSoat": "30B-530.88",
+      "laBienDauGia": true,
+      "ghiChu": "Biển số đẹp đấu giá"
+    }
+  ]
+}
+
+### 2.3 (POST) XÁC NHẬN NHẬP KHO THEO ID (Khóa phiếu, chuyển trạng thái DaNhapKho, biển số sang DuocBam)
+POST {{SMU_HostAddress}}/api/NhapKho/{{dotNhapId}}/xac-nhan
+Accept: application/json
+
 ### 3. (GET) LẤY THÔNG TIN 1 ĐỢT NHẬP KHO THEO ID
 # @name getDotNhapDetail
 GET {{SMU_HostAddress}}/api/NhapKho/{{dotNhapId}}
@@ -900,6 +936,38 @@ Content-Type: application/json
 
 ### Lưu ID phiếu xuất kho vừa tạo
 @xuatKhoId = {{setXuatKho.response.body.id}}
+
+### 4.1 (POST) CẬP NHẬT PHIẾU XUẤT KHO & ĐỒNG BỘ KHOBIENSO (kể cả khi đã xuất kho)
+POST {{SMU_HostAddress}}/api/XuatKho/update
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "id": "{{xuatKhoId}}",
+  "loaiThuTucId": "CAP_BIEN",
+  "ngayThucHien": "2026-10-10T00:00:00Z",
+  "tinhChatXuatKho": "Xuất 01 biển từ kho 'Biển được bấm'",
+  "khoBienSoId": "{{bienSoKhoId}}",
+  "mucThuLePhiId": "MTLP_OTO_01",
+  "khuVucApDungId": "KHU_VUC_I",
+  "dieuKienTriGiaXe": "Trị giá trên 40 triệu đồng (Mức thu: 20.000.000đ)",
+  "canCuPhapLy": "Thông tư 155/2025/TT-BTC",
+  "soTienTuDongDien": 20000000,
+  "kyHieuQuyenBienLaiId": "AA26E",
+  "soBienLai": "0000113",
+  "ngayBienLai": "2026-10-10T00:00:00Z",
+  "soTienThu": 20000000,
+  "hoTenNguoiNop": "Nguyễn Văn An (Hiệu chỉnh)",
+  "soCccd": "001099000123",
+  "maHoSoDvc": "HS-2026-00889",
+  "ghiChu": "Cập nhật dữ liệu phiếu xuất kho và đồng bộ KhoBienSo",
+  "daXuatKho": true
+}
+
+### 4.2 (POST) XÁC NHẬN XUẤT KHO THEO ID (Khóa phiếu, chuyển DaXuatKho = true, biển số sang DaBam)
+POST {{SMU_HostAddress}}/api/XuatKho/{{xuatKhoId}}/xac-nhan
+Authorization: Bearer {{authToken}}
+Accept: application/json
 
 ### 5. (POST) LẤY DANH SÁCH PHIẾU XUẤT KHO CÓ PHÂN TRANG VÀ BỘ LỌC
 POST {{SMU_HostAddress}}/api/XuatKho/danhsach
@@ -1557,6 +1625,36 @@ Content-Type: application/json
 {
   "fileName": "test_import.xlsx"
 }
+
+### ==============================================================================
+### PHẦN X: QUẢN LÝ XUẤT KHO BIỂN SỐ XE & HỦY PHIẾU XUẤT KHO
+### ==============================================================================
+
+### 1. (GET) Lấy danh sách biển số chưa xuất kho khả dụng trong KhoBienSo
+# @name getBienSoKhaDung
+GET {{SMU_HostAddress}}/api/XuatKho/biensokhokhadung
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 2. (POST) Lấy danh sách phiếu xuất kho (có lọc theo TrangThai: HoanTat, LuuTam, DaHuy)
+# @name getDanhSachXuatKho
+POST {{SMU_HostAddress}}/api/XuatKho/danhsach
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "currentPage": 1,
+  "pageSize": 10,
+  "trangThai": "HoanTat"
+}
+
+### 3. (GET) Hủy phiếu xuất kho theo Id (Cập nhật TrangThai = 'DaHuy', khôi phục KhoBienSo về 'DuocBam')
+# @name huyPhieuXuatKho
+GET {{SMU_HostAddress}}/api/XuatKho/huy/{{xuatKhoId}}?lyDoHuy=Nguoi%20dan%20doi%20y
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+
 
 
 

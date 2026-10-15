@@ -32,33 +32,13 @@ public class CapLaiDangKyXeController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(CapLaiDangKyXeResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<CapLaiDangKyXeResponse>> SetCapLaiDangKyXe(
         [FromBody] SetCapLaiDangKyXeRequest request,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await _capLaiDangKyXeService.SetCapLaiDangKyXeAsync(request, cancellationToken);
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Dữ liệu không hợp lệ",
-                Detail = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Thao tác không được phép",
-                Detail = ex.Message
-            });
-        }
+        var result = await _capLaiDangKyXeService.SetCapLaiDangKyXeAsync(request, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -68,35 +48,14 @@ public class CapLaiDangKyXeController : ControllerBase
     /// </summary>
     [HttpPost("{id}/xac-nhan")]
     [ProducesResponseType(typeof(CapLaiDangKyXeResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<CapLaiDangKyXeResponse>> XacNhan(
         string id,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await _capLaiDangKyXeService.XacNhanAsync(id, cancellationToken);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new ProblemDetails
-            {
-                Status = StatusCodes.Status404NotFound,
-                Title = "Không tìm thấy dữ liệu",
-                Detail = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Thao tác không được phép",
-                Detail = ex.Message
-            });
-        }
+        var result = await _capLaiDangKyXeService.XacNhanAsync(id, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -143,35 +102,14 @@ public class CapLaiDangKyXeController : ControllerBase
     /// </summary>
     [HttpDelete("{id}")]
     [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<bool>> Xoa(
         string id,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await _capLaiDangKyXeService.XoaAsync(id, cancellationToken);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new ProblemDetails
-            {
-                Status = StatusCodes.Status404NotFound,
-                Title = "Không tìm thấy",
-                Detail = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Không thể xóa",
-                Detail = ex.Message
-            });
-        }
+        var result = await _capLaiDangKyXeService.XoaAsync(id, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>

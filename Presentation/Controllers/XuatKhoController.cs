@@ -13,6 +13,7 @@ namespace SMU.Presentation.Controllers;
 /// 5. POST /api/XuatKho/danhsach : Lấy danh sách phiếu xuất kho có phân trang và bộ lọc.
 /// 6. GET /api/XuatKho/{id} : Lấy chi tiết phiếu xuất kho theo Id.
 /// 7. GET /api/XuatKho/delete/{id} : Xóa phiếu xuất kho theo Id và khôi phục biển số về kho.
+/// 8. GET /api/XuatKho/huy/{id} : Hủy phiếu xuất kho và cập nhật lại trạng thái biển số trong KhoBienSo.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -89,6 +90,7 @@ public class XuatKhoController : ControllerBase
     [HttpPost("set")]
     [ProducesResponseType(typeof(XuatKhoResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> Set([FromBody] SetXuatKhoRequest request, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
@@ -96,19 +98,63 @@ public class XuatKhoController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        try
+        var result = await _xuatKhoService.SetXuatKhoAsync(request, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 4.1: (POST) Cập nhật phiếu Lập thủ tục &amp; Biên lai xuất kho và đồng bộ toàn bộ bảng KhoBienSo theo dữ liệu mới.
+    /// Đối với trường hợp đã xuất kho: Toàn bộ dữ liệu mới (thông tin người nộp, lệ phí, số biên lai, và thông tin phương tiện/biển số nếu có) sẽ được cập nhật đồng bộ vào KhoBienSo.
+    /// Nếu đổi biển số khác: Biển số cũ sẽ tự động được hoàn tác về kho (DaXuatKho = false, TrangThai = 'DuocBam') và biển số mới chuyển sang đã xuất kho.
+    /// </summary>
+    [HttpPost("update")]
+    [ProducesResponseType(typeof(XuatKhoResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> Update([FromBody] SetXuatKhoRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
         {
-            var result = await _xuatKhoService.SetXuatKhoAsync(request, cancellationToken);
-            return Ok(result);
+            return BadRequest(ModelState);
         }
-        catch (ArgumentException ex)
+
+        var result = await _xuatKhoService.UpdateXuatKhoAsync(request, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 4.2: (PUT) Cập nhật phiếu Lập thủ tục &amp; Biên lai xuất kho theo Id và đồng bộ toàn bộ bảng KhoBienSo theo dữ liệu mới.
+    /// </summary>
+    [HttpPut("{id}")]
+    [ProducesResponseType(typeof(XuatKhoResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> UpdateById([FromRoute] string id, [FromBody] SetXuatKhoRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(ModelState);
         }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+
+        request.Id = id;
+        var result = await _xuatKhoService.UpdateXuatKhoAsync(request, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 4.3: (POST) Xác nhận xuất kho theo Id phiếu xuất kho.
+    /// Khóa phiếu (DaXuatKho = true, TrangThai = 'HoanTat') và chuyển trạng thái biển số trong KhoBienSo sang 'DaBam' (Đã bấm / Đã cấp).
+    /// </summary>
+    [HttpPost("{id}/xac-nhan")]
+    [HttpPost("xacnhan/{id}")]
+    [HttpPost("xac-nhan/{id}")]
+    [ProducesResponseType(typeof(XuatKhoResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> XacNhanXuatKho([FromRoute] string id, CancellationToken cancellationToken)
+    {
+        var result = await _xuatKhoService.XacNhanXuatKhoAsync(id, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -154,5 +200,26 @@ public class XuatKhoController : ControllerBase
         }
 
         return Ok(new { success = true, message = $"Đã xóa phiếu xuất kho với Id '{id}' và khôi phục biển số thành công." });
+    }
+
+    /// <summary>
+    /// API 8: (GET) Hủy phiếu xuất kho theo Id.
+    /// Cập nhật trạng thái phiếu xuất kho sang 'DaHuy', DaXuatKho = false và khôi phục trạng thái biển số trong KhoBienSo về khả dụng (DaXuatKho = false, TrangThai = 'DuocBam').
+    /// </summary>
+    /// <param name="id">Mã GUID của phiếu xuất kho cần hủy.</param>
+    /// <param name="lyDoHuy">Lý do hủy phiếu (tùy chọn query param: ?lyDoHuy=...).</param>
+    /// <param name="cancellationToken">Token hủy yêu cầu.</param>
+    [HttpGet("huy/{id}")]
+    [ProducesResponseType(typeof(XuatKhoResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> HuyPhieuXuatKho(
+        [FromRoute] string id,
+        [FromQuery] string? lyDoHuy,
+        CancellationToken cancellationToken)
+    {
+        var request = !string.IsNullOrWhiteSpace(lyDoHuy) ? new HuyPhieuXuatKhoRequest { LyDoHuy = lyDoHuy } : null;
+        var result = await _xuatKhoService.HuyPhieuXuatKhoAsync(id, request, cancellationToken);
+        return Ok(result);
     }
 }

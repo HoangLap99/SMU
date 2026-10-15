@@ -35,6 +35,18 @@ public interface IXuatKhoService
     Task<XuatKhoResponse> SetXuatKhoAsync(SetXuatKhoRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Cập nhật phiếu Lập thủ tục &amp; Biên lai xuất kho và đồng bộ toàn bộ bảng KhoBienSo theo dữ liệu mới.
+    /// Đối với trường hợp đã xuất kho, cập nhật thông tin biển số trong KhoBienSo và xử lý hoàn tác/chuyển đổi biển số nếu thay đổi.
+    /// </summary>
+    Task<XuatKhoResponse> UpdateXuatKhoAsync(SetXuatKhoRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Xác nhận xuất kho theo Id phiếu xuất kho.
+    /// Khóa phiếu (DaXuatKho = true, TrangThai = 'HoanTat') và chuyển trạng thái biển số trong KhoBienSo sang 'DaBam' (Đã bấm / Đã cấp).
+    /// </summary>
+    Task<XuatKhoResponse> XacNhanXuatKhoAsync(string id, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// API 5: Lấy danh sách phiếu xuất kho có phân trang và bộ lọc.
     /// </summary>
     Task<PagedResult<XuatKhoResponse>> LayDanhSachXuatKhoAsync(PagedXuatKhoRequest request, CancellationToken cancellationToken = default);
@@ -48,4 +60,10 @@ public interface IXuatKhoService
     /// API 7: Xóa phiếu xuất kho theo Id. Hoàn tác trạng thái biển số trong KhoBienSo về DaXuatKho = false, TrangThai = "DuocBam".
     /// </summary>
     Task<bool> XoaXuatKhoAsync(string id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// API 8: Hủy phiếu xuất kho theo Id.
+    /// Cập nhật trạng thái phiếu xuất kho sang 'DaHuy', DaXuatKho = false và khôi phục trạng thái biển số trong KhoBienSo về DaXuatKho = false, TrangThai = 'DuocBam'.
+    /// </summary>
+    Task<XuatKhoResponse> HuyPhieuXuatKhoAsync(string id, HuyPhieuXuatKhoRequest? request = null, CancellationToken cancellationToken = default);
 }

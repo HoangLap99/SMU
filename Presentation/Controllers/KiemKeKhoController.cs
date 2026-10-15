@@ -70,15 +70,8 @@ public class KiemKeKhoController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        try
-        {
-            var result = await _kiemKeKhoService.LayChiTietBienPopupAsync(request, cancellationToken);
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _kiemKeKhoService.LayChiTietBienPopupAsync(request, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -104,6 +97,7 @@ public class KiemKeKhoController : ControllerBase
     [HttpPost("set")]
     [ProducesResponseType(typeof(KiemKeKhoResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> Set([FromBody] SetKiemKeKhoRequest request, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
@@ -111,19 +105,8 @@ public class KiemKeKhoController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        try
-        {
-            var result = await _kiemKeKhoService.SetKiemKeKhoAsync(request, cancellationToken);
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _kiemKeKhoService.SetKiemKeKhoAsync(request, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -192,15 +175,8 @@ public class KiemKeKhoController : ControllerBase
             return BadRequest(new { message = "Vui lòng truyền biển kiểm soát cần xác định." });
         }
 
-        try
-        {
-            var result = await _kiemKeKhoService.XacDinhDauBienTuBienSoAsync(request.BienKiemSoat, request.CustomerId, cancellationToken);
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _kiemKeKhoService.XacDinhDauBienTuBienSoAsync(request.BienKiemSoat, request.CustomerId, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -209,6 +185,7 @@ public class KiemKeKhoController : ControllerBase
     [HttpGet("xacdinhdaubien")]
     [ProducesResponseType(typeof(XacDinhDauBienResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> XacDinhDauBienGet([FromQuery] string bienKiemSoat, [FromQuery] string? customerId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(bienKiemSoat))
@@ -216,14 +193,7 @@ public class KiemKeKhoController : ControllerBase
             return BadRequest(new { message = "Vui lòng truyền biển kiểm soát cần xác định." });
         }
 
-        try
-        {
-            var result = await _kiemKeKhoService.XacDinhDauBienTuBienSoAsync(bienKiemSoat, customerId, cancellationToken);
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _kiemKeKhoService.XacDinhDauBienTuBienSoAsync(bienKiemSoat, customerId, cancellationToken);
+        return Ok(result);
     }
 }

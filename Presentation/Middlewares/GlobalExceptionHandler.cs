@@ -32,13 +32,14 @@ public class GlobalExceptionHandler : IExceptionHandler
 
         var (statusCode, title, detail) = exception switch
         {
-            AppException appEx => ((int)appEx.StatusCode, "Lỗi xử lý nghiệp vụ", appEx.Message),
-            ArgumentException argEx => (StatusCodes.Status400BadRequest, "Dữ liệu đầu vào không hợp lệ", argEx.Message),
-            InvalidOperationException invEx => (StatusCodes.Status400BadRequest, "Lỗi cấu hình hoặc trạng thái", invEx.Message),
+            AppException appEx => (StatusCodes.Status500InternalServerError, "Lỗi xử lý nghiệp vụ", appEx.Message),
+            ArgumentException argEx => (StatusCodes.Status500InternalServerError, "Lỗi trong quá trình xử lý", argEx.Message),
+            InvalidOperationException invEx => (StatusCodes.Status500InternalServerError, "Lỗi trong quá trình xử lý", invEx.Message),
+            KeyNotFoundException keyEx => (StatusCodes.Status404NotFound, "Không tìm thấy dữ liệu", keyEx.Message),
             UnauthorizedAccessException unAuthEx => (StatusCodes.Status403Forbidden, "Không có quyền truy cập", unAuthEx.Message),
             DbUpdateException dbEx => (StatusCodes.Status500InternalServerError, "Lỗi cơ sở dữ liệu", _environment.IsDevelopment() ? (dbEx.InnerException?.Message ?? dbEx.Message) : "Đã xảy ra lỗi khi lưu dữ liệu vào hệ thống. Vui lòng thử lại sau."),
             OperationCanceledException => (499, "Yêu cầu bị hủy bỏ", "Thao tác đã bị hủy hoặc vượt quá thời gian chờ (timeout)."),
-            _ => (StatusCodes.Status500InternalServerError, "Lỗi máy chủ nội bộ", _environment.IsDevelopment() ? (exception.InnerException?.Message ?? exception.Message) : "Đã xảy ra sự cố không mong muốn trên hệ thống. Vui lòng thử lại sau.")
+            _ => (StatusCodes.Status500InternalServerError, "Lỗi trong quá trình xử lý", _environment.IsDevelopment() ? (exception.InnerException?.Message ?? exception.Message) : (!string.IsNullOrWhiteSpace(exception.Message) ? exception.Message : "Đã xảy ra sự cố không mong muốn trên hệ thống. Vui lòng thử lại sau."))
         };
 
         var problemDetails = new ProblemDetails

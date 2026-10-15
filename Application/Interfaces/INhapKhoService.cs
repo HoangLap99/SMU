@@ -23,6 +23,18 @@ public interface INhapKhoService
     Task<DotNhapKhoResponse> SetDotNhapKhoAsync(SetDotNhapKhoRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Cập nhật dữ liệu đợt nhập kho và đồng bộ toàn bộ bảng KhoBienSo theo dữ liệu mới.
+    /// Đối với các biển số đã xuất kho trước đó, giữ nguyên trạng thái xuất kho và đồng bộ dữ liệu sang phiếu xuất kho liên kết.
+    /// </summary>
+    Task<DotNhapKhoResponse> UpdateDotNhapKhoAsync(SetDotNhapKhoRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Xác nhận nhập kho theo Id đợt nhập kho.
+    /// Khóa phiếu (DaNhapKho = true, TrangThai = 'DaNhapKho') và chuyển toàn bộ biển số trong kho sang trạng thái 'DuocBam' (Biển được bấm / Tồn kho).
+    /// </summary>
+    Task<DotNhapKhoResponse> XacNhanNhapKhoAsync(string id, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 3. (GET) Lấy thông tin 1 đợt nhập kho theo Id.
     /// </summary>
     Task<DotNhapKhoResponse?> LayChiTietDotNhapAsync(string id, CancellationToken cancellationToken = default);

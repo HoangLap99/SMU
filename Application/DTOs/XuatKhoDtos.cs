@@ -194,6 +194,26 @@ public class SetXuatKhoRequest
     [Required(ErrorMessage = "Vui lòng chọn 01 biển số từ kho 'Biển được bấm'")]
     public string KhoBienSoId { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Biển kiểm soát hoàn chỉnh (Tùy chọn; nếu truyền khi cập nhật sẽ cập nhật đè vào cả XuatKhoBienSo và KhoBienSo).
+    /// </summary>
+    public string? BienKiemSoat { get; set; }
+
+    /// <summary>
+    /// ID Loại xe (Tùy chọn; nếu truyền khi cập nhật sẽ cập nhật đè vào cả XuatKhoBienSo và KhoBienSo).
+    /// </summary>
+    public string? LoaiXeId { get; set; }
+
+    /// <summary>
+    /// ID Màu biển số (Tùy chọn; nếu truyền khi cập nhật sẽ cập nhật đè vào cả XuatKhoBienSo và KhoBienSo).
+    /// </summary>
+    public string? MauBienSoId { get; set; }
+
+    /// <summary>
+    /// ID Đầu biển số (Tùy chọn; nếu truyền khi cập nhật sẽ cập nhật đè vào cả XuatKhoBienSo và KhoBienSo).
+    /// </summary>
+    public string? DauBienSoId { get; set; }
+
     #endregion
 
     #region 2. Bảng giá lệ phí theo Thông tư 155/2025/TT-BTC
@@ -288,6 +308,17 @@ public class SetXuatKhoRequest
 }
 
 /// <summary>
+/// Yêu cầu hủy phiếu xuất kho &amp; biên lai thu tiền.
+/// </summary>
+public class HuyPhieuXuatKhoRequest
+{
+    /// <summary>
+    /// Lý do hủy phiếu xuất kho (tùy chọn).
+    /// </summary>
+    public string? LyDoHuy { get; set; }
+}
+
+/// <summary>
 /// Yêu cầu lấy danh sách phiếu xuất kho có phân trang và bộ lọc.
 /// </summary>
 public class PagedXuatKhoRequest
@@ -305,6 +336,12 @@ public class PagedXuatKhoRequest
     public string? LoaiThuTucId { get; set; }
     public string? KyHieuQuyenBienLaiId { get; set; }
     public bool? DaXuatKho { get; set; }
+
+    /// <summary>
+    /// Lọc theo trạng thái phiếu xuất kho ("HoanTat", "LuuTam", "DaHuy"). Để trống lấy tất cả.
+    /// </summary>
+    public string? TrangThai { get; set; }
+
     public DateTime? FromDate { get; set; }
     public DateTime? ToDate { get; set; }
 }
@@ -363,6 +400,18 @@ public class XuatKhoResponse
     public string? MaHoSoDvc { get; set; }
     public string? GhiChu { get; set; }
     public string TrangThai { get; set; } = "HoanTat";
+
+    /// <summary>
+    /// Tên hiển thị trạng thái tiếng Việt ("Hoàn tất", "Lưu tạm", "Đã hủy").
+    /// </summary>
+    public string TrangThaiHienThi => TrangThai switch
+    {
+        "HoanTat" => "Hoàn tất",
+        "LuuTam" => "Lưu tạm",
+        "DaHuy" => "Đã hủy",
+        _ => TrangThai
+    };
+
     public bool DaXuatKho { get; set; }
     #endregion
 

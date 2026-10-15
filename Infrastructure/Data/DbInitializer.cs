@@ -62,10 +62,32 @@ public static class DbInitializer
                 "CREATE INDEX IF NOT EXISTS \"IX_LichSuGoiThueBao_Created\" ON \"LichSuGoiThueBao\" (\"Created\"); " +
                 "UPDATE \"KhoBienSo\" k SET \"NgayNhapKho\" = d.\"NgayNhapKho\" FROM \"DotNhapKho\" d WHERE k.\"DotNhapKhoId\" = d.\"Id\" AND k.\"NgayNhapKho\" != d.\"NgayNhapKho\";"
             );
+
+            // Đồng bộ trạng thái các biển số chưa xuất kho thành 'DuocBam' và 'Biển được bấm (Tồn kho)'
+            await dbContext.Database.ExecuteSqlRawAsync(
+                "DO $$ " +
+                "DECLARE v_status_id VARCHAR(36); " +
+                "BEGIN " +
+                "    SELECT \"Id\" INTO v_status_id FROM \"TrangThaiBienSo\" WHERE \"Ma\" = 'DUOC_BAM' OR LOWER(\"Ten\") LIKE '%được bấm%' LIMIT 1; " +
+                "    UPDATE \"KhoBienSo\" " +
+                "    SET \"TrangThai\" = 'DuocBam', " +
+                "        \"TrangThaiTen\" = 'Biển được bấm (Tồn kho)', " +
+                "        \"TrangThaiBienSoId\" = COALESCE(v_status_id, \"TrangThaiBienSoId\") " +
+                "    WHERE \"DaXuatKho\" = false AND (\"TrangThai\" != 'DuocBam' OR \"TrangThaiTen\" != 'Biển được bấm (Tồn kho)'); " +
+                "    UPDATE \"ChiTietDotNhapBienSo\" ct " +
+                "    SET \"TrangThaiBienSoTen\" = 'Biển được bấm (Tồn kho)', " +
+                "        \"MauSacHienThi\" = 'success', " +
+                "        \"TrangThaiBienSoId\" = COALESCE(v_status_id, ct.\"TrangThaiBienSoId\") " +
+                "    FROM \"KhoBienSo\" k " +
+                "    WHERE (k.\"ChiTietDotNhapBienSoId\" = ct.\"Id\" OR (k.\"DotNhapKhoId\" = ct.\"DotNhapKhoId\" AND LOWER(k.\"BienKiemSoat\") = LOWER(ct.\"BienKiemSoat\"))) " +
+                "      AND k.\"DaXuatKho\" = false " +
+                "      AND (ct.\"TrangThaiBienSoTen\" != 'Biển được bấm (Tồn kho)' OR ct.\"MauSacHienThi\" != 'success'); " +
+                "END $$;"
+            );
         }
         catch (Exception ex)
         {
-            logger?.LogWarning(ex, "Lỗi khi kiểm tra cấu trúc cột DaXuatKho / XacNhanHoanTat trong cơ sở dữ liệu");
+            logger?.LogWarning(ex, "Lỗi khi kiểm tra cấu trúc cơ sở dữ liệu và đồng bộ trạng thái biển số");
         }
     }
 }

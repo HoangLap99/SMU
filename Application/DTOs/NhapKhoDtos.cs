@@ -286,4 +286,19 @@ public class KhoBienSoItemResponse
     public DateTime NgayNhapKho { get; set; }
     public DateTime? Modified { get; set; }
     public bool DaLuuKho { get; set; } = false;
+
+    /// <summary>
+    /// Đánh dấu biển số đã được xuất kho hay chưa.
+    /// </summary>
+    public bool DaXuatKho { get; set; } = false;
+
+    /// <summary>
+    /// Ngày xuất kho (nếu đã xuất).
+    /// </summary>
+    public DateTime? NgayXuatKho { get; set; }
+
+    /// <summary>
+    /// ID phiếu xuất kho tương ứng (nếu đã xuất).
+    /// </summary>
+    public string? XuatKhoId { get; set; }
 }
