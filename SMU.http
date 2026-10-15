@@ -123,7 +123,7 @@ Content-Type: application/json
   "newPassword": "Password123@"
 }
 
-### 6. Tạo mới Khách hàng / Đơn vị (Yêu cầu Authorization)
+### 6. Tạo mới Khách hàng / Đơn vị (kèm chọn Role cho tài khoản ban đầu: 1=Admin, 2=AdminCustomer, 3=User, 4=Trial)
 # @name createCustomer
 POST {{SMU_HostAddress}}/api/Customers
 Authorization: Bearer {{authToken}}
@@ -133,6 +133,9 @@ Content-Type: application/json
   "code": "CUS-AI-01",
   "name": "Đơn vị Tự động hóa Tài liệu AI",
   "description": "Ứng dụng AI phân tích và xử lý hóa đơn, hợp đồng tự động",
+  "username": "admin_cus_ai01",
+  "password": "Password123@",
+  "role": 2,
   "startDate": "2026-10-01T00:00:00Z",
   "endDate": "2026-12-31T00:00:00Z",
   "status": 1
@@ -141,7 +144,7 @@ Content-Type: application/json
 ### Lưu ID khách hàng vừa tạo
 @customerId = {{createCustomer.response.body.id}}
 
-### 6.1. Cập nhật thông tin Khách hàng / Đơn vị (Hỗ trợ cả PUT và POST)
+### 6.1. Cập nhật thông tin Khách hàng / Đơn vị (kèm cập nhật Role của tài khoản: 2=AdminCustomer, 3=User)
 # @name updateCustomer
 PUT {{SMU_HostAddress}}/api/Customers/{{customerId}}
 Authorization: Bearer {{authToken}}
@@ -150,7 +153,8 @@ Content-Type: application/json
 {
   "code": "CUS-AI-01-UPDATED",
   "name": "Đơn vị Tự động hóa Tài liệu AI (Đã cập nhật)",
-  "description": "Cập nhật mô tả hoạt động của đơn vị",
+  "description": "Cập nhật mô tả hoạt động của đơn vị và vai trò tài khoản",
+  "role": 2,
   "startDate": "2026-01-01T00:00:00Z",
   "endDate": "2027-12-31T00:00:00Z",
   "status": 0,
@@ -162,7 +166,7 @@ GET {{SMU_HostAddress}}/api/Customers/{{customerId}}/quota
 Authorization: Bearer {{authToken}}
 Accept: application/json
 
-### 8. Thêm tài khoản cán bộ vào Đơn vị / Khách hàng (Tạo cả User và Account)
+### 8. Thêm tài khoản cán bộ vào Đơn vị / Khách hàng (Tạo cả User và Account kèm chọn Role)
 # @name addMember
 POST {{SMU_HostAddress}}/api/Customers/{{customerId}}/members
 Authorization: Bearer {{authToken}}
@@ -171,6 +175,7 @@ Content-Type: application/json
 {
   "username": "admin_nghiado",
   "password": "Password123@",
+  "role": 2,
   "fullName": "Bùi Văn Kiên",
   "capBacId": null,
   "soHieuCAND": "142-890",
@@ -231,13 +236,14 @@ Accept: application/json
 PUT {{SMU_HostAddress}}/api/Customers/{{customerId}}/members/{{newMemberUserId}}/toggle-status
 Authorization: Bearer {{authToken}}
 
-### 11. Cập nhật thông tin cán bộ trong Đơn vị
+### 11. Cập nhật thông tin cán bộ trong Đơn vị (hỗ trợ cập nhật Role: 2=AdminCustomer, 3=User)
 PUT {{SMU_HostAddress}}/api/Customers/{{customerId}}/members/{{newMemberUserId}}
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
   "fullName": "Bùi Văn Kiên (Cập nhật)",
+  "role": 2,
   "capBacId": null,
   "soHieuCAND": "142-890",
   "chucVu": "Trưởng Công an phường",

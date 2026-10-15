@@ -61,6 +61,57 @@ public class CreateCustomerRequest
     /// Danh sách cán bộ được khởi tạo cùng đơn vị (tùy chọn).
     /// </summary>
     public List<AddUserToCustomerRequest>? InitialMembers { get; set; }
+
+    /// <summary>
+    /// Tên đăng nhập cho tài khoản quản trị / cán bộ ban đầu của đơn vị (tùy chọn).
+    /// </summary>
+    public string? Username { get; set; }
+
+    /// <summary>
+    /// Mật khẩu cho tài khoản đăng nhập (mặc định nếu để trống: "MatKhau123@").
+    /// </summary>
+    public string? Password { get; set; }
+
+    /// <summary>
+    /// Họ và tên cán bộ sở hữu tài khoản (mặc định lấy theo tên khách hàng nếu để trống).
+    /// </summary>
+    public string? FullName { get; set; }
+
+    /// <summary>
+    /// Phân quyền vai trò tài khoản: Admin (1), AdminCustomer (2), User (3), Trial (4).
+    /// Mặc định: AdminCustomer nếu tạo tài khoản ban đầu cho đơn vị, hoặc User nếu không chỉ định.
+    /// </summary>
+    public UserRole? Role { get; set; }
+
+    /// <summary>
+    /// Cấp bậc cán bộ (tùy chọn).
+    /// </summary>
+    public string? CapBacId { get; set; }
+
+    /// <summary>
+    /// Số hiệu Công an nhân dân (tùy chọn).
+    /// </summary>
+    public string? SoHieuCAND { get; set; }
+
+    /// <summary>
+    /// Chức vụ công tác (tùy chọn).
+    /// </summary>
+    public string? ChucVu { get; set; }
+
+    /// <summary>
+    /// Mã vai trò phân quyền nghiệp vụ (chọn từ danh mục Vai trò phân quyền).
+    /// </summary>
+    public string? VaiTroPhanQuyenId { get; set; }
+
+    /// <summary>
+    /// Email liên hệ (tùy chọn).
+    /// </summary>
+    public string? Email { get; set; }
+
+    /// <summary>
+    /// Số điện thoại liên hệ (tùy chọn).
+    /// </summary>
+    public string? PhoneNumber { get; set; }
 }
 
 /// <summary>
@@ -116,6 +167,46 @@ public class UpdateCustomerRequest
     /// Trạng thái kích hoạt.
     /// </summary>
     public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Phân quyền vai trò tài khoản cần cập nhật: Admin (1), AdminCustomer (2), User (3), Trial (4).
+    /// </summary>
+    public UserRole? Role { get; set; }
+
+    /// <summary>
+    /// Mã GUID của cán bộ (UserId) hoặc tài khoản (AccountId) cần cập nhật vai trò (tùy chọn; nếu để trống sẽ tự động cập nhật tài khoản quản trị hoặc tài khoản đầu tiên của đơn vị).
+    /// </summary>
+    public string? UserId { get; set; }
+
+    /// <summary>
+    /// Tên đăng nhập của tài khoản cần cập nhật vai trò hoặc tạo mới (tùy chọn).
+    /// </summary>
+    public string? Username { get; set; }
+
+    /// <summary>
+    /// Họ và tên cán bộ cần cập nhật (tùy chọn).
+    /// </summary>
+    public string? FullName { get; set; }
+
+    /// <summary>
+    /// Đặt lại mật khẩu mới cho tài khoản (tùy chọn).
+    /// </summary>
+    public string? NewPassword { get; set; }
+
+    /// <summary>
+    /// Cập nhật Cấp bậc cán bộ (tùy chọn).
+    /// </summary>
+    public string? CapBacId { get; set; }
+
+    /// <summary>
+    /// Cập nhật Chức vụ cán bộ (tùy chọn).
+    /// </summary>
+    public string? ChucVu { get; set; }
+
+    /// <summary>
+    /// Cập nhật Vai trò phân quyền nghiệp vụ (tùy chọn).
+    /// </summary>
+    public string? VaiTroPhanQuyenId { get; set; }
 }
 
 /// <summary>
@@ -175,6 +266,11 @@ public class AddUserToCustomerRequest
     /// </summary>
     [MaxLength(50, ErrorMessage = "Số điện thoại không được vượt quá 50 ký tự.")]
     public string? PhoneNumber { get; set; }
+
+    /// <summary>
+    /// Phân quyền vai trò tài khoản: Admin (1), AdminCustomer (2), User (3), Trial (4). Mặc định là User (3).
+    /// </summary>
+    public UserRole Role { get; set; } = UserRole.User;
 }
 
 /// <summary>
@@ -227,6 +323,11 @@ public class UpdateUserInCustomerRequest
     /// Đặt lại mật khẩu mới (nếu cần thay đổi).
     /// </summary>
     public string? NewPassword { get; set; }
+
+    /// <summary>
+    /// Phân quyền vai trò tài khoản: Admin (1), AdminCustomer (2), User (3), Trial (4) (tùy chọn; giữ nguyên vai trò cũ nếu không truyền).
+    /// </summary>
+    public UserRole? Role { get; set; }
 }
 
 #endregion
@@ -257,6 +358,8 @@ public class CustomerMemberResponse
     public string? AccountId { get; set; }
     public string CustomerId { get; set; } = string.Empty;
     public string Username { get; set; } = string.Empty;
+    public UserRole Role { get; set; } = UserRole.User;
+    public string RoleName => Role.ToString();
     public string FullName { get; set; } = string.Empty;
     public string? CapBacId { get; set; }
     public string? CapBacTen { get; set; }
@@ -296,6 +399,16 @@ public class CustomerResponse
     public string? CreatedByName { get; set; }
     public DateTime Modified { get; set; }
     public string? ModifiedByName { get; set; }
+
+    /// <summary>
+    /// Vai trò của tài khoản quản trị / cán bộ chính của đơn vị.
+    /// </summary>
+    public UserRole? PrimaryRole => Members.FirstOrDefault(m => m.Role == UserRole.AdminCustomer || m.Role == UserRole.Admin)?.Role ?? Members.FirstOrDefault()?.Role;
+
+    /// <summary>
+    /// Tên vai trò của tài khoản quản trị / cán bộ chính của đơn vị.
+    /// </summary>
+    public string? PrimaryRoleName => PrimaryRole?.ToString();
 
     /// <summary>
     /// Danh sách cán bộ trực thuộc đơn vị / khách hàng.

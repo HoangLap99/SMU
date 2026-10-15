@@ -199,11 +199,36 @@ public class CustomerService : ICustomerService
         _dbContext.Customers.Add(customer);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        // 4. Bổ sung các cán bộ ban đầu nếu có chỉ định
+        // 4. Bổ sung tài khoản ban đầu nếu có chỉ định trực tiếp qua CreateCustomerRequest
+        if (!string.IsNullOrWhiteSpace(request.Username))
+        {
+            var directMember = new AddUserToCustomerRequest
+            {
+                Username = request.Username,
+                Password = request.Password,
+                FullName = !string.IsNullOrWhiteSpace(request.FullName) ? request.FullName.Trim() : customer.Name,
+                CapBacId = request.CapBacId,
+                SoHieuCAND = request.SoHieuCAND,
+                ChucVu = request.ChucVu,
+                VaiTroPhanQuyenId = request.VaiTroPhanQuyenId,
+                Email = request.Email,
+                PhoneNumber = request.PhoneNumber,
+                Role = request.Role ?? UserRole.AdminCustomer
+            };
+            await AddUserToCustomerAsync(customer.Id!, directMember, cancellationToken);
+        }
+
+        // 4.1. Bổ sung các cán bộ ban đầu nếu có chỉ định trong InitialMembers
         if (request.InitialMembers != null && request.InitialMembers.Count > 0)
         {
             foreach (var memberReq in request.InitialMembers)
             {
+                // Tránh tạo trùng nếu username đã được tạo trực tiếp ở trên
+                if (!string.IsNullOrWhiteSpace(request.Username) && 
+                    string.Equals(memberReq.Username.Trim(), request.Username.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
                 await AddUserToCustomerAsync(customer.Id!, memberReq, cancellationToken);
             }
         }
@@ -269,6 +294,85 @@ public class CustomerService : ICustomerService
         customer.EndDate = request.EndDate;
         customer.Status = request.Status;
         customer.IsActive = request.IsActive;
+
+        // Cập nhật vai trò / thông tin tài khoản thuộc đơn vị nếu có yêu cầu
+        if (request.Role.HasValue || !string.IsNullOrWhiteSpace(request.NewPassword) || !string.IsNullOrWhiteSpace(request.Username))
+        {
+            Account? targetAccount = null;
+            User? targetUser = null;
+
+            if (!string.IsNullOrWhiteSpace(request.UserId))
+            {
+                targetAccount = await _dbContext.Accounts.FirstOrDefaultAsync(a => 
+                    a.CustomerId == id && (a.UserId == request.UserId || a.Id == request.UserId), cancellationToken);
+                targetUser = await _dbContext.Users.FirstOrDefaultAsync(u => 
+                    u.CustomerId == id && u.Id == request.UserId, cancellationToken);
+            }
+            else if (!string.IsNullOrWhiteSpace(request.Username))
+            {
+                var normalizedUser = request.Username.Trim().ToLowerInvariant();
+                targetAccount = await _dbContext.Accounts.FirstOrDefaultAsync(a => 
+                    a.CustomerId == id && a.Username.ToLower() == normalizedUser, cancellationToken);
+                if (targetAccount?.UserId != null)
+                {
+                    targetUser = await _dbContext.Users.FirstOrDefaultAsync(u => 
+                        u.CustomerId == id && u.Id == targetAccount.UserId, cancellationToken);
+                }
+            }
+            else
+            {
+                // Ưu tiên tìm tài khoản AdminCustomer hoặc Admin, hoặc tài khoản đầu tiên thuộc đơn vị này
+                targetAccount = await _dbContext.Accounts.FirstOrDefaultAsync(a => 
+                    a.CustomerId == id && (a.Role == UserRole.AdminCustomer || a.Role == UserRole.Admin), cancellationToken)
+                    ?? await _dbContext.Accounts.FirstOrDefaultAsync(a => a.CustomerId == id, cancellationToken);
+                if (targetAccount?.UserId != null)
+                {
+                    targetUser = await _dbContext.Users.FirstOrDefaultAsync(u => 
+                        u.CustomerId == id && u.Id == targetAccount.UserId, cancellationToken);
+                }
+            }
+
+            if (targetAccount != null)
+            {
+                if (request.Role.HasValue)
+                {
+                    targetAccount.Role = request.Role.Value;
+                    if (request.Role.Value == UserRole.Trial && !targetAccount.TrialEndDate.HasValue)
+                    {
+                        targetAccount.TrialStartDate = DateTime.UtcNow;
+                        targetAccount.TrialEndDate = DateTime.UtcNow.AddDays(14);
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(request.NewPassword))
+                {
+                    targetAccount.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+                }
+
+                if (targetUser != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(request.FullName)) targetUser.FullName = request.FullName.Trim();
+                    if (!string.IsNullOrWhiteSpace(request.CapBacId)) targetUser.CapBacId = request.CapBacId;
+                    if (!string.IsNullOrWhiteSpace(request.ChucVu)) targetUser.ChucVu = request.ChucVu.Trim();
+                    if (!string.IsNullOrWhiteSpace(request.VaiTroPhanQuyenId)) targetUser.VaiTroPhanQuyenId = request.VaiTroPhanQuyenId;
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(request.Username))
+            {
+                // Nếu đơn vị chưa có tài khoản và caller muốn tạo mới tài khoản với Role được chọn
+                var addReq = new AddUserToCustomerRequest
+                {
+                    Username = request.Username,
+                    Password = request.NewPassword,
+                    FullName = !string.IsNullOrWhiteSpace(request.FullName) ? request.FullName.Trim() : customer.Name,
+                    CapBacId = request.CapBacId,
+                    ChucVu = request.ChucVu,
+                    VaiTroPhanQuyenId = request.VaiTroPhanQuyenId,
+                    Role = request.Role ?? UserRole.AdminCustomer
+                };
+                await AddUserToCustomerAsync(id, addReq, cancellationToken);
+            }
+        }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -432,13 +536,16 @@ public class CustomerService : ICustomerService
 
         // 5. Tạo tài khoản đăng nhập (Account) gắn theo User và Customer
         var rawPassword = string.IsNullOrWhiteSpace(request.Password) ? "MatKhau123@" : request.Password;
+        var role = request.Role;
         var account = new Account
         {
             CustomerId = customerId,
             UserId = user.Id,
             Username = request.Username.Trim(),
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(rawPassword),
-            Role = UserRole.User,
+            Role = role,
+            TrialStartDate = role == UserRole.Trial ? DateTime.UtcNow : null,
+            TrialEndDate = role == UserRole.Trial ? DateTime.UtcNow.AddDays(14) : null,
             IsLocked = false
         };
 
@@ -489,6 +596,16 @@ public class CustomerService : ICustomerService
         if (!string.IsNullOrWhiteSpace(request.NewPassword) && account != null)
         {
             account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        }
+
+        if (request.Role.HasValue && account != null)
+        {
+            account.Role = request.Role.Value;
+            if (request.Role.Value == UserRole.Trial && !account.TrialEndDate.HasValue)
+            {
+                account.TrialStartDate = DateTime.UtcNow;
+                account.TrialEndDate = DateTime.UtcNow.AddDays(14);
+            }
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -607,6 +724,7 @@ public class CustomerService : ICustomerService
             AccountId = account?.Id,
             CustomerId = user.CustomerId ?? string.Empty,
             Username = account?.Username ?? string.Empty,
+            Role = account?.Role ?? UserRole.User,
             FullName = user.FullName,
             CapBacId = user.CapBacId,
             CapBacTen = capBacTen,

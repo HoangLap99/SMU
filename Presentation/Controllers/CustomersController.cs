@@ -71,7 +71,7 @@ public class CustomersController : ControllerBase
     }
 
     /// <summary>
-    /// Tạo mới một khách hàng / đơn vị (có thể truyền kèm danh sách cán bộ ban đầu).
+    /// Tạo mới một khách hàng / đơn vị (có thể truyền kèm tài khoản đăng nhập hoặc danh sách cán bộ ban đầu với phân quyền Role).
     /// </summary>
     [HttpPost]
     [ProducesResponseType(typeof(CustomerResponse), StatusCodes.Status201Created)]
@@ -86,10 +86,11 @@ public class CustomersController : ControllerBase
     }
 
     /// <summary>
-    /// Cập nhật thông tin khách hàng / đơn vị.
+    /// Cập nhật thông tin khách hàng / đơn vị (hỗ trợ cả cập nhật vai trò Role, mật khẩu, thông tin tài khoản cán bộ trực thuộc).
+    /// Hỗ trợ cả hai phương thức HTTP PUT và POST.
     /// </summary>
     /// <param name="id">Mã GUID của khách hàng / đơn vị.</param>
-    /// <param name="request">Thông tin cần cập nhật.</param>
+    /// <param name="request">Thông tin cần cập nhật (Tên, mã, gói, quota, vai trò Role của tài khoản...).</param>
     /// <param name="cancellationToken">Token hủy yêu cầu.</param>
     [HttpPost("{id}")]
     [ProducesResponseType(typeof(CustomerResponse), StatusCodes.Status200OK)]
@@ -205,10 +206,10 @@ public class CustomersController : ControllerBase
     }
 
     /// <summary>
-    /// Thêm tài khoản cán bộ mới vào đơn vị (kiểm tra hạn mức Quota, tạo User và Account theo đơn vị như trong Modal UI).
+    /// Thêm tài khoản cán bộ mới vào đơn vị (kiểm tra hạn mức Quota, tạo User và Account theo đơn vị với tùy chọn phân quyền Role).
     /// </summary>
     /// <param name="id">Mã GUID của đơn vị.</param>
-    /// <param name="request">Thông tin cán bộ mới (Username, Password, FullName, CapBacId, SoHieuCAND, ChucVu, VaiTroPhanQuyenId).</param>
+    /// <param name="request">Thông tin cán bộ mới (Username, Password, FullName, Role, CapBacId, SoHieuCAND, ChucVu, VaiTroPhanQuyenId).</param>
     /// <param name="cancellationToken">Token hủy yêu cầu.</param>
     [HttpPost("{id}/members")]
     [ProducesResponseType(typeof(CustomerMemberResponse), StatusCodes.Status201Created)]
@@ -255,7 +256,7 @@ public class CustomersController : ControllerBase
     }
 
     /// <summary>
-    /// Cập nhật thông tin cán bộ trong đơn vị.
+    /// Cập nhật thông tin cán bộ trong đơn vị (họ tên, cấp bậc, chức vụ, vai trò phân quyền, mật khẩu mới và phân quyền vai trò tài khoản Role).
     /// </summary>
     /// <param name="id">Mã GUID của đơn vị.</param>
     /// <param name="userId">Mã GUID của cán bộ.</param>
