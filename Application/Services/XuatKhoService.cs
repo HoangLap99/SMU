@@ -339,7 +339,7 @@ public class XuatKhoService : IXuatKhoService
             }
         }
 
-        // 2. Kiểm tra Quyển biên lai (KyHieuQuyenBienLai)
+        //// 2. Kiểm tra Quyển biên lai (KyHieuQuyenBienLai)
         var quyen = await _dbContext.KyHieuQuyenBienLais
             .FirstOrDefaultAsync(x => x.Id == request.KyHieuQuyenBienLaiId, cancellationToken);
 
@@ -348,16 +348,16 @@ public class XuatKhoService : IXuatKhoService
             throw new ArgumentException($"Không tìm thấy Ký hiệu quyển biên lai với Id '{request.KyHieuQuyenBienLaiId}'.");
         }
 
-        // 3. Kiểm tra chặn trùng số biên lai trong cùng một quyển
-        var checkTrungSo = await _dbContext.XuatKhoBienSos
-            .AnyAsync(x => x.KyHieuQuyenBienLaiId == request.KyHieuQuyenBienLaiId 
-                        && x.SoBienLai == request.SoBienLai.Trim() 
-                        && x.Id != request.Id, cancellationToken);
+        //// 3. Kiểm tra chặn trùng số biên lai trong cùng một quyển
+        //var checkTrungSo = await _dbContext.XuatKhoBienSos
+        //    .AnyAsync(x => x.KyHieuQuyenBienLaiId == request.KyHieuQuyenBienLaiId 
+        //                && x.SoBienLai == request.SoBienLai.Trim() 
+        //                && x.Id != request.Id, cancellationToken);
 
-        if (checkTrungSo)
-        {
-            throw new InvalidOperationException($"Số biên lai '{request.SoBienLai}' trong quyển '{quyen.Ma}' đã được sử dụng. Vui lòng kiểm tra lại.");
-        }
+        //if (checkTrungSo)
+        //{
+        //    throw new InvalidOperationException($"Số biên lai '{request.SoBienLai}' trong quyển '{quyen.Ma}' đã được sử dụng. Vui lòng kiểm tra lại.");
+        //}
 
         // 4. Lấy thông tin các danh mục liên quan để snapshot
         var loaiThuTuc = await _dbContext.LoaiThuTucs.AsNoTracking()

@@ -263,7 +263,7 @@ public class SetXuatKhoRequest
     /// <summary>
     /// Số biên lai (Ví dụ: "0000113").
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng nhập Số biên lai")]
+ 
     public string SoBienLai { get; set; } = string.Empty;
 
     /// <summary>
