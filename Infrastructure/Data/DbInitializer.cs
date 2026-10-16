@@ -60,6 +60,41 @@ public static class DbInitializer
                 "); " +
                 "CREATE INDEX IF NOT EXISTS \"IX_LichSuGoiThueBao_CustomerId\" ON \"LichSuGoiThueBao\" (\"CustomerId\"); " +
                 "CREATE INDEX IF NOT EXISTS \"IX_LichSuGoiThueBao_Created\" ON \"LichSuGoiThueBao\" (\"Created\"); " +
+                "CREATE TABLE IF NOT EXISTS \"LogHoatDong\" (" +
+                "\"Id\" character varying(36) NOT NULL PRIMARY KEY, " +
+                "\"CustomerId\" character varying(36), " +
+                "\"CustomerName\" character varying(250), " +
+                "\"LoaiNghiepVu\" character varying(50) NOT NULL, " +
+                "\"LoaiNghiepVuTen\" character varying(100), " +
+                "\"HanhDong\" character varying(50) NOT NULL, " +
+                "\"HanhDongTen\" character varying(150), " +
+                "\"ChungTuId\" character varying(36), " +
+                "\"MaChungTu\" character varying(100) NOT NULL, " +
+                "\"BienKiemSoat\" character varying(250), " +
+                "\"NoiDung\" character varying(2000) NOT NULL, " +
+                "\"ChiTietThayDoi\" text, " +
+                "\"TrangThai\" character varying(50), " +
+                "\"TrangThaiTen\" character varying(100), " +
+                "\"ThoiGian\" timestamp without time zone NOT NULL, " +
+                "\"NguoiThucHienId\" character varying(36), " +
+                "\"NguoiThucHien\" character varying(250), " +
+                "\"IpAddress\" character varying(100), " +
+                "\"GhiChu\" character varying(1000), " +
+                "\"Created\" timestamp without time zone NOT NULL, " +
+                "\"CreatedById\" character varying(36), " +
+                "\"CreatedByName\" character varying(250), " +
+                "\"Modified\" timestamp without time zone NOT NULL, " +
+                "\"ModifileById\" character varying(36), " +
+                "\"ModifileByName\" character varying(250), " +
+                "\"TenantId\" character varying(50)" +
+                "); " +
+                "CREATE INDEX IF NOT EXISTS \"IX_LogHoatDong_CustomerId\" ON \"LogHoatDong\" (\"CustomerId\"); " +
+                "CREATE INDEX IF NOT EXISTS \"IX_LogHoatDong_LoaiNghiepVu\" ON \"LogHoatDong\" (\"LoaiNghiepVu\"); " +
+                "CREATE INDEX IF NOT EXISTS \"IX_LogHoatDong_HanhDong\" ON \"LogHoatDong\" (\"HanhDong\"); " +
+                "CREATE INDEX IF NOT EXISTS \"IX_LogHoatDong_ThoiGian\" ON \"LogHoatDong\" (\"ThoiGian\"); " +
+                "CREATE INDEX IF NOT EXISTS \"IX_LogHoatDong_ChungTuId\" ON \"LogHoatDong\" (\"ChungTuId\"); " +
+                "CREATE INDEX IF NOT EXISTS \"IX_LogHoatDong_MaChungTu\" ON \"LogHoatDong\" (\"MaChungTu\"); " +
+                "CREATE INDEX IF NOT EXISTS \"IX_LogHoatDong_BienKiemSoat\" ON \"LogHoatDong\" (\"BienKiemSoat\"); " +
                 "UPDATE \"KhoBienSo\" k SET \"NgayNhapKho\" = d.\"NgayNhapKho\" FROM \"DotNhapKho\" d WHERE k.\"DotNhapKhoId\" = d.\"Id\" AND k.\"NgayNhapKho\" != d.\"NgayNhapKho\";"
             );
 
@@ -84,6 +119,13 @@ public static class DbInitializer
                 "      AND (ct.\"TrangThaiBienSoTen\" != 'Biển được bấm (Tồn kho)' OR ct.\"MauSacHienThi\" != 'success'); " +
                 "END $$;"
             );
+
+            // Đồng bộ nạp nhật ký hoạt động ban đầu từ dữ liệu có sẵn nếu bảng LogHoatDong chưa có
+            var logService = scope.ServiceProvider.GetService<SMU.Application.Interfaces.ILogHoatDongService>();
+            if (logService != null)
+            {
+                await logService.DongBoLogTuDuLieuCoSanAsync();
+            }
         }
         catch (Exception ex)
         {

@@ -21,10 +21,14 @@ namespace SMU.Presentation.Controllers;
 public class KiemKeKhoController : ControllerBase
 {
     private readonly IKiemKeKhoService _kiemKeKhoService;
+    private readonly ILogHoatDongService _logHoatDongService;
 
-    public KiemKeKhoController(IKiemKeKhoService kiemKeKhoService)
+    public KiemKeKhoController(
+        IKiemKeKhoService kiemKeKhoService,
+        ILogHoatDongService logHoatDongService)
     {
         _kiemKeKhoService = kiemKeKhoService;
+        _logHoatDongService = logHoatDongService;
     }
 
     /// <summary>
@@ -194,6 +198,31 @@ public class KiemKeKhoController : ControllerBase
         }
 
         var result = await _kiemKeKhoService.XacDinhDauBienTuBienSoAsync(bienKiemSoat, customerId, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 8: (GET/POST) Lấy nhật ký hoạt động của phân hệ Kiểm kê kho biển số xe.
+    /// </summary>
+    [HttpGet("log")]
+    [HttpPost("log")]
+    [ProducesResponseType(typeof(PagedResult<LogHoatDongResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LayLogKiemKeKho([FromQuery] FilterLogHoatDongRequest? request, CancellationToken cancellationToken)
+    {
+        request ??= new FilterLogHoatDongRequest();
+        request.LoaiNghiepVu = "KiemKe";
+        var result = await _logHoatDongService.LayDanhSachLogAsync(request, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 9: (GET) Lấy lịch sử log của 1 phiếu kiểm kê kho cụ thể theo Id hoặc MaPhieuKiemKe.
+    /// </summary>
+    [HttpGet("{id}/log")]
+    [ProducesResponseType(typeof(IReadOnlyList<LogHoatDongResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LayLogTheoPhieuKiemKe([FromRoute] string id, CancellationToken cancellationToken)
+    {
+        var result = await _logHoatDongService.LayLogTheoChungTuAsync(id, cancellationToken);
         return Ok(result);
     }
 }

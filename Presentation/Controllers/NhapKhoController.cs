@@ -18,10 +18,14 @@ namespace SMU.Presentation.Controllers;
 public class NhapKhoController : ControllerBase
 {
     private readonly INhapKhoService _nhapKhoService;
+    private readonly ILogHoatDongService _logHoatDongService;
 
-    public NhapKhoController(INhapKhoService nhapKhoService)
+    public NhapKhoController(
+        INhapKhoService nhapKhoService,
+        ILogHoatDongService logHoatDongService)
     {
         _nhapKhoService = nhapKhoService;
+        _logHoatDongService = logHoatDongService;
     }
 
     /// <summary>
@@ -180,6 +184,31 @@ public class NhapKhoController : ControllerBase
         }
 
         var result = await _nhapKhoService.ImportExcelBienSoAsync(targetFile, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 7: (GET/POST) Lấy nhật ký hoạt động của phân hệ Nhập kho.
+    /// </summary>
+    [HttpGet("log")]
+    [HttpPost("log")]
+    [ProducesResponseType(typeof(PagedResult<LogHoatDongResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LayLogNhapKho([FromQuery] FilterLogHoatDongRequest? request, CancellationToken cancellationToken)
+    {
+        request ??= new FilterLogHoatDongRequest();
+        request.LoaiNghiepVu = "NhapKho";
+        var result = await _logHoatDongService.LayDanhSachLogAsync(request, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 8: (GET) Lấy lịch sử log của 1 đợt nhập kho cụ thể theo Id hoặc MaDotNhap.
+    /// </summary>
+    [HttpGet("{id}/log")]
+    [ProducesResponseType(typeof(IReadOnlyList<LogHoatDongResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LayLogTheoDotNhap([FromRoute] string id, CancellationToken cancellationToken)
+    {
+        var result = await _logHoatDongService.LayLogTheoChungTuAsync(id, cancellationToken);
         return Ok(result);
     }
 }

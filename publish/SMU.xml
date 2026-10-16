@@ -438,41 +438,106 @@
             Loại mốc thời gian: "All", "Month", "Quarter", "Custom".
             </summary>
         </member>
+        <member name="T:SMU.Application.DTOs.FilterBaoCaoCommonRequest">
+            <summary>
+            Bộ lọc dùng chung cho tất cả các báo cáo Nhập - Xuất - Tồn.
+            Bổ sung đầy đủ 100% các tiêu chí lọc tương đồng với API /TonKho/tonghop (FilterTonKhoRequest).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.TimSoBien">
+            <summary>
+            Từ khóa tìm kiếm số biển (Ví dụ: "29E-895.05", "30B-532...").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.Keyword">
+            <summary>
+            Từ khóa tìm kiếm chung (Keyword).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.TimKiem">
+            <summary>
+            Từ khóa tìm kiếm (TimKiem tương thích ngược).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.DauBien">
+            <summary>
+            Đầu biển cần lọc (Ví dụ: "29AH-316", "30B-532", "29E-895" hoặc "30B").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.TimDauBien">
+            <summary>
+            Từ khóa tìm kiếm Đầu biển (TimDauBien tương thích ngược).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.LoaiXeId">
+            <summary>
+            ID Danh mục Loại phương tiện / Loại xe (LoaiXe).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.MauBienSoId">
+            <summary>
+            ID Danh mục Màu biển số (MauBienSo).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.TrangThai">
+            <summary>
+            Trạng thái biển số ("DuocBam", "DaBam", "ChoDauGia", "ThuHoi" hoặc null là tất cả).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.LoaiThoiGian">
+            <summary>
+            Loại thời gian ("TatCa", "HomNay", "TuanNay", "ThangNay", "TuyChon").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.FromDate">
+            <summary>
+            Từ ngày nhập kho / ngày báo cáo (dd/MM/yyyy) theo chuẩn TonKho.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.ToDate">
+            <summary>
+            Đến ngày nhập kho / ngày báo cáo (dd/MM/yyyy) theo chuẩn TonKho.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.TuNgay">
+            <summary>
+            Ngày bắt đầu kỳ báo cáo (tương thích ngược cho TuNgay).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.DenNgay">
+            <summary>
+            Ngày kết thúc kỳ báo cáo (tương thích ngược cho DenNgay).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.CustomerId">
+            <summary>
+            ID Khách hàng / Đơn vị sở hữu kho (nếu null sẽ lấy tự động từ tài khoản hiện tại).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.DTOs.FilterBaoCaoCommonRequest.GetTuNgay">
+            <summary>
+            Helper: Lấy từ ngày thực tế (ưu tiên TuNgay nếu có, hoặc FromDate).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.DTOs.FilterBaoCaoCommonRequest.GetDenNgay">
+            <summary>
+            Helper: Lấy đến ngày thực tế (ưu tiên DenNgay nếu có, hoặc ToDate).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.DTOs.FilterBaoCaoCommonRequest.GetSearchKeyword">
+            <summary>
+            Helper: Lấy từ khóa tìm kiếm biển số / từ khóa chung.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.DTOs.FilterBaoCaoCommonRequest.GetDauBienFilter">
+            <summary>
+            Helper: Lấy thông tin lọc đầu biển.
+            </summary>
+        </member>
         <member name="T:SMU.Application.DTOs.FilterBaoCaoNhapXuatTonRequest">
             <summary>
             Yêu cầu lọc Báo cáo Nhập - Xuất - Tồn Biển số xe.
-            </summary>
-        </member>
-        <member name="P:SMU.Application.DTOs.FilterBaoCaoNhapXuatTonRequest.TuNgay">
-            <summary>
-            Ngày bắt đầu kỳ báo cáo (Ví dụ: 01/08/2026).
-            Mặc định: 01/08/2026.
-            </summary>
-        </member>
-        <member name="P:SMU.Application.DTOs.FilterBaoCaoNhapXuatTonRequest.DenNgay">
-            <summary>
-            Ngày kết thúc kỳ báo cáo (Ví dụ: 31/10/2026).
-            Mặc định: 31/10/2026.
-            </summary>
-        </member>
-        <member name="P:SMU.Application.DTOs.FilterBaoCaoNhapXuatTonRequest.LoaiXeId">
-            <summary>
-            Lọc theo ID Loại xe (chọn từ danh mục LoaiXe: Ô tô, Xe máy...). Để trống lấy tất cả.
-            </summary>
-        </member>
-        <member name="P:SMU.Application.DTOs.FilterBaoCaoNhapXuatTonRequest.MauBienSoId">
-            <summary>
-            Lọc theo ID Màu biển số (Trắng, Vàng, Xanh...). Để trống lấy tất cả.
-            </summary>
-        </member>
-        <member name="P:SMU.Application.DTOs.FilterBaoCaoNhapXuatTonRequest.TimDauBien">
-            <summary>
-            Từ khóa tìm kiếm Đầu biển (Ví dụ: "29A", "29AC", "30B"...).
-            </summary>
-        </member>
-        <member name="P:SMU.Application.DTOs.FilterBaoCaoNhapXuatTonRequest.CustomerId">
-            <summary>
-            ID Khách hàng / Đơn vị sở hữu kho. Tự động lấy theo User đăng nhập nếu không truyền.
+            Tương thích hoàn toàn với bộ lọc của API /TonKho/tonghop.
             </summary>
         </member>
         <member name="T:SMU.Application.DTOs.BaoCaoNhapXuatTonResponse">
@@ -624,11 +689,52 @@
         <member name="T:SMU.Application.DTOs.FilterBaoCaoTonTaiThoiDiemRequest">
             <summary>
             Yêu cầu lọc Báo cáo Biển số tồn kho tại thời điểm.
+            Kế thừa và đồng bộ 100% bộ lọc của API /TonKho/tonghop.
             </summary>
         </member>
         <member name="P:SMU.Application.DTOs.FilterBaoCaoTonTaiThoiDiemRequest.ChotTonTaiNgay">
             <summary>
             Mốc ngày chốt tồn kho (Ví dụ: 31/08/2026).
+            Nếu không truyền, hệ thống sẽ tự động dùng DenNgay hoặc ToDate.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.DTOs.FilterBaoCaoTonTaiThoiDiemRequest.GetChotNgay">
+            <summary>
+            Helper: Lấy ngày chốt tồn kho thực tế.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.FilterBaoCaoTienThuBienLaiRequest">
+            <summary>
+            Yêu cầu lọc Báo cáo Tiền thu theo biên lai và thủ tục.
+            Kế thừa và đồng bộ 100% bộ lọc của API /TonKho/tonghop.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoTienThuBienLaiRequest.LoaiThuTucId">
+            <summary>
+            ID Danh mục Loại thủ tục (LoaiThuTuc). Để trống lấy tất cả.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.FilterBangThongKeThuTucRequest">
+            <summary>
+            Yêu cầu lọc Bảng thống kê thủ tục và tiền thu.
+            Kế thừa và đồng bộ 100% bộ lọc của API /TonKho/tonghop.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBangThongKeThuTucRequest.LoaiThuTucId">
+            <summary>
+            ID Danh mục Loại thủ tục (LoaiThuTuc). Để trống lấy tất cả.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.FilterBangKeChiTietDotNhapRequest">
+            <summary>
+            Yêu cầu lọc Bảng kê chi tiết đợt nhập biển số xe.
+            Kế thừa và đồng bộ 100% bộ lọc của API /TonKho/tonghop.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.FilterBangKeChiTietXuatKhoRequest">
+            <summary>
+            Yêu cầu lọc Bảng kê chi tiết biển số đã xuất kho.
+            Kế thừa và đồng bộ 100% bộ lọc của API /TonKho/tonghop.
             </summary>
         </member>
         <member name="T:SMU.Application.DTOs.SetCapLaiDangKyXeRequest">
@@ -1981,6 +2087,207 @@
         <member name="P:SMU.Application.DTOs.XacDinhDauBienResponse.TonTaiTrongKho">
             <summary>
             Biển này đã tồn tại trong kho (true) hay là biển phát hiện thừa chưa có trong kho (false).
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.PagedLogHoatDongRequest">
+            <summary>
+            Yêu cầu tìm kiếm và phân trang danh sách nhật ký hoạt động (POST /api/LogHoatDong/danhsach hoặc GET).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.PagedLogHoatDongRequest.LoaiNghiepVu">
+            <summary>
+            Lọc theo Phân hệ / Loại nghiệp vụ:
+            - "TatCa" hoặc null/rỗng: Tất cả phân hệ
+            - "NhapKho": Nhập kho biển số
+            - "XuatKho": Xuất kho &amp; Biên lai thu tiền
+            - "KiemKe": Kiểm kê kho biển số
+            - "CapLaiDangKy": Cấp lại đăng ký xe
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.PagedLogHoatDongRequest.HanhDong">
+            <summary>
+            Lọc theo Hành động thao tác:
+            - "TatCa" hoặc null/rỗng: Tất cả hành động
+            - "ThemMoi": Tạo mới
+            - "CapNhat": Cập nhật / Chỉnh sửa
+            - "XacNhan": Xác nhận / Hoàn tất / Phát hành
+            - "Huy": Hủy phiếu
+            - "Xoa": Xóa phiếu
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.PagedLogHoatDongRequest.Keyword">
+            <summary>
+            Từ khóa tìm kiếm: Mã chứng từ, số biên lai, biển kiểm soát, người thực hiện, nội dung.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.PagedLogHoatDongRequest.ChungTuId">
+            <summary>
+            Lọc theo ID chứng từ nghiệp vụ liên quan (Id của DotNhapKho, XuatKhoBienSo, KiemKeKho, CapLaiDangKyXe).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.PagedLogHoatDongRequest.BienKiemSoat">
+            <summary>
+            Lọc theo Biển kiểm soát cụ thể (Ví dụ: "30B-207.66").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.PagedLogHoatDongRequest.CustomerId">
+            <summary>
+            Lọc theo ID Khách hàng / Đơn vị. Nếu để trống sẽ tự động lấy theo đơn vị của người dùng hiện tại (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.PagedLogHoatDongRequest.TuNgay">
+            <summary>
+            Lọc từ ngày diễn ra hoạt động.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.PagedLogHoatDongRequest.DenNgay">
+            <summary>
+            Lọc đến ngày diễn ra hoạt động.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.FilterLogHoatDongRequest">
+            <summary>
+            Alias tương thích cho PagedLogHoatDongRequest.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.LogHoatDongResponse">
+            <summary>
+            Thông tin chi tiết một bản ghi nhật ký hoạt động / audit log trả về cho Client.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.LoaiNghiepVu">
+            <summary>
+            Mã phân hệ / loại nghiệp vụ ("NhapKho", "XuatKho", "KiemKe", "CapLaiDangKy").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.LoaiNghiepVuTen">
+            <summary>
+            Tên hiển thị loại nghiệp vụ ("Nhập kho", "Xuất kho", "Kiểm kê kho", "Cấp lại đăng ký xe").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.HanhDong">
+            <summary>
+            Mã hành động ("ThemMoi", "CapNhat", "XacNhan", "Huy", "Xoa").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.HanhDongTen">
+            <summary>
+            Tên hiển thị hành động ("Tạo mới đợt nhập", "Xác nhận nhập kho", "Lập phiếu xuất kho", "Hủy phiếu xuất kho", ...).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.ChungTuId">
+            <summary>
+            ID chứng từ liên kết (Id đợt nhập, Id phiếu xuất kho, Id kiểm kê, Id cấp lại).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.MaChungTu">
+            <summary>
+            Mã chứng từ / Số biên lai (Ví dụ: "NK-2026-08-01-DAU", "0000113", "KK-2026-10-10-921").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.BienKiemSoat">
+            <summary>
+            Biển kiểm soát liên quan (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.NoiDung">
+            <summary>
+            Tóm tắt nội dung chi tiết thao tác nghiệp vụ.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.ChiTietThayDoi">
+            <summary>
+            Chi tiết thay đổi hoặc dữ liệu bổ sung.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.TrangThai">
+            <summary>
+            Trạng thái chứng từ tại thời điểm log.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.TrangThaiTen">
+            <summary>
+            Tên hiển thị trạng thái chứng từ.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.ThoiGian">
+            <summary>
+            Thời điểm diễn ra hoạt động.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.NguoiThucHienId">
+            <summary>
+            ID người dùng thực hiện.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.NguoiThucHien">
+            <summary>
+            Tên / Username người dùng thực hiện thao tác.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.CustomerId">
+            <summary>
+            Mã đơn vị / Khách hàng.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.CustomerName">
+            <summary>
+            Tên đơn vị / Khách hàng.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.IpAddress">
+            <summary>
+            Địa chỉ IP (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.GhiChu">
+            <summary>
+            Ghi chú bổ sung.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.ThongKeLogHoatDongResponse">
+            <summary>
+            Thống kê tổng quan số lượng nhật ký hoạt động.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongKeLogHoatDongResponse.TongSoLog">
+            <summary>
+            Tổng số lượt thao tác đã ghi log.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongKeLogHoatDongResponse.SoLogNhapKho">
+            <summary>
+            Số lượng log phân hệ Nhập kho.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongKeLogHoatDongResponse.SoLogXuatKho">
+            <summary>
+            Số lượng log phân hệ Xuất kho.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongKeLogHoatDongResponse.SoLogKiemKe">
+            <summary>
+            Số lượng log phân hệ Kiểm kê kho.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongKeLogHoatDongResponse.SoLogCapLaiDangKy">
+            <summary>
+            Số lượng log phân hệ Cấp lại đăng ký xe.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongKeLogHoatDongResponse.SoLogHomNay">
+            <summary>
+            Số lượt thao tác hôm nay.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongKeLogHoatDongResponse.SoLogTrongTuan">
+            <summary>
+            Số lượt thao tác trong tuần qua.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongKeLogHoatDongResponse.SoLogTrongThang">
+            <summary>
+            Số lượt thao tác trong tháng này.
             </summary>
         </member>
         <member name="T:SMU.Application.DTOs.SetDotNhapKhoRequest">
@@ -3520,6 +3827,40 @@
             Tự động xác định dải đầu biển số từ biển kiểm soát (Ví dụ: "30B-207.66" -> "30B-207", "29E-794.02" -> "29E-794").
             </summary>
         </member>
+        <member name="T:SMU.Application.Interfaces.ILogHoatDongService">
+            <summary>
+            Giao diện dịch vụ quản lý Nhật ký hoạt động / Audit Log cho 4 phân hệ:
+            Nhập kho, Xuất kho, Kiểm kê kho và Cấp lại đăng ký xe.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.ILogHoatDongService.LayDanhSachLogAsync(SMU.Application.DTOs.PagedLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            Lấy danh sách nhật ký hoạt động có phân trang và bộ lọc linh hoạt.
+            Hỗ trợ lọc theo loại nghiệp vụ (NhapKho, XuatKho, KiemKe, CapLaiDangKy),
+            hành động (ThemMoi, CapNhat, XacNhan, Huy, Xoa), từ khóa, khoảng ngày.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.ILogHoatDongService.LayLogTheoChungTuAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Lấy toàn bộ lịch sử log thao tác của một chứng từ cụ thể (theo ChungTuId hoặc MaChungTu).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.ILogHoatDongService.LayThongKeLogAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Thống kê số lượng hoạt động theo từng phân hệ và mốc thời gian (hôm nay, tuần này, tháng này).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.ILogHoatDongService.GhiLogAsync(System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Ghi nhận một hành động nghiệp vụ vào nhật ký hoạt động.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.ILogHoatDongService.DongBoLogTuDuLieuCoSanAsync(System.Threading.CancellationToken)">
+            <summary>
+            Đồng bộ / nạp các giao dịch có sẵn từ 4 bảng nghiệp vụ (Nhập kho, Xuất kho, Kiểm kê, Cấp lại)
+            vào bảng LogHoatDong nếu chưa có log.
+            </summary>
+        </member>
         <member name="T:SMU.Application.Interfaces.INhapKhoService">
             <summary>
             Giao diện dịch vụ quản lý Đợt nhập kho và Kho biển số xe:
@@ -3940,6 +4281,40 @@
         <member name="M:SMU.Application.Services.ChiTietKiemKeRecord.#ctor(System.String,System.String,System.String,System.String,System.String,System.String)">
             <summary>
             Record nội bộ biểu diễn chi tiết đối chiếu 1 biển số trong phiếu kiểm kê.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.Services.LogHoatDongService">
+            <summary>
+            Dịch vụ quản lý và truy vấn Nhật ký hoạt động / Audit Log cho 4 phân hệ:
+            1. Nhập kho biển số xe (DotNhapKho)
+            2. Xuất kho biển số xe &amp; Biên lai thu tiền (XuatKhoBienSo)
+            3. Kiểm kê kho biển số xe (KiemKeKho)
+            4. Cấp lại đăng ký xe (CapLaiDangKyXe)
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.LogHoatDongService.LayDanhSachLogAsync(SMU.Application.DTOs.PagedLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            Lấy danh sách nhật ký hoạt động có phân trang và bộ lọc linh hoạt.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.LogHoatDongService.LayLogTheoChungTuAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Lấy toàn bộ lịch sử log thao tác của một chứng từ cụ thể (theo ChungTuId hoặc MaChungTu).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.LogHoatDongService.LayThongKeLogAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Thống kê số lượng hoạt động theo từng phân hệ và mốc thời gian.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.LogHoatDongService.GhiLogAsync(System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Ghi nhận một hành động nghiệp vụ vào nhật ký hoạt động.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.LogHoatDongService.DongBoLogTuDuLieuCoSanAsync(System.Threading.CancellationToken)">
+            <summary>
+            Đồng bộ / nạp các giao dịch có sẵn từ 4 bảng nghiệp vụ vào bảng LogHoatDong nếu chưa có.
             </summary>
         </member>
         <member name="T:SMU.Application.Services.NhapKhoService">
@@ -5306,6 +5681,110 @@
             Tên người thực hiện thao tác gia hạn / phê duyệt.
             </summary>
         </member>
+        <member name="T:SMU.Core.Entities.LogHoatDong">
+            <summary>
+            Thực thể lưu trữ Nhật ký hoạt động / Audit Log cho 4 phân hệ cốt lõi:
+            1. Nhập kho biển số xe (DotNhapKho)
+            2. Xuất kho biển số xe &amp; Biên lai thu tiền (XuatKhoBienSo)
+            3. Kiểm kê kho biển số xe (KiemKeKho)
+            4. Cấp lại đăng ký xe (CapLaiDangKyXe)
+            Bảng lưu trữ: LogHoatDong
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.CustomerId">
+            <summary>
+            Mã định danh Khách hàng / Đơn vị thực hiện thao tác.
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.CustomerName">
+            <summary>
+            Tên Khách hàng / Đơn vị tại thời điểm thực hiện thao tác.
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.LoaiNghiepVu">
+            <summary>
+            Phân hệ / Loại nghiệp vụ:
+            - "NhapKho" (Nhập kho biển số xe)
+            - "XuatKho" (Xuất kho &amp; Biên lai thu tiền)
+            - "KiemKe" (Kiểm kê kho biển số)
+            - "CapLaiDangKy" (Cấp lại đăng ký xe)
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.LoaiNghiepVuTen">
+            <summary>
+            Tên hiển thị loại nghiệp vụ: "Nhập kho", "Xuất kho", "Kiểm kê kho", "Cấp lại đăng ký xe".
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.HanhDong">
+            <summary>
+            Hành động thao tác: "ThemMoi", "CapNhat", "XacNhan", "Huy", "Xoa".
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.HanhDongTen">
+            <summary>
+            Tên hiển thị hành động: "Tạo mới đợt nhập", "Cập nhật phiếu xuất kho", "Xác nhận nhập kho", "Hủy phiếu xuất kho", "Xác nhận hoàn tất kiểm kê"...
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.ChungTuId">
+            <summary>
+            ID chứng từ liên quan (Id của DotNhapKho, XuatKhoBienSo, KiemKeKho, CapLaiDangKyXe).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.MaChungTu">
+            <summary>
+            Mã chứng từ / Số biên lai (Ví dụ: "NK-2026-08-01-DAU", "0000113", "KK-2026-10-10-921").
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.BienKiemSoat">
+            <summary>
+            Biển kiểm soát liên quan (Ví dụ: "30B-207.66", hoặc dải "30B-207.00 - 30B-207.99").
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.NoiDung">
+            <summary>
+            Tóm tắt nội dung chi tiết của hoạt động nghiệp vụ.
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.ChiTietThayDoi">
+            <summary>
+            Chi tiết thay đổi hoặc dữ liệu bổ sung (JSON hoặc text mô tả).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.TrangThai">
+            <summary>
+            Trạng thái chứng từ tại thời điểm ghi log (Ví dụ: "LuuTam", "DaNhapKho", "HoanTat", "DaHuy", "LuuNhap", "DaXacNhan", "DaXoa").
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.TrangThaiTen">
+            <summary>
+            Tên hiển thị trạng thái chứng từ (Ví dụ: "Bản nháp", "Đã nhập kho", "Hoàn tất", "Đã hủy", "Đã xác nhận", "Đã xóa").
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.ThoiGian">
+            <summary>
+            Thời điểm diễn ra hoạt động (UTC).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.NguoiThucHienId">
+            <summary>
+            Mã định danh người thực hiện thao tác.
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.NguoiThucHien">
+            <summary>
+            Tên hoặc Username người dùng thực hiện thao tác.
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.IpAddress">
+            <summary>
+            Địa chỉ IP của máy khách khi thực hiện thao tác (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.GhiChu">
+            <summary>
+            Ghi chú nghiệp vụ thêm.
+            </summary>
+        </member>
         <member name="T:SMU.Core.Entities.User">
             <summary>
             Thực thể thông tin người dùng / cán bộ trong hệ thống và đơn vị (Customer).
@@ -5714,6 +6193,11 @@
             Bảng chi tiết từng biển số thừa / thiếu trong phiếu kiểm kê kho.
             </summary>
         </member>
+        <member name="P:SMU.Infrastructure.Data.PostgresDbContext.LogHoatDongs">
+            <summary>
+            Bảng lưu trữ nhật ký hoạt động / audit log cho các phân hệ: Nhập kho, Xuất kho, Kiểm kê, Cấp lại đăng ký.
+            </summary>
+        </member>
         <member name="P:SMU.Infrastructure.Data.PostgresDbContext.CapBacs">
             <summary>
             Bảng danh mục Cấp bậc (CapBac).
@@ -6091,6 +6575,18 @@
         <member name="M:SMU.Migrations.Postgres.AddDaXuatKhoVaXacNhanHoanTat.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
             <inheritdoc />
         </member>
+        <member name="T:SMU.Migrations.Postgres.AddLogHoatDong">
+            <inheritdoc />
+        </member>
+        <member name="M:SMU.Migrations.Postgres.AddLogHoatDong.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:SMU.Migrations.Postgres.AddLogHoatDong.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:SMU.Migrations.Postgres.AddLogHoatDong.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
         <member name="T:SMU.Presentation.Controllers.BaoCaoBienThienController">
             <summary>
             Controller Báo cáo: Biểu đồ phân tích biến thiên Nhập - Xuất - Chi phí lệ phí:
@@ -6149,6 +6645,12 @@
             <summary>
             Controller Báo cáo: Báo cáo Nhập - Xuất - Tồn Biển số xe.
             Đồng bộ tuyệt đối giữa màn hình hiển thị và bản in A4.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.BaoCaoNhapXuatTonController.LayThongTinBoLoc(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API Lấy dữ liệu cấu hình cho các dropdown bộ lọc tìm kiếm (đồng bộ 100% với bộ lọc /TonKho/boloc).
+            Trả về danh sách đầu biển kèm số lượng tồn kho (Ví dụ: "Tất cả đầu biển (34)"), Loại phương tiện, Màu biển, Trạng thái.
             </summary>
         </member>
         <member name="M:SMU.Presentation.Controllers.BaoCaoNhapXuatTonController.LayBaoCaoNhapXuatTon(SMU.Application.DTOs.FilterBaoCaoNhapXuatTonRequest,System.Threading.CancellationToken)">
@@ -6240,6 +6742,16 @@
         <member name="M:SMU.Presentation.Controllers.CapLaiDangKyXeController.LaySoBienLaiTiepTheo(System.String,System.Threading.CancellationToken)">
             <summary>
             API 6: Lấy thông tin quyển biên lai và gợi ý số biên lai tiếp theo theo ký hiệu quyển.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.CapLaiDangKyXeController.LayLogCapLai(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 7: (GET/POST) Lấy nhật ký hoạt động của phân hệ Cấp lại đăng ký xe.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.CapLaiDangKyXeController.LayLogTheoBienLai(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API 8: (GET) Lấy lịch sử log của 1 biên lai cấp lại đăng ký xe cụ thể theo Id hoặc Số biên lai.
             </summary>
         </member>
         <member name="T:SMU.Presentation.Controllers.CustomersController">
@@ -6656,6 +7168,77 @@
             API 7b: (GET) Tự động xác định dải đầu biển số từ biển số kiểm soát qua query string.
             </summary>
         </member>
+        <member name="M:SMU.Presentation.Controllers.KiemKeKhoController.LayLogKiemKeKho(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 8: (GET/POST) Lấy nhật ký hoạt động của phân hệ Kiểm kê kho biển số xe.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.KiemKeKhoController.LayLogTheoPhieuKiemKe(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API 9: (GET) Lấy lịch sử log của 1 phiếu kiểm kê kho cụ thể theo Id hoặc MaPhieuKiemKe.
+            </summary>
+        </member>
+        <member name="T:SMU.Presentation.Controllers.LogHoatDongController">
+            <summary>
+            Controller Quản lý Nhật ký hoạt động (Audit Log / Log hệ thống):
+            Theo dõi và hiển thị toàn bộ lịch sử thao tác của 4 phân hệ cốt lõi:
+            1. Nhập kho biển số xe (DotNhapKho)
+            2. Xuất kho biển số xe &amp; Biên lai thu tiền (XuatKhoBienSo)
+            3. Kiểm kê kho biển số xe (KiemKeKho)
+            4. Cấp lại đăng ký xe (CapLaiDangKyXe)
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.LayDanhSach(SMU.Application.DTOs.PagedLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 1: (POST) Lấy danh sách nhật ký hoạt động có phân trang và bộ lọc toàn diện.
+            Hỗ trợ lọc theo:
+            - Phân hệ (LoaiNghiepVu: "TatCa", "NhapKho", "XuatKho", "KiemKe", "CapLaiDangKy")
+            - Hành động (HanhDong: "ThemMoi", "CapNhat", "XacNhan", "Huy", "Xoa")
+            - Từ khóa (Keyword: tìm theo Mã chứng từ, Số biên lai, Biển số, Người thực hiện, Nội dung)
+            - Biển kiểm soát cụ thể (BienKiemSoat)
+            - Khoảng ngày (TuNgay, DenNgay)
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.LayDanhSachGet(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 1b: (GET) Lấy danh sách nhật ký hoạt động qua Query params (thuận tiện cho GET request).
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.LayLogNhapKho(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 2: (GET) Lấy danh sách nhật ký riêng cho phân hệ Nhập kho biển số xe.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.LayLogXuatKho(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 3: (GET) Lấy danh sách nhật ký riêng cho phân hệ Xuất kho biển số xe &amp; Biên lai thu tiền.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.LayLogKiemKe(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 4: (GET) Lấy danh sách nhật ký riêng cho phân hệ Kiểm kê kho biển số xe.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.LayLogCapLaiDangKy(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 5: (GET) Lấy danh sách nhật ký riêng cho phân hệ Cấp lại đăng ký xe.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.LayLogTheoChungTu(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API 6: (GET) Lấy toàn bộ lịch sử các thao tác/thay đổi của một chứng từ cụ thể theo ChungTuId hoặc MaChungTu.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.LayThongKeLog(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API 7: (GET) Thống kê tổng số lượng nhật ký hoạt động theo từng phân hệ và mốc thời gian.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.DongBoLog(System.Threading.CancellationToken)">
+            <summary>
+            API 8: (POST) Đồng bộ nạp lại nhật ký hoạt động từ dữ liệu có sẵn của 4 phân hệ (nếu chưa có).
+            </summary>
+        </member>
         <member name="T:SMU.Presentation.Controllers.NhapKhoController">
             <summary>
             Controller quản lý Đợt nhập kho và Kho biển số xe:
@@ -6719,6 +7302,16 @@
             <param name="request">Yêu cầu chứa FileName đã upload lên thư mục StorageFolder.</param>
             <param name="fileName">Tùy chọn truyền tên file qua query string.</param>
             <param name="cancellationToken">Token hủy yêu cầu.</param>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.NhapKhoController.LayLogNhapKho(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 7: (GET/POST) Lấy nhật ký hoạt động của phân hệ Nhập kho.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.NhapKhoController.LayLogTheoDotNhap(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API 8: (GET) Lấy lịch sử log của 1 đợt nhập kho cụ thể theo Id hoặc MaDotNhap.
+            </summary>
         </member>
         <member name="T:SMU.Presentation.Controllers.TonKhoController">
             <summary>
@@ -6979,6 +7572,16 @@
             <param name="id">Mã GUID của phiếu xuất kho cần hủy.</param>
             <param name="lyDoHuy">Lý do hủy phiếu (tùy chọn query param: ?lyDoHuy=...).</param>
             <param name="cancellationToken">Token hủy yêu cầu.</param>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.LayLogXuatKho(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 9: (GET/POST) Lấy nhật ký hoạt động của phân hệ Xuất kho &amp; Biên lai thu tiền.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.LayLogTheoPhieuXuat(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API 10: (GET) Lấy lịch sử log của 1 phiếu xuất kho cụ thể theo Id hoặc Số biên lai.
+            </summary>
         </member>
         <member name="T:SMU.Presentation.Middlewares.GlobalExceptionHandler">
             <summary>

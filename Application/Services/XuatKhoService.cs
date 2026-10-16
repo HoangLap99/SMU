@@ -20,15 +20,18 @@ public class XuatKhoService : IXuatKhoService
     private readonly PostgresDbContext _dbContext;
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<XuatKhoService> _logger;
+    private readonly ILogHoatDongService _logHoatDongService;
 
     public XuatKhoService(
         PostgresDbContext dbContext,
         ICurrentUserService currentUserService,
-        ILogger<XuatKhoService> logger)
+        ILogger<XuatKhoService> logger,
+        ILogHoatDongService logHoatDongService)
     {
         _dbContext = dbContext;
         _currentUserService = currentUserService;
         _logger = logger;
+        _logHoatDongService = logHoatDongService;
     }
 
     /// <summary>
@@ -672,6 +675,22 @@ public class XuatKhoService : IXuatKhoService
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
+        await _logHoatDongService.GhiLogAsync(
+            "XuatKho",
+            isAdd ? (xuatKho.DaXuatKho ? "XacNhan" : "ThemMoi") : "CapNhat",
+            xuatKho.SoBienLai,
+            isAdd 
+                ? $"Lập thủ tục & biên lai xuất kho '{xuatKho.KyHieuQuyen}-{xuatKho.SoBienLai}' cho biển số {xuatKho.BienKiemSoat} ({xuatKho.HoTenNguoiNop}), thu {xuatKho.SoTienThu:N0}đ."
+                : $"Cập nhật phiếu xuất kho '{xuatKho.KyHieuQuyen}-{xuatKho.SoBienLai}' cho biển số {xuatKho.BienKiemSoat}.",
+            xuatKho.Id,
+            xuatKho.BienKiemSoat,
+            xuatKho.TrangThai,
+            xuatKho.TrangThai == "HoanTat" ? "Hoàn tất" : (xuatKho.TrangThai == "DaHuy" ? "Đã hủy" : "Lưu tạm"),
+            null,
+            xuatKho.CustomerId,
+            xuatKho.GhiChu,
+            cancellationToken);
+
         _logger.LogInformation("Đã lưu thành công phiếu xuất kho '{Id}' cho biển số '{BienKiemSoat}', số biên lai '{SoBienLai}', DaXuatKho = {DaXuatKho}",
             xuatKho.Id, xuatKho.BienKiemSoat, xuatKho.SoBienLai, xuatKho.DaXuatKho);
 
@@ -795,6 +814,20 @@ public class XuatKhoService : IXuatKhoService
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _logHoatDongService.GhiLogAsync(
+            "XuatKho",
+            "XacNhan",
+            xuatKho.SoBienLai,
+            $"Xác nhận xuất kho phiếu '{xuatKho.KyHieuQuyen}-{xuatKho.SoBienLai}' cho biển số {xuatKho.BienKiemSoat}. Cấp biển thành công cho {xuatKho.HoTenNguoiNop}.",
+            xuatKho.Id,
+            xuatKho.BienKiemSoat,
+            xuatKho.TrangThai,
+            "Hoàn tất",
+            null,
+            xuatKho.CustomerId,
+            xuatKho.GhiChu,
+            cancellationToken);
 
         _logger.LogInformation("Đã xác nhận xuất kho thành công cho phiếu '{Id}' (Biển số: {BienKiemSoat}, Số biên lai: {SoBienLai}), biển số chuyển sang 'DaBam'",
             xuatKho.Id, xuatKho.BienKiemSoat, xuatKho.SoBienLai);
@@ -961,6 +994,20 @@ public class XuatKhoService : IXuatKhoService
         _dbContext.XuatKhoBienSos.Remove(entity);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
+        await _logHoatDongService.GhiLogAsync(
+            "XuatKho",
+            "Xoa",
+            entity.SoBienLai,
+            $"Xóa phiếu xuất kho '{entity.KyHieuQuyen}-{entity.SoBienLai}' cho biển số {entity.BienKiemSoat} và hoàn tác trạng thái biển số về kho.",
+            entity.Id,
+            entity.BienKiemSoat,
+            "DaXoa",
+            "Đã xóa",
+            null,
+            entity.CustomerId,
+            entity.GhiChu,
+            cancellationToken);
+
         _logger.LogInformation("Đã xóa phiếu xuất kho '{Id}' (DaXuatKho = {DaXuatKho}) và hoàn tác biển số '{BienKiemSoat}'",
             entity.Id, entity.DaXuatKho, entity.BienKiemSoat);
 
@@ -1056,6 +1103,20 @@ public class XuatKhoService : IXuatKhoService
             : $"{entity.GhiChu}\n{noiDungHuy}";
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _logHoatDongService.GhiLogAsync(
+            "XuatKho",
+            "Huy",
+            entity.SoBienLai,
+            $"Hủy phiếu xuất kho '{entity.KyHieuQuyen}-{entity.SoBienLai}' cho biển số {entity.BienKiemSoat}. Khôi phục biển số về kho khả dụng. Lý do: {lyDo ?? "N/A"}",
+            entity.Id,
+            entity.BienKiemSoat,
+            entity.TrangThai,
+            "Đã hủy",
+            null,
+            entity.CustomerId,
+            entity.GhiChu,
+            cancellationToken);
 
         _logger.LogInformation("Người dùng '{UserName}' đã hủy thành công phiếu xuất kho '{Id}' (Biển số: {BienKiemSoat}, Số biên lai: {SoBienLai}) và cập nhật lại trạng thái KhoBienSo về 'DuocBam'",
             _currentUserService.Username ?? "N/A", entity.Id, entity.BienKiemSoat, entity.SoBienLai);

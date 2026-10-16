@@ -74,6 +74,11 @@ public class PostgresDbContext : DbContext
     /// </summary>
     public DbSet<KiemKeKhoChiTietBien> KiemKeKhoChiTietBiens => Set<KiemKeKhoChiTietBien>();
 
+    /// <summary>
+    /// Bảng lưu trữ nhật ký hoạt động / audit log cho các phân hệ: Nhập kho, Xuất kho, Kiểm kê, Cấp lại đăng ký.
+    /// </summary>
+    public DbSet<LogHoatDong> LogHoatDongs => Set<LogHoatDong>();
+
     #region Danh mục hệ thống
 
     /// <summary>
@@ -339,6 +344,18 @@ public class PostgresDbContext : DbContext
             entity.HasIndex(e => new { e.CustomerId, e.KiemKeKhoId });
             entity.HasIndex(e => e.BienKiemSoat);
             entity.HasIndex(e => e.KhoBienSoId);
+        });
+
+        modelBuilder.Entity<LogHoatDong>(entity =>
+        {
+            entity.ToTable("LogHoatDong");
+            entity.HasIndex(e => e.CustomerId);
+            entity.HasIndex(e => e.LoaiNghiepVu);
+            entity.HasIndex(e => e.HanhDong);
+            entity.HasIndex(e => e.ThoiGian);
+            entity.HasIndex(e => e.ChungTuId);
+            entity.HasIndex(e => e.MaChungTu);
+            entity.HasIndex(e => e.BienKiemSoat);
         });
 
         #endregion

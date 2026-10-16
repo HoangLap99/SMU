@@ -10,39 +10,12 @@ namespace SMU.Migrations.Postgres
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<bool>(
-                name: "DaXuatKho",
-                table: "XuatKhoBienSo",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_XuatKhoBienSo_DaXuatKho",
-                table: "XuatKhoBienSo",
-                column: "DaXuatKho");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_XuatKhoBienSo_TrangThai",
-                table: "XuatKhoBienSo",
-                column: "TrangThai");
-
-            migrationBuilder.AddColumn<bool>(
-                name: "XacNhanHoanTat",
-                table: "KiemKeKho",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_KiemKeKho_XacNhanHoanTat",
-                table: "KiemKeKho",
-                column: "XacNhanHoanTat");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_KiemKeKho_TrangThai",
-                table: "KiemKeKho",
-                column: "TrangThai");
+            migrationBuilder.Sql("ALTER TABLE \"XuatKhoBienSo\" ADD COLUMN IF NOT EXISTS \"DaXuatKho\" boolean NOT NULL DEFAULT FALSE;");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS \"IX_XuatKhoBienSo_DaXuatKho\" ON \"XuatKhoBienSo\" (\"DaXuatKho\");");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS \"IX_XuatKhoBienSo_TrangThai\" ON \"XuatKhoBienSo\" (\"TrangThai\");");
+            migrationBuilder.Sql("ALTER TABLE \"KiemKeKho\" ADD COLUMN IF NOT EXISTS \"XacNhanHoanTat\" boolean NOT NULL DEFAULT FALSE;");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS \"IX_KiemKeKho_XacNhanHoanTat\" ON \"KiemKeKho\" (\"XacNhanHoanTat\");");
+            migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS \"IX_KiemKeKho_TrangThai\" ON \"KiemKeKho\" (\"TrangThai\");");
         }
 
         /// <inheritdoc />

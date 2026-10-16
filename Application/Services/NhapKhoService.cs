@@ -28,19 +28,22 @@ public class NhapKhoService : INhapKhoService
     private readonly IWebHostEnvironment _environment;
     private readonly IConfiguration _configuration;
     private readonly ILogger<NhapKhoService> _logger;
+    private readonly ILogHoatDongService _logHoatDongService;
 
     public NhapKhoService(
         PostgresDbContext dbContext,
         ICurrentUserService currentUserService,
         IWebHostEnvironment environment,
         IConfiguration configuration,
-        ILogger<NhapKhoService> logger)
+        ILogger<NhapKhoService> logger,
+        ILogHoatDongService logHoatDongService)
     {
         _dbContext = dbContext;
         _currentUserService = currentUserService;
         _environment = environment;
         _configuration = configuration;
         _logger = logger;
+        _logHoatDongService = logHoatDongService;
     }
 
     /// <summary>
@@ -173,6 +176,9 @@ public class NhapKhoService : INhapKhoService
             isUpdate = (dotNhap != null);
         }
 
+        // Nếu là update của đợt nhập đã xác nhận/đã nhập kho trước đó, duy trì trạng thái đã nhập kho
+        bool isDaNhapKho = request.DaNhapKho || (isUpdate && dotNhap != null && dotNhap.DaNhapKho);
+
         var maDotNhapChuanHoa = request.MaDotNhap.Trim().ToUpperInvariant();
 
         if (!isUpdate)
@@ -216,7 +222,7 @@ public class NhapKhoService : INhapKhoService
                     ttTen = statusDauGia?.Ten ?? "Chờ đấu giá";
                     ttMau = statusDauGia?.MauSacHienThi ?? "warning";
                 }
-                else if (request.DaNhapKho)
+                else if (isDaNhapKho)
                 {
                     // KHI XÁC NHẬN NHẬP KHO: Trạng thái biển luôn là "Được bấm"
                     ttId = defaultStatus?.Id ?? item.TrangThaiBienSoId;
@@ -260,13 +266,28 @@ public class NhapKhoService : INhapKhoService
                     ThuTu = stt++,
                     BienKiemSoat = formatted,
                     TrangThaiBienSoId = defaultStatus?.Id,
-                    TrangThaiBienSoTen = request.DaNhapKho ? (defaultStatus?.Ten ?? "Biển được bấm (Tồn kho)") : "Lưu tạm",
-                    MauSacHienThi = request.DaNhapKho ? (defaultStatus?.MauSacHienThi ?? "success") : "secondary",
+                    TrangThaiBienSoTen = isDaNhapKho ? (defaultStatus?.Ten ?? "Biển được bấm (Tồn kho)") : "Lưu tạm",
+                    MauSacHienThi = isDaNhapKho ? (defaultStatus?.MauSacHienThi ?? "success") : "secondary",
                     LaBienDauGia = false,
                     LoaiXeId = request.LoaiXeId,
                     MauBienSoId = request.MauBienSoId,
                     GhiChu = request.GhiChu ?? "Khai báo nhập kho tự động"
                 });
+            }
+        }
+        else if (isUpdate && dotNhap != null)
+        {
+            // Trường hợp cập nhật nhưng không gửi kèm DanhSachBienSo: Giữ nguyên danh sách biển hiện có của đợt nhập
+            var existingChiTiets = await _dbContext.ChiTietDotNhapBienSos
+                .Where(x => x.DotNhapKhoId == dotNhap.Id)
+                .OrderBy(x => x.ThuTu)
+                .ToListAsync(cancellationToken);
+
+            foreach (var ct in existingChiTiets)
+            {
+                if (!string.IsNullOrEmpty(request.LoaiXeId)) ct.LoaiXeId = request.LoaiXeId;
+                if (!string.IsNullOrEmpty(request.MauBienSoId)) ct.MauBienSoId = request.MauBienSoId;
+                listBienSoItems.Add(ct);
             }
         }
 
@@ -359,10 +380,10 @@ public class NhapKhoService : INhapKhoService
                 TinhChatDotNhapId = request.TinhChatDotNhapId,
                 SoCongVan = request.SoCongVan?.Trim(),
                 GhiChu = request.GhiChu?.Trim(),
-                TrangThai = request.DaNhapKho ? "DaNhapKho" : "LuuTam",
-                DaNhapKho = request.DaNhapKho,
-                NgayNhapKhoThucTe = request.DaNhapKho ? DateTime.UtcNow : null,
-                NguoiNhapKho = request.DaNhapKho ? (_currentUserService.FullName ?? _currentUserService.Username ?? "Quản trị viên") : null,
+                TrangThai = isDaNhapKho ? "DaNhapKho" : "LuuTam",
+                DaNhapKho = isDaNhapKho,
+                NgayNhapKhoThucTe = isDaNhapKho ? DateTime.UtcNow : null,
+                NguoiNhapKho = isDaNhapKho ? (_currentUserService.FullName ?? _currentUserService.Username ?? "Quản trị viên") : null,
                 TongSoBien = tongSoBien,
                 SoBienDuocBam = soBienDuocBam,
                 SoBienDaBam = 0,
@@ -384,6 +405,13 @@ public class NhapKhoService : INhapKhoService
             dotNhap.TongSoBien = tongSoBien;
             dotNhap.SoBienDuocBam = soBienDuocBam;
             dotNhap.SoBienChoDauGia = soBienChoDauGia;
+            if (isDaNhapKho)
+            {
+                dotNhap.DaNhapKho = true;
+                dotNhap.TrangThai = "DaNhapKho";
+                dotNhap.NgayNhapKhoThucTe ??= DateTime.UtcNow;
+                dotNhap.NguoiNhapKho ??= (_currentUserService.FullName ?? _currentUserService.Username ?? "Quản trị viên");
+            }
             dotNhap.Modified = DateTime.UtcNow;
         }
 
@@ -477,7 +505,7 @@ public class NhapKhoService : INhapKhoService
                     oldChiTiet.TrangThaiBienSoTen = statusDauGia?.Ten ?? "Chờ đấu giá";
                     oldChiTiet.MauSacHienThi = statusDauGia?.MauSacHienThi ?? "warning";
                 }
-                else if (request.DaNhapKho)
+                else if (isDaNhapKho)
                 {
                     // Khi xác nhận nhập kho thì trạng thái biển là ĐƯỢC BẤM
                     oldChiTiet.TrangThaiBienSoId = defaultStatus?.Id ?? item.TrangThaiBienSoId;
@@ -522,7 +550,7 @@ public class NhapKhoService : INhapKhoService
         }
 
         // 3. Đồng bộ KhoBienSo
-        if (request.DaNhapKho)
+        if (isDaNhapKho)
         {
             dotNhap.DaNhapKho = true;
             dotNhap.TrangThai = "DaNhapKho";
@@ -560,7 +588,7 @@ public class NhapKhoService : INhapKhoService
                     existingKho.MauBienSoId = item.MauBienSoId ?? dotNhap.MauBienSoId;
                     existingKho.DauBienSoId = dauBienId;
                     existingKho.GhiChu = item.GhiChu ?? dotNhap.GhiChu ?? existingKho.GhiChu;
-                    existingKho.NgayNhapKho = dotNhap.NgayNhapKhoThucTe ?? dotNhap.NgayNhapKho;
+                    existingKho.NgayNhapKho = dotNhap.NgayNhapKho;
                     existingKho.Modified = DateTime.UtcNow;
 
                     if (existingKho.DaXuatKho)
@@ -614,7 +642,7 @@ public class NhapKhoService : INhapKhoService
                         MauBienSoId = item.MauBienSoId ?? dotNhap.MauBienSoId,
                         DauBienSoId = dauBienId,
                         GhiChu = item.GhiChu ?? dotNhap.GhiChu ?? "Nhập kho chính thức",
-                        NgayNhapKho = dotNhap.NgayNhapKhoThucTe ?? dotNhap.NgayNhapKho,
+                        NgayNhapKho = dotNhap.NgayNhapKho,
                         DaXuatKho = false
                     };
                     await _dbContext.KhoBienSos.AddAsync(newKho, cancellationToken);
@@ -630,6 +658,18 @@ public class NhapKhoService : INhapKhoService
                     throw new InvalidOperationException($"Biển kiểm soát '{unKho.BienKiemSoat}' đã được xuất kho, không thể xóa khỏi đợt nhập.");
                 }
                 _dbContext.KhoBienSos.Remove(unKho);
+            }
+
+            // Đảm bảo đồng bộ tuyệt đối NgayNhapKho và danh mục liên quan cho toàn bộ KhoBienSo của đợt nhập
+            var allKhoOfDotNhap = await _dbContext.KhoBienSos
+                .Where(x => x.DotNhapKhoId == dotNhap.Id)
+                .ToListAsync(cancellationToken);
+            foreach (var k in allKhoOfDotNhap)
+            {
+                k.NgayNhapKho = dotNhap.NgayNhapKho;
+                if (!string.IsNullOrEmpty(dotNhap.LoaiXeId)) k.LoaiXeId = dotNhap.LoaiXeId;
+                if (!string.IsNullOrEmpty(dotNhap.MauBienSoId)) k.MauBienSoId = dotNhap.MauBienSoId;
+                k.Modified = DateTime.UtcNow;
             }
         }
         else
@@ -657,6 +697,24 @@ public class NhapKhoService : INhapKhoService
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
+        await _logHoatDongService.GhiLogAsync(
+            "NhapKho",
+            isUpdate ? "CapNhat" : (dotNhap.DaNhapKho ? "XacNhan" : "ThemMoi"),
+            dotNhap.MaDotNhap,
+            isUpdate 
+                ? $"Cập nhật đợt nhập kho '{dotNhap.MaDotNhap}' ({dotNhap.TongSoBien} biển số)."
+                : (dotNhap.DaNhapKho 
+                    ? $"Tạo mới và xác nhận nhập kho đợt '{dotNhap.MaDotNhap}' ({dotNhap.TongSoBien} biển số)."
+                    : $"Tạo mới đợt nhập kho '{dotNhap.MaDotNhap}' ({dotNhap.TongSoBien} biển số, bản nháp)."),
+            dotNhap.Id,
+            dotNhap.KyHieuDaiDauBien,
+            dotNhap.TrangThai,
+            dotNhap.DaNhapKho ? "Đã nhập kho" : "Bản nháp",
+            null,
+            dotNhap.CustomerId,
+            dotNhap.GhiChu,
+            cancellationToken);
+
         _logger.LogInformation("Đã lưu đợt nhập kho '{MaDotNhap}' thành công (DaNhapKho = {DaNhapKho}, Tổng biển = {Tong})",
             dotNhap.MaDotNhap, dotNhap.DaNhapKho, dotNhap.TongSoBien);
 
@@ -675,7 +733,38 @@ public class NhapKhoService : INhapKhoService
         {
             throw new ArgumentException("Vui lòng cung cấp Id của đợt nhập kho cần cập nhật.");
         }
-        return await SetDotNhapKhoAsync(request, cancellationToken);
+
+        var response = await SetDotNhapKhoAsync(request, cancellationToken);
+
+        // Đảm bảo cập nhật chính xác NgayNhapKho cho toàn bộ bản ghi KhoBienSo
+        if (request.NgayNhapKho != default)
+        {
+            var targetUtc = request.NgayNhapKho.Kind == DateTimeKind.Unspecified
+                ? DateTime.SpecifyKind(request.NgayNhapKho, DateTimeKind.Utc)
+                : request.NgayNhapKho.ToUniversalTime();
+
+            var khoList = await _dbContext.KhoBienSos
+                .Where(x => x.DotNhapKhoId == request.Id)
+                .ToListAsync(cancellationToken);
+
+            bool hasChange = false;
+            foreach (var k in khoList)
+            {
+                if (k.NgayNhapKho != targetUtc)
+                {
+                    k.NgayNhapKho = targetUtc;
+                    k.Modified = DateTime.UtcNow;
+                    hasChange = true;
+                }
+            }
+
+            if (hasChange)
+            {
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+        }
+
+        return response;
     }
 
     /// <summary>
@@ -786,7 +875,7 @@ public class NhapKhoService : INhapKhoService
                 existingKho.MauBienSoId = ct.MauBienSoId ?? dotNhap.MauBienSoId;
                 existingKho.DauBienSoId = dauBienId;
                 existingKho.GhiChu = ct.GhiChu ?? dotNhap.GhiChu ?? existingKho.GhiChu;
-                existingKho.NgayNhapKho = dotNhap.NgayNhapKhoThucTe ?? dotNhap.NgayNhapKho;
+                existingKho.NgayNhapKho = dotNhap.NgayNhapKho;
                 existingKho.Modified = DateTime.UtcNow;
 
                 if (existingKho.DaXuatKho)
@@ -819,7 +908,7 @@ public class NhapKhoService : INhapKhoService
                     MauBienSoId = ct.MauBienSoId ?? dotNhap.MauBienSoId,
                     DauBienSoId = dauBienId,
                     GhiChu = ct.GhiChu ?? dotNhap.GhiChu ?? "Nhập kho chính thức",
-                    NgayNhapKho = dotNhap.NgayNhapKhoThucTe ?? dotNhap.NgayNhapKho,
+                    NgayNhapKho = dotNhap.NgayNhapKho,
                     DaXuatKho = false
                 };
                 await _dbContext.KhoBienSos.AddAsync(newKho, cancellationToken);
@@ -842,6 +931,20 @@ public class NhapKhoService : INhapKhoService
         dotNhap.SoBienDaBam = existingKhoList.Count(x => x.DaXuatKho);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _logHoatDongService.GhiLogAsync(
+            "NhapKho",
+            "XacNhan",
+            dotNhap.MaDotNhap,
+            $"Xác nhận nhập kho thành công đợt '{dotNhap.MaDotNhap}' ({dotNhap.TongSoBien} biển số). Toàn bộ biển số đã chuyển sang trạng thái Biển được bấm (Tồn kho).",
+            dotNhap.Id,
+            dotNhap.KyHieuDaiDauBien,
+            dotNhap.TrangThai,
+            "Đã nhập kho",
+            null,
+            dotNhap.CustomerId,
+            dotNhap.GhiChu,
+            cancellationToken);
 
         _logger.LogInformation("Đã xác nhận nhập kho thành công cho đợt nhập '{MaDotNhap}' (Id: {Id})", dotNhap.MaDotNhap, dotNhap.Id);
 
@@ -944,7 +1047,7 @@ public class NhapKhoService : INhapKhoService
                 MauSacHienThi = mauSac,
                 LaBienDauGia = isDauGia,
                 GhiChu = k?.GhiChu ?? b.GhiChu,
-                NgayNhapKho = dotNhap.DaNhapKho ? (dotNhap.NgayNhapKhoThucTe ?? dotNhap.NgayNhapKho) : dotNhap.NgayNhapKho,
+                NgayNhapKho = k?.NgayNhapKho ?? dotNhap.NgayNhapKho,
                 Modified = b.Modified,
                 DaLuuKho = daLuu,
                 DaXuatKho = daXuat,
@@ -1046,6 +1149,20 @@ public class NhapKhoService : INhapKhoService
         _dbContext.DotNhapKhos.Remove(dotNhap);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _logHoatDongService.GhiLogAsync(
+            "NhapKho",
+            "Xoa",
+            dotNhap.MaDotNhap,
+            $"Xóa hoàn toàn đợt nhập kho '{dotNhap.MaDotNhap}' ({dotNhap.TongSoBien} biển số) và các biển số liên quan khỏi hệ thống.",
+            dotNhap.Id,
+            dotNhap.KyHieuDaiDauBien,
+            "DaXoa",
+            "Đã xóa",
+            null,
+            dotNhap.CustomerId,
+            dotNhap.GhiChu,
+            cancellationToken);
 
         _logger.LogInformation("Đã xóa hoàn toàn đợt nhập kho '{MaDotNhap}' (Id: {Id}) và các biển số liên quan.", dotNhap.MaDotNhap, dotNhap.Id);
 

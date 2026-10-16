@@ -19,13 +19,16 @@ public class KiemKeKhoService : IKiemKeKhoService
 {
     private readonly PostgresDbContext _dbContext;
     private readonly ICurrentUserService _currentUserService;
+    private readonly ILogHoatDongService _logHoatDongService;
 
     public KiemKeKhoService(
         PostgresDbContext dbContext,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        ILogHoatDongService logHoatDongService)
     {
         _dbContext = dbContext;
         _currentUserService = currentUserService;
+        _logHoatDongService = logHoatDongService;
     }
 
     /// <summary>
@@ -603,6 +606,25 @@ public class KiemKeKhoService : IKiemKeKhoService
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
+        bool isThemMoi = string.IsNullOrWhiteSpace(request.Id);
+        await _logHoatDongService.GhiLogAsync(
+            "KiemKe",
+            isHoanTat ? "XacNhan" : (isThemMoi ? "ThemMoi" : "CapNhat"),
+            kiemKe.MaPhieuKiemKe,
+            isHoanTat
+                ? $"Xác nhận hoàn tất kiểm kê kho '{kiemKe.MaPhieuKiemKe}': Tồn hệ thống {kiemKe.TongTonHeThong}, Thực tế {kiemKe.TongThucTe}, Chênh lệch {kiemKe.TongChenhLech}. Đã cân bằng tồn kho."
+                : (isThemMoi
+                    ? $"Khởi tạo phiếu kiểm kê kho '{kiemKe.MaPhieuKiemKe}' ({kiemKe.LoaiPhuongTien}): Tồn hệ thống {kiemKe.TongTonHeThong}, Thực tế {kiemKe.TongThucTe}."
+                    : $"Cập nhật phiếu kiểm kê kho '{kiemKe.MaPhieuKiemKe}'."),
+            kiemKe.Id,
+            null,
+            kiemKe.TrangThai,
+            isHoanTat ? "Hoàn tất" : "Lưu nháp",
+            null,
+            kiemKe.CustomerId,
+            kiemKe.GhiChu,
+            cancellationToken);
+
         return await LayChiTietKiemKeAsync(kiemKe.Id!, cancellationToken)
             ?? throw new InvalidOperationException("Không thể lấy dữ liệu phiếu kiểm kê vừa lưu.");
     }
@@ -873,6 +895,21 @@ public class KiemKeKhoService : IKiemKeKhoService
         _dbContext.KiemKeKhos.Remove(item);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _logHoatDongService.GhiLogAsync(
+            "KiemKe",
+            "Xoa",
+            item.MaPhieuKiemKe,
+            $"Xóa phiếu kiểm kê kho '{item.MaPhieuKiemKe}' ({item.LoaiPhuongTien}) khỏi hệ thống.",
+            item.Id,
+            null,
+            "DaXoa",
+            "Đã xóa",
+            null,
+            item.CustomerId,
+            item.GhiChu,
+            cancellationToken);
+
         return true;
     }
 

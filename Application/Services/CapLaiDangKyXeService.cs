@@ -19,15 +19,18 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
     private readonly PostgresDbContext _dbContext;
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<CapLaiDangKyXeService> _logger;
+    private readonly ILogHoatDongService _logHoatDongService;
 
     public CapLaiDangKyXeService(
         PostgresDbContext dbContext,
         ICurrentUserService currentUserService,
-        ILogger<CapLaiDangKyXeService> logger)
+        ILogger<CapLaiDangKyXeService> logger,
+        ILogHoatDongService logHoatDongService)
     {
         _dbContext = dbContext;
         _currentUserService = currentUserService;
         _logger = logger;
+        _logHoatDongService = logHoatDongService;
     }
 
     /// <summary>
@@ -187,6 +190,22 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
+        await _logHoatDongService.GhiLogAsync(
+            "CapLaiDangKy",
+            isAdd ? (entity.DaXacNhan ? "XacNhan" : "ThemMoi") : "CapNhat",
+            entity.SoBienLai,
+            isAdd
+                ? $"Lập biên lai cấp lại đăng ký xe '{entity.KyHieuQuyen}-{entity.SoBienLai}' cho biển {entity.BienKiemSoat} ({entity.HoTenChuXe}), thu {entity.SoTienThu:N0}đ."
+                : $"Cập nhật biên lai cấp lại đăng ký xe '{entity.KyHieuQuyen}-{entity.SoBienLai}' cho biển {entity.BienKiemSoat}.",
+            entity.Id,
+            entity.BienKiemSoat,
+            entity.TrangThai,
+            entity.DaXacNhan ? "Đã xác nhận (Đã phát hành)" : "Bản nháp",
+            null,
+            entity.CustomerId,
+            entity.LyDoCapLai,
+            cancellationToken);
+
         _logger.LogInformation("Đã lưu biên lai cấp lại đăng ký xe '{Id}' cho biển số '{BienKiemSoat}', số biên lai '{SoBienLai}', trạng thái '{TrangThai}'",
             entity.Id, entity.BienKiemSoat, entity.SoBienLai, entity.TrangThai);
 
@@ -236,6 +255,20 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _logHoatDongService.GhiLogAsync(
+            "CapLaiDangKy",
+            "XacNhan",
+            entity.SoBienLai,
+            $"Xác nhận phát hành biên lai cấp lại đăng ký xe '{entity.KyHieuQuyen}-{entity.SoBienLai}' cho biển {entity.BienKiemSoat} ({entity.HoTenChuXe}). Khóa biên lai hoàn tất.",
+            entity.Id,
+            entity.BienKiemSoat,
+            entity.TrangThai,
+            "Đã xác nhận (Đã phát hành)",
+            null,
+            entity.CustomerId,
+            entity.LyDoCapLai,
+            cancellationToken);
 
         _logger.LogInformation("Người dùng '{User}' đã xác nhận hoàn tất biên lai cấp lại đăng ký xe '{Id}' (Biển số: {BienKiemSoat})",
             entity.NguoiXacNhan, entity.Id, entity.BienKiemSoat);
@@ -361,6 +394,20 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
 
         _dbContext.CapLaiDangKyXes.Remove(entity);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _logHoatDongService.GhiLogAsync(
+            "CapLaiDangKy",
+            "Xoa",
+            entity.SoBienLai,
+            $"Xóa bản nháp biên lai cấp lại đăng ký xe '{entity.KyHieuQuyen}-{entity.SoBienLai}' cho biển {entity.BienKiemSoat}.",
+            entity.Id,
+            entity.BienKiemSoat,
+            "DaXoa",
+            "Đã xóa",
+            null,
+            entity.CustomerId,
+            entity.LyDoCapLai,
+            cancellationToken);
 
         _logger.LogInformation("Đã xóa bản nháp biên lai cấp lại đăng ký xe '{Id}'", id);
         return true;

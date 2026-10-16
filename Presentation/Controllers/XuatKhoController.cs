@@ -22,10 +22,14 @@ namespace SMU.Presentation.Controllers;
 public class XuatKhoController : ControllerBase
 {
     private readonly IXuatKhoService _xuatKhoService;
+    private readonly ILogHoatDongService _logHoatDongService;
 
-    public XuatKhoController(IXuatKhoService xuatKhoService)
+    public XuatKhoController(
+        IXuatKhoService xuatKhoService,
+        ILogHoatDongService logHoatDongService)
     {
         _xuatKhoService = xuatKhoService;
+        _logHoatDongService = logHoatDongService;
     }
 
     /// <summary>
@@ -220,6 +224,31 @@ public class XuatKhoController : ControllerBase
     {
         var request = !string.IsNullOrWhiteSpace(lyDoHuy) ? new HuyPhieuXuatKhoRequest { LyDoHuy = lyDoHuy } : null;
         var result = await _xuatKhoService.HuyPhieuXuatKhoAsync(id, request, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 9: (GET/POST) Lấy nhật ký hoạt động của phân hệ Xuất kho &amp; Biên lai thu tiền.
+    /// </summary>
+    [HttpGet("log")]
+    [HttpPost("log")]
+    [ProducesResponseType(typeof(PagedResult<LogHoatDongResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LayLogXuatKho([FromQuery] FilterLogHoatDongRequest? request, CancellationToken cancellationToken)
+    {
+        request ??= new FilterLogHoatDongRequest();
+        request.LoaiNghiepVu = "XuatKho";
+        var result = await _logHoatDongService.LayDanhSachLogAsync(request, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 10: (GET) Lấy lịch sử log của 1 phiếu xuất kho cụ thể theo Id hoặc Số biên lai.
+    /// </summary>
+    [HttpGet("{id}/log")]
+    [ProducesResponseType(typeof(IReadOnlyList<LogHoatDongResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LayLogTheoPhieuXuat([FromRoute] string id, CancellationToken cancellationToken)
+    {
+        var result = await _logHoatDongService.LayLogTheoChungTuAsync(id, cancellationToken);
         return Ok(result);
     }
 }

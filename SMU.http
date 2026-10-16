@@ -1498,33 +1498,41 @@ Accept: application/json
 
 ###############################################################################
 ### BÁO CÁO NHẬP - XUẤT - TỒN BIỂN SỐ XE
-### Kỳ báo cáo từ ngày 01/08/2026 đến ngày 31/10/2026
+### Áp dụng bộ lọc đồng bộ chuẩn 100% với API /TonKho/tonghop
 ###############################################################################
 
-### 1. (POST) LẤY BÁO CÁO NHẬP - XUẤT - TỒN THEO KỲ VÀ BỘ LỌC
+### 0. (GET) LẤY CẤU HÌNH BỘ LỌC DROPDOWN CHO BÁO CÁO (Đầu biển, Loại xe, Màu biển, Trạng thái)
+# @name getBoLocBaoCaoNhapXuatTon
+GET {{SMU_HostAddress}}/api/BaoCaoNhapXuatTon/boloc
+Authorization: Bearer {{authToken}}
+
+### 1. (POST) LẤY BÁO CÁO NHẬP - XUẤT - TỒN THEO KỲ VÀ BỘ LỌC (Chuẩn bộ lọc /TonKho/tonghop)
 # @name getBaoCaoNhapXuatTon
 POST {{SMU_HostAddress}}/api/BaoCaoNhapXuatTon
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "tuNgay": "2026-08-01T00:00:00Z",
-  "denNgay": "2026-10-31T23:59:59Z",
+  "timSoBien": null,
+  "dauBien": null,
   "loaiXeId": null,
   "mauBienSoId": null,
-  "timDauBien": null
+  "trangThai": null,
+  "loaiThoiGian": "TatCa",
+  "fromDate": "2026-08-01T00:00:00Z",
+  "toDate": "2026-10-31T23:59:59Z"
 }
 
-### 2. (POST) LẤY BÁO CÁO NHẬP - XUẤT - TỒN LỌC THEO ĐẦU BIỂN CỤ THỂ (Ví dụ: "29A")
+### 2. (POST) LẤY BÁO CÁO NHẬP - XUẤT - TỒN LỌC THEO ĐẦU BIỂN VÀ TRẠNG THÁI (Ví dụ: "29A", trạng thái "DuocBam")
 # @name getBaoCaoNhapXuatTonFilterDauBien
 POST {{SMU_HostAddress}}/api/BaoCaoNhapXuatTon
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "tuNgay": "2026-08-01T00:00:00Z",
-  "denNgay": "2026-10-31T23:59:59Z",
-  "timDauBien": "29A"
+  "dauBien": "29A",
+  "trangThai": "DuocBam",
+  "loaiThoiGian": "ThangNay"
 }
 
 ### 3. (POST) LẤY DỮ LIỆU ĐỊNH DẠNG XUẤT BẢN IN A4 (Print Preview chuẩn chỉ)
@@ -1534,69 +1542,85 @@ Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "tuNgay": "2026-08-01T00:00:00Z",
-  "denNgay": "2026-10-31T23:59:59Z"
+  "fromDate": "2026-08-01T00:00:00Z",
+  "toDate": "2026-10-31T23:59:59Z",
+  "trangThai": null
 }
 
-### 4. (POST) BÁO CÁO BIỂN SỐ TỒN KHO TẠI THỜI ĐIỂM (Tab 3)
+### 4. (POST) BÁO CÁO BIỂN SỐ TỒN KHO TẠI THỜI ĐIỂM (Tab 3 - Chuẩn bộ lọc /TonKho/tonghop)
 # @name getBaoCaoTonTaiThoiDiem
 POST {{SMU_HostAddress}}/api/BaoCaoNhapXuatTon/tontaithoidiem
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "chotTonTaiNgay": "2026-08-31T23:59:59Z",
+  "timSoBien": null,
+  "dauBien": "29A",
   "loaiXeId": null,
   "mauBienSoId": null,
-  "timKiem": null
+  "trangThai": "DuocBam",
+  "chotTonTaiNgay": "2026-08-31T23:59:59Z"
 }
 
-### 5. (POST) BÁO CÁO TIỀN THU THEO BIÊN LAI VÀ THỦ TỤC (Tab 4)
+### 5. (POST) BÁO CÁO TIỀN THU THEO BIÊN LAI VÀ THỦ TỤC (Tab 4 - Chuẩn bộ lọc /TonKho/tonghop)
 # @name getBaoCaoTienThuBienLai
 POST {{SMU_HostAddress}}/api/BaoCaoNhapXuatTon/tienthubienlai
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "tuNgay": "2026-08-01T00:00:00Z",
-  "denNgay": "2026-10-31T23:59:59Z",
-  "timKiem": null
+  "timSoBien": null,
+  "dauBien": null,
+  "loaiThuTucId": null,
+  "loaiXeId": null,
+  "mauBienSoId": null,
+  "trangThai": null,
+  "fromDate": "2026-08-01T00:00:00Z",
+  "toDate": "2026-10-31T23:59:59Z"
 }
 
-### 6. (POST) BẢNG THỐNG KÊ THỦ TỤC VÀ TIỀN THU (Tab 5)
+### 6. (POST) BẢNG THỐNG KÊ THỦ TỤC VÀ TIỀN THU (Tab 5 - Chuẩn bộ lọc /TonKho/tonghop)
 # @name getBangThongKeThuTuc
 POST {{SMU_HostAddress}}/api/BaoCaoNhapXuatTon/thongkethutuc
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "tuNgay": "2026-08-01T00:00:00Z",
-  "denNgay": "2026-10-31T23:59:59Z"
+  "dauBien": null,
+  "loaiXeId": null,
+  "loaiThoiGian": "ThangNay"
 }
 
-### 7. (POST) BẢNG KÊ CHI TIẾT ĐỢT NHẬP BIẾN SỐ XE (Tab 6)
+### 7. (POST) BẢNG KÊ CHI TIẾT ĐỢT NHẬP BIẾN SỐ XE (Tab 6 - Chuẩn bộ lọc /TonKho/tonghop)
 # @name getBangKeChiTietDotNhap
 POST {{SMU_HostAddress}}/api/BaoCaoNhapXuatTon/chitietdotnhap
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "tuNgay": "2026-08-01T00:00:00Z",
-  "denNgay": "2026-10-31T23:59:59Z",
+  "timSoBien": null,
+  "dauBien": null,
   "loaiXeId": null,
-  "timKiem": null
+  "mauBienSoId": null,
+  "trangThai": null,
+  "fromDate": "2026-08-01T00:00:00Z",
+  "toDate": "2026-10-31T23:59:59Z"
 }
 
-### 8. (POST) BẢNG KÊ CHI TIẾT BIẾN SỐ ĐÃ XUẤT KHO (Tab 7)
+### 8. (POST) BẢNG KÊ CHI TIẾT BIẾN SỐ ĐÃ XUẤT KHO (Tab 7 - Chuẩn bộ lọc /TonKho/tonghop)
 # @name getBangKeChiTietXuatKho
 POST {{SMU_HostAddress}}/api/BaoCaoNhapXuatTon/chitietxuatkho
 Authorization: Bearer {{authToken}}
 Content-Type: application/json
 
 {
-  "tuNgay": "2026-08-01T00:00:00Z",
-  "denNgay": "2026-10-31T23:59:59Z",
-  "timKiem": null
+  "timSoBien": null,
+  "dauBien": null,
+  "loaiXeId": null,
+  "mauBienSoId": null,
+  "trangThai": null,
+  "fromDate": "2026-08-01T00:00:00Z",
+  "toDate": "2026-10-31T23:59:59Z"
 }
 
 ### ==============================================================================
@@ -1651,6 +1675,122 @@ Content-Type: application/json
 ### 3. (GET) Hủy phiếu xuất kho theo Id (Cập nhật TrangThai = 'DaHuy', khôi phục KhoBienSo về 'DuocBam')
 # @name huyPhieuXuatKho
 GET {{SMU_HostAddress}}/api/XuatKho/huy/{{xuatKhoId}}?lyDoHuy=Nguoi%20dan%20doi%20y
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### ==============================================================================
+### PHẦN XI: NHẬT KÝ HOẠT ĐỘNG (AUDIT LOG) - NHẬP, XUẤT, KIỂM KÊ, CẤP LẠI ĐĂNG KÝ
+### ==============================================================================
+
+### 1. (POST) Lấy danh sách nhật ký hoạt động tổng hợp (toàn bộ các phân hệ)
+# @name getLogHoatDongAll
+POST {{SMU_HostAddress}}/api/LogHoatDong/danhsach
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "currentPage": 1,
+  "pageSize": 20,
+  "loaiNghiepVu": "TatCa",
+  "hanhDong": "TatCa"
+}
+
+### 2. (POST) Lọc nhật ký hoạt động phân hệ Nhập kho
+# @name getLogNhapKho
+POST {{SMU_HostAddress}}/api/LogHoatDong/danhsach
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "currentPage": 1,
+  "pageSize": 20,
+  "loaiNghiepVu": "NhapKho"
+}
+
+### 3. (POST) Lọc nhật ký hoạt động phân hệ Xuất kho
+# @name getLogXuatKho
+POST {{SMU_HostAddress}}/api/LogHoatDong/danhsach
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "currentPage": 1,
+  "pageSize": 20,
+  "loaiNghiepVu": "XuatKho"
+}
+
+### 4. (POST) Lọc nhật ký hoạt động phân hệ Kiểm kê kho
+# @name getLogKiemKe
+POST {{SMU_HostAddress}}/api/LogHoatDong/danhsach
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "currentPage": 1,
+  "pageSize": 20,
+  "loaiNghiepVu": "KiemKe"
+}
+
+### 5. (POST) Lọc nhật ký hoạt động phân hệ Cấp lại đăng ký xe
+# @name getLogCapLai
+POST {{SMU_HostAddress}}/api/LogHoatDong/danhsach
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "currentPage": 1,
+  "pageSize": 20,
+  "loaiNghiepVu": "CapLaiDangKy"
+}
+
+### 6. (GET) Thống kê số lượng log theo từng phân hệ và mốc thời gian
+# @name getThongKeLog
+GET {{SMU_HostAddress}}/api/LogHoatDong/thongke
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 7. (GET) Lấy log riêng phân hệ Nhập kho qua GET API
+GET {{SMU_HostAddress}}/api/LogHoatDong/nhapkho?currentPage=1&pageSize=10
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 8. (GET) Lấy log riêng phân hệ Xuất kho qua GET API
+GET {{SMU_HostAddress}}/api/LogHoatDong/xuatkho?currentPage=1&pageSize=10
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 9. (GET) Lấy log riêng phân hệ Kiểm kê qua GET API
+GET {{SMU_HostAddress}}/api/LogHoatDong/kiemke?currentPage=1&pageSize=10
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 10. (GET) Lấy log riêng phân hệ Cấp lại đăng ký qua GET API
+GET {{SMU_HostAddress}}/api/LogHoatDong/caplaidangky?currentPage=1&pageSize=10
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 11. (GET) Lấy lịch sử log của 1 chứng từ cụ thể theo ID hoặc Mã chứng từ
+GET {{SMU_HostAddress}}/api/LogHoatDong/chungtu/{{dotNhapId}}
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 12. (GET) Lấy log nhập kho trực tiếp từ NhapKhoController
+GET {{SMU_HostAddress}}/api/NhapKho/log
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 13. (GET) Lấy log xuất kho trực tiếp từ XuatKhoController
+GET {{SMU_HostAddress}}/api/XuatKho/log
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 14. (GET) Lấy log kiểm kê trực tiếp từ KiemKeKhoController
+GET {{SMU_HostAddress}}/api/KiemKeKho/log
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 15. (GET) Lấy log cấp lại đăng ký trực tiếp từ CapLaiDangKyXeController
+GET {{SMU_HostAddress}}/api/CapLaiDangKyXe/log
 Authorization: Bearer {{authToken}}
 Accept: application/json
 

@@ -17,10 +17,14 @@ namespace SMU.Presentation.Controllers;
 public class CapLaiDangKyXeController : ControllerBase
 {
     private readonly ICapLaiDangKyXeService _capLaiDangKyXeService;
+    private readonly ILogHoatDongService _logHoatDongService;
 
-    public CapLaiDangKyXeController(ICapLaiDangKyXeService capLaiDangKyXeService)
+    public CapLaiDangKyXeController(
+        ICapLaiDangKyXeService capLaiDangKyXeService,
+        ILogHoatDongService logHoatDongService)
     {
         _capLaiDangKyXeService = capLaiDangKyXeService;
+        _logHoatDongService = logHoatDongService;
     }
 
     /// <summary>
@@ -133,6 +137,31 @@ public class CapLaiDangKyXeController : ControllerBase
             });
         }
 
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 7: (GET/POST) Lấy nhật ký hoạt động của phân hệ Cấp lại đăng ký xe.
+    /// </summary>
+    [HttpGet("log")]
+    [HttpPost("log")]
+    [ProducesResponseType(typeof(PagedResult<LogHoatDongResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LayLogCapLai([FromQuery] FilterLogHoatDongRequest? request, CancellationToken cancellationToken)
+    {
+        request ??= new FilterLogHoatDongRequest();
+        request.LoaiNghiepVu = "CapLaiDangKy";
+        var result = await _logHoatDongService.LayDanhSachLogAsync(request, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 8: (GET) Lấy lịch sử log của 1 biên lai cấp lại đăng ký xe cụ thể theo Id hoặc Số biên lai.
+    /// </summary>
+    [HttpGet("{id}/log")]
+    [ProducesResponseType(typeof(IReadOnlyList<LogHoatDongResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LayLogTheoBienLai([FromRoute] string id, CancellationToken cancellationToken)
+    {
+        var result = await _logHoatDongService.LayLogTheoChungTuAsync(id, cancellationToken);
         return Ok(result);
     }
 }

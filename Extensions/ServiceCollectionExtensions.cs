@@ -71,6 +71,9 @@ public static class ServiceCollectionExtensions
         // Đăng ký dịch vụ Báo cáo Nhập - Xuất - Tồn Biển số xe
         services.AddScoped<IBaoCaoNhapXuatTonService, BaoCaoNhapXuatTonService>();
 
+        // Đăng ký dịch vụ Nhật ký hoạt động / Audit Log (Nhập kho, Xuất kho, Kiểm kê, Cấp lại)
+        services.AddScoped<ILogHoatDongService, LogHoatDongService>();
+
         return services;
     }
 

@@ -1170,6 +1170,116 @@ namespace SMU.Migrations.Postgres
                     b.ToTable("KyHieuQuyenBienLai", (string)null);
                 });
 
+            modelBuilder.Entity("SMU.Core.Entities.LichSuGoiThueBao", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("CreatedById")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)");
+
+                    b.Property<string>("CreatedByName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CustomerCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("CustomerId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)");
+
+                    b.Property<string>("CustomerName")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<string>("GhiChu")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int>("GioiHanUser")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("GoiThueBaoId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)");
+
+                    b.Property<string>("GoiThueBaoMa")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("GoiThueBaoTen")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<string>("HinhThucGiaHan")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("LoaiGiaoDich")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("LoaiGiaoDichTen")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("Modified")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("ModifileById")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)");
+
+                    b.Property<string>("ModifileByName")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("NgayBatDau")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime>("NgayKetThuc")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("NgayKetThucCu")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("NguoiThucHien")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<string>("SoHopDong")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int?>("SoThang")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("SoTien")
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("TrangThai")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Created");
+
+                    b.HasIndex("CustomerId");
+
+                    b.ToTable("LichSuGoiThueBao", (string)null);
+                });
+
             modelBuilder.Entity("SMU.Core.Entities.LoaiThuTuc", b =>
                 {
                     b.Property<string>("Id")
@@ -1305,6 +1415,129 @@ namespace SMU.Migrations.Postgres
                         .IsUnique();
 
                     b.ToTable("LoaiXe", (string)null);
+                });
+
+            modelBuilder.Entity("SMU.Core.Entities.LogHoatDong", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)");
+
+                    b.Property<string>("BienKiemSoat")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<string>("ChiTietThayDoi")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ChungTuId")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("CreatedById")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)");
+
+                    b.Property<string>("CreatedByName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CustomerId")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)");
+
+                    b.Property<string>("CustomerName")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<string>("GhiChu")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("HanhDong")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("HanhDongTen")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("LoaiNghiepVu")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("LoaiNghiepVuTen")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("MaChungTu")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("Modified")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("ModifileById")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)");
+
+                    b.Property<string>("ModifileByName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("NguoiThucHien")
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)");
+
+                    b.Property<string>("NguoiThucHienId")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)");
+
+                    b.Property<string>("NoiDung")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime>("ThoiGian")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("TrangThai")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("TrangThaiTen")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BienKiemSoat");
+
+                    b.HasIndex("ChungTuId");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("HanhDong");
+
+                    b.HasIndex("LoaiNghiepVu");
+
+                    b.HasIndex("MaChungTu");
+
+                    b.HasIndex("ThoiGian");
+
+                    b.ToTable("LogHoatDong", (string)null);
                 });
 
             modelBuilder.Entity("SMU.Core.Entities.MauBienSo", b =>
