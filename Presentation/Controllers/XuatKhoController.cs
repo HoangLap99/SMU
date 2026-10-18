@@ -251,4 +251,44 @@ public class XuatKhoController : ControllerBase
         var result = await _logHoatDongService.LayLogTheoChungTuAsync(id, cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>
+    /// API 11: (POST) Nhập xuất kho biển số xe theo tệp tin Excel lưu trong thư mục StorageFolder (appsettings.json).
+    /// Tự động tạo phiếu xuất kho với DaXuatKho = true và cập nhật bảng KhoBienSo.
+    /// </summary>
+    /// <param name="request">Input gồm LoaiXeId và tên file (FileName).</param>
+    /// <param name="cancellationToken">Token hủy yêu cầu.</param>
+    /// <returns>Kết quả tổng hợp số lượng xuất kho thành công, bỏ qua, lỗi và tổng tiền thu.</returns>
+    [HttpPost("import-excel")]
+    [ProducesResponseType(typeof(ImportXuatKhoExcelResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ImportXuatKhoExcelResponse>> ImportXuatKhoExcel(
+        [FromBody] ImportXuatKhoExcelRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _xuatKhoService.ImportXuatKhoTuExcelAsync(request, cancellationToken);
+            return Ok(result);
+        }
+        catch (FileNotFoundException ex)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Không tìm thấy tệp Excel",
+                Detail = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Dữ liệu yêu cầu không hợp lệ",
+                Detail = ex.Message
+            });
+        }
+    }
 }

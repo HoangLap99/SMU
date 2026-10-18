@@ -22,13 +22,13 @@ public class SetCapLaiDangKyXeRequest
     /// <summary>
     /// ID Danh mục Ký hiệu quyển biên lai (KyHieuQuyenBienLai).
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng chọn Ký hiệu quyển biên lai.")]
+    
     public string KyHieuQuyenBienLaiId { get; set; } = string.Empty;
 
     /// <summary>
     /// Số biên lai thu tiền (Ví dụ: "0000113").
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng nhập Số biên lai.")]
+   
     public string SoBienLai { get; set; } = string.Empty;
 
     /// <summary>
@@ -43,7 +43,7 @@ public class SetCapLaiDangKyXeRequest
     /// <summary>
     /// Biển số xe cần cấp lại đăng ký (Ví dụ: "30A-123.45" hoặc "29E-895.02").
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng nhập Biển số xe cần cấp lại đăng ký.")]
+   
     public string BienKiemSoat { get; set; } = string.Empty;
 
     /// <summary>
@@ -54,7 +54,7 @@ public class SetCapLaiDangKyXeRequest
     /// <summary>
     /// Loại phương tiện: "Ô tô", "Mô tô, Xe máy", "Xe máy điện", "Khác"...
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng chọn Loại phương tiện.")]
+   
     public string LoaiPhuongTien { get; set; } = "Ô tô";
 
     #endregion
@@ -69,7 +69,7 @@ public class SetCapLaiDangKyXeRequest
     /// <summary>
     /// Nội dung thu phí (Ví dụ: "Cấp lại riêng giấy chứng nhận đăng ký xe (mất, hư hỏng - không cấp biển mới) (50.000 đ)").
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng chọn hoặc nhập Nội dung thu phí.")]
+    
     public string NoiDungThuPhi { get; set; } = string.Empty;
 
     /// <summary>
@@ -90,7 +90,7 @@ public class SetCapLaiDangKyXeRequest
     /// <summary>
     /// Họ và tên chủ xe / người nộp tiền (Ví dụ: "Nguyễn Văn A").
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng nhập Họ và tên chủ xe.")]
+    
     public string HoTenChuXe { get; set; } = string.Empty;
 
     /// <summary>

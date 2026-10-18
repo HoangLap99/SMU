@@ -19,6 +19,126 @@
             Converter linh hoạt hỗ trợ parse Nullable DateTime (DateTime?) từ nhiều định dạng khác nhau.
             </summary>
         </member>
+        <member name="T:SMU.Application.DTOs.BackupRequest">
+            <summary>
+            Yêu cầu tạo bản sao lưu dữ liệu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupRequest.GhiChu">
+            <summary>
+            Ghi chú hoặc mô tả lý do sao lưu (ví dụ: "Sao lưu định kỳ cuối tuần", "Trước khi nâng cấp hệ thống").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupRequest.CompressToZip">
+            <summary>
+            Chỉ định có nén thành tệp .zip hay không (nếu null sẽ lấy theo cấu hình appsettings.json).
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.BackupResultDto">
+            <summary>
+            Kết quả sau khi thực hiện sao lưu toàn bộ dữ liệu cơ sở dữ liệu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.FileName">
+            <summary>
+            Tên tệp tin sao lưu (Ví dụ: "SMU_Backup_20261018_142500.sql" hoặc ".zip").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.RelativePath">
+            <summary>
+            Đường dẫn tương đối của tệp sao lưu tính từ thư mục cấu hình.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.FilePath">
+            <summary>
+            Đường dẫn tuyệt đối của tệp sao lưu trên ổ đĩa máy chủ.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.FileSizeBytes">
+            <summary>
+            Dung lượng tệp tính bằng byte.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.FileSizeFormatted">
+            <summary>
+            Dung lượng tệp định dạng thân thiện (Ví dụ: "1.25 MB", "540 KB").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.TotalTables">
+            <summary>
+            Tổng số lượng bảng dữ liệu đã được sao lưu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.TotalRows">
+            <summary>
+            Tổng số lượng dòng / bản ghi dữ liệu đã được sao lưu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.DurationSeconds">
+            <summary>
+            Thời gian thực thi sao lưu (tính bằng giây).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.CreatedAt">
+            <summary>
+            Thời điểm hoàn tất sao lưu (UTC).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.CreatedBy">
+            <summary>
+            Người thực hiện sao lưu (Username / UserId).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.TableSummaries">
+            <summary>
+            Danh sách chi tiết số dòng sao lưu theo từng bảng.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.BackupTableSummaryDto">
+            <summary>
+            Tóm tắt kết quả sao lưu của từng bảng dữ liệu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupTableSummaryDto.TableName">
+            <summary>
+            Tên bảng dữ liệu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupTableSummaryDto.RowCount">
+            <summary>
+            Số lượng bản ghi đã sao lưu trong bảng.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.BackupFileInfo">
+            <summary>
+            Thông tin tệp sao lưu lưu trữ trong thư mục cấu hình.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupFileInfo.FileName">
+            <summary>
+            Tên tệp tin sao lưu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupFileInfo.RelativePath">
+            <summary>
+            Đường dẫn tương đối của tệp sao lưu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupFileInfo.FileSizeBytes">
+            <summary>
+            Dung lượng tệp tính bằng byte.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupFileInfo.FileSizeFormatted">
+            <summary>
+            Dung lượng tệp định dạng thân thiện (Ví dụ: "1.25 MB", "540 KB").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupFileInfo.CreatedAt">
+            <summary>
+            Thời điểm tạo tệp.
+            </summary>
+        </member>
         <member name="T:SMU.Application.DTOs.FilterBaoCaoBienThienRequest">
             <summary>
             Bộ lọc dùng chung cho trang Biểu đồ phân tích biến thiên Nhập - Xuất - Chi phí lệ phí (Khoanh số 1).
@@ -3399,6 +3519,81 @@
             Tên hiển thị trạng thái tiếng Việt ("Hoàn tất", "Lưu tạm", "Đã hủy").
             </summary>
         </member>
+        <member name="T:SMU.Application.DTOs.ImportXuatKhoExcelRequest">
+            <summary>
+            Yêu cầu nhập xuất kho biển số xe từ tệp Excel.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelRequest.LoaiXeId">
+            <summary>
+            ID Danh mục Loại xe cần xuất kho (bắt buộc).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelRequest.FileName">
+            <summary>
+            Tên tệp tin Excel mẫu đã lưu trong thư mục StorageFolder (appsettings.json).
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.ImportXuatKhoExcelResponse">
+            <summary>
+            Kết quả sau khi nhập xuất kho từ tệp Excel.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.TongSoDong">
+            <summary>
+            Tổng số dòng dữ liệu đọc được từ tệp Excel.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.SoLuongThanhCong">
+            <summary>
+            Số lượng phiếu xuất kho tạo thành công.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.SoLuongBoQua">
+            <summary>
+            Số lượng dòng bị bỏ qua (ví dụ: đã xuất kho trước đó, thiếu số biển...).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.SoLuongLoi">
+            <summary>
+            Số lượng dòng bị lỗi khi xử lý.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.TongTienThu">
+            <summary>
+            Tổng số tiền lệ phí thu được từ các phiếu xuất kho thành công (VNĐ).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.DanhSachBienSoXuatThanhCong">
+            <summary>
+            Danh sách các biển kiểm soát đã xuất kho thành công.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.DanhSachLoi">
+            <summary>
+            Danh sách chi tiết các dòng bị lỗi hoặc bỏ qua.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.ImportXuatKhoLoiItem">
+            <summary>
+            Chi tiết dòng bị lỗi hoặc bỏ qua trong quá trình import Excel.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoLoiItem.Dong">
+            <summary>
+            Số thứ tự dòng trong tệp Excel.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoLoiItem.BienKiemSoat">
+            <summary>
+            Biển kiểm soát đọc được tại dòng đó (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoLoiItem.LyDoLoi">
+            <summary>
+            Lý do lỗi hoặc bỏ qua.
+            </summary>
+        </member>
         <member name="T:SMU.Application.Interfaces.IAiService">
             <summary>
             Trừu tượng hóa dịch vụ AI (Gemini, OpenAI, Claude...), tuân thủ Dependency Inversion (DIP).
@@ -3413,6 +3608,42 @@
             <summary>
             Gửi file binary trực tiếp dạng Multimodal (PDF, Audio, Image) tới AI model.
             </summary>
+        </member>
+        <member name="T:SMU.Application.Interfaces.IBackupService">
+            <summary>
+            Giao diện dịch vụ sao lưu toàn bộ dữ liệu cơ sở dữ liệu PostgreSQL vào thư mục cấu hình trong appsettings.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IBackupService.CreateBackupAsync(SMU.Application.DTOs.BackupRequest,System.Threading.CancellationToken)">
+            <summary>
+            Thực hiện sao lưu toàn bộ dữ liệu của tất cả các bảng trong database và lưu vào thư mục được cấu hình.
+            </summary>
+            <param name="request">Tùy chọn yêu cầu sao lưu (ghi chú, nén zip,...).</param>
+            <param name="cancellationToken">Token hủy thao tác.</param>
+            <returns>Thông tin chi tiết kết quả sao lưu.</returns>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IBackupService.GetBackupFilesAsync(System.Threading.CancellationToken)">
+            <summary>
+            Lấy danh sách toàn bộ các tệp sao lưu hiện có trong thư mục cấu hình.
+            </summary>
+            <param name="cancellationToken">Token hủy thao tác.</param>
+            <returns>Danh sách thông tin các tệp sao lưu.</returns>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IBackupService.DownloadBackupFileAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Đọc luồng dữ liệu của một tệp sao lưu để phục vụ tải về.
+            </summary>
+            <param name="fileName">Tên tệp tin cần tải về.</param>
+            <param name="cancellationToken">Token hủy thao tác.</param>
+            <returns>Luồng tệp (Stream), ContentType và tên tệp tin.</returns>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IBackupService.DeleteBackupFileAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Xóa một tệp sao lưu khỏi thư mục cấu hình.
+            </summary>
+            <param name="fileName">Tên tệp tin cần xóa.</param>
+            <param name="cancellationToken">Token hủy thao tác.</param>
+            <returns>True nếu xóa thành công, False nếu không tìm thấy tệp.</returns>
         </member>
         <member name="T:SMU.Application.Interfaces.IBaoCaoBienThienService">
             <summary>
@@ -4057,6 +4288,73 @@
             Cập nhật trạng thái phiếu xuất kho sang 'DaHuy', DaXuatKho = false và khôi phục trạng thái biển số trong KhoBienSo về DaXuatKho = false, TrangThai = 'DuocBam'.
             </summary>
         </member>
+        <member name="M:SMU.Application.Interfaces.IXuatKhoService.ImportXuatKhoTuExcelAsync(SMU.Application.DTOs.ImportXuatKhoExcelRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 9: Nhập xuất kho biển số xe tự động từ tệp tin Excel lưu trong thư mục StorageFolder.
+            Tự động tạo các phiếu xuất kho với DaXuatKho = true và đánh dấu biển số trong KhoBienSo là đã xuất kho.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.Services.BackupService">
+            <summary>
+            Dịch vụ sao lưu toàn bộ dữ liệu cơ sở dữ liệu PostgreSQL vào thư mục cấu hình trong appsettings.json.
+            Xuất toàn bộ cấu trúc và dữ liệu thành tệp SQL dump chuẩn hoặc tệp nén ZIP.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.CreateBackupAsync(SMU.Application.DTOs.BackupRequest,System.Threading.CancellationToken)">
+            <summary>
+            Thực hiện sao lưu toàn bộ dữ liệu của tất cả các bảng trong database và lưu vào thư mục được cấu hình.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.GetBackupFilesAsync(System.Threading.CancellationToken)">
+            <summary>
+            Lấy danh sách toàn bộ các tệp sao lưu hiện có trong thư mục cấu hình.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.DownloadBackupFileAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Đọc luồng dữ liệu của một tệp sao lưu để phục vụ tải về.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.DeleteBackupFileAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Xóa một tệp sao lưu khỏi thư mục cấu hình.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.GetBackupDirectory">
+            <summary>
+            Lấy đường dẫn thư mục lưu trữ backup (hỗ trợ cả đường dẫn tương đối và tuyệt đối).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.GetPublicTablesAsync(System.Data.Common.DbConnection,System.Threading.CancellationToken)">
+            <summary>
+            Lấy danh sách các bảng dữ liệu trong schema public.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.ExportTableDataAsync(System.Data.Common.DbConnection,System.IO.StreamWriter,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Đọc dữ liệu từ bảng và ghi ra tệp tin SQL dưới dạng các lệnh INSERT hàng loạt.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.WriteBatchInsertAsync(System.IO.StreamWriter,System.String,System.String,System.Collections.Generic.List{System.String})">
+            <summary>
+            Ghi 1 khối INSERT hàng loạt (multi-row VALUES) vào tệp SQL.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.FormatSqlLiteral(System.Object)">
+            <summary>
+            Định dạng giá trị C# thành chuỗi SQL Literal tương thích chuẩn PostgreSQL.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.FormatFileSize(System.Int64)">
+            <summary>
+            Định dạng kích thước dung lượng file (Bytes -> KB / MB / GB).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.CleanOldBackupsAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Tự động dọn dẹp các tệp sao lưu cũ nhất khi vượt quá số lượng tối đa cấu hình.
+            </summary>
+        </member>
         <member name="T:SMU.Application.Services.BaoCaoBienThienService">
             <summary>
             Service triển khai các API Báo cáo Phân tích Biến thiên Nhập - Xuất - Chi phí lệ phí:
@@ -4491,6 +4789,12 @@
             <summary>
             API 8: Hủy phiếu xuất kho theo Id.
             Cập nhật trạng thái phiếu xuất kho sang 'DaHuy', DaXuatKho = false và khôi phục trạng thái biển số trong KhoBienSo về DaXuatKho = false, TrangThai = 'DuocBam'.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.XuatKhoService.ImportXuatKhoTuExcelAsync(SMU.Application.DTOs.ImportXuatKhoExcelRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 9: Nhập xuất kho biển số xe tự động từ tệp tin Excel lưu trong thư mục StorageFolder (appsettings.json).
+            Tự động tạo các phiếu xuất kho với DaXuatKho = true và cập nhật bảng KhoBienSo.
             </summary>
         </member>
         <member name="T:SMU.Core.Entities.Account">
@@ -6119,6 +6423,30 @@
             Các DTO đặc thù giao tiếp nội bộ với Google Gemini REST API.
             </summary>
         </member>
+        <member name="T:SMU.Infrastructure.Data.Configuration.BackupSettings">
+            <summary>
+            Cấu hình thư mục lưu trữ và chính sách sao lưu dữ liệu đọc từ mục 'Backup' trong appsettings.json.
+            </summary>
+        </member>
+        <member name="P:SMU.Infrastructure.Data.Configuration.BackupSettings.BackupFolder">
+            <summary>
+            Thư mục lưu trữ các bản sao lưu (đường dẫn tương đối theo ContentRoot hoặc đường dẫn tuyệt đối).
+            Mặc định: "Backups".
+            </summary>
+        </member>
+        <member name="P:SMU.Infrastructure.Data.Configuration.BackupSettings.CompressToZip">
+            <summary>
+            Tự động nén tệp sao lưu thành định dạng .zip để tiết kiệm dung lượng lưu trữ máy chủ.
+            Mặc định: false (lưu tệp .sql trực tiếp).
+            </summary>
+        </member>
+        <member name="P:SMU.Infrastructure.Data.Configuration.BackupSettings.MaxBackupFilesToKeep">
+            <summary>
+            Số lượng bản sao lưu tối đa được giữ lại trong thư mục (0: không giới hạn).
+            Khi vượt quá số lượng này, hệ thống sẽ tự động dọn dẹp các bản sao lưu cũ nhất.
+            Mặc định: 30 bản.
+            </summary>
+        </member>
         <member name="T:SMU.Infrastructure.Data.DbInitializer">
             <summary>
             Quản lý kiểm tra cấu trúc cơ sở dữ liệu khi ứng dụng khởi động.
@@ -6586,6 +6914,44 @@
         </member>
         <member name="M:SMU.Migrations.Postgres.AddLogHoatDong.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
             <inheritdoc />
+        </member>
+        <member name="T:SMU.Presentation.Controllers.BackupController">
+            <summary>
+            Controller cung cấp API sao lưu toàn bộ dữ liệu cơ sở dữ liệu PostgreSQL vào thư mục cấu hình trong appsettings.json.
+            Yêu cầu xác thực JWT Authorization.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.BackupController.CreateBackup(SMU.Application.DTOs.BackupRequest,System.Threading.CancellationToken)">
+            <summary>
+            Thực hiện sao lưu toàn bộ dữ liệu cơ sở dữ liệu PostgreSQL và lưu tệp vào thư mục được cấu hình trong appsettings.
+            Tệp được lưu dưới định dạng SQL dump (.sql) hoặc nén ZIP (.zip).
+            </summary>
+            <param name="request">Tùy chọn sao lưu (ghi chú, chỉ định nén zip).</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+            <returns>Thông tin chi tiết kết quả sao lưu gồm tên file, đường dẫn lưu, kích thước và thống kê các bảng.</returns>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.BackupController.GetBackupFiles(System.Threading.CancellationToken)">
+            <summary>
+            Lấy danh sách toàn bộ các tệp sao lưu hiện có trong thư mục cấu hình trên máy chủ.
+            </summary>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+            <returns>Danh sách các tệp sao lưu kèm dung lượng và thời gian tạo.</returns>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.BackupController.DownloadBackupFile(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Tải về tệp tin sao lưu cơ sở dữ liệu từ thư mục cấu hình.
+            </summary>
+            <param name="fileName">Tên tệp tin cần tải về (ví dụ: SMU_Backup_20261018_142500.sql hoặc .zip).</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+            <returns>Tệp tin dạng FileResult hỗ trợ resume download.</returns>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.BackupController.DeleteBackupFile(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Xóa một tệp sao lưu khỏi thư mục cấu hình trên máy chủ.
+            </summary>
+            <param name="fileName">Tên tệp tin cần xóa.</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+            <returns>Thông báo trạng thái xóa tệp tin.</returns>
         </member>
         <member name="T:SMU.Presentation.Controllers.BaoCaoBienThienController">
             <summary>
@@ -7582,6 +7948,15 @@
             <summary>
             API 10: (GET) Lấy lịch sử log của 1 phiếu xuất kho cụ thể theo Id hoặc Số biên lai.
             </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.ImportXuatKhoExcel(SMU.Application.DTOs.ImportXuatKhoExcelRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 11: (POST) Nhập xuất kho biển số xe theo tệp tin Excel lưu trong thư mục StorageFolder (appsettings.json).
+            Tự động tạo phiếu xuất kho với DaXuatKho = true và cập nhật bảng KhoBienSo.
+            </summary>
+            <param name="request">Input gồm LoaiXeId và tên file (FileName).</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+            <returns>Kết quả tổng hợp số lượng xuất kho thành công, bỏ qua, lỗi và tổng tiền thu.</returns>
         </member>
         <member name="T:SMU.Presentation.Middlewares.GlobalExceptionHandler">
             <summary>

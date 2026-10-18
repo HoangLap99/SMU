@@ -66,4 +66,10 @@ public interface IXuatKhoService
     /// Cập nhật trạng thái phiếu xuất kho sang 'DaHuy', DaXuatKho = false và khôi phục trạng thái biển số trong KhoBienSo về DaXuatKho = false, TrangThai = 'DuocBam'.
     /// </summary>
     Task<XuatKhoResponse> HuyPhieuXuatKhoAsync(string id, HuyPhieuXuatKhoRequest? request = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// API 9: Nhập xuất kho biển số xe tự động từ tệp tin Excel lưu trong thư mục StorageFolder.
+    /// Tự động tạo các phiếu xuất kho với DaXuatKho = true và đánh dấu biển số trong KhoBienSo là đã xuất kho.
+    /// </summary>
+    Task<ImportXuatKhoExcelResponse> ImportXuatKhoTuExcelAsync(ImportXuatKhoExcelRequest request, CancellationToken cancellationToken = default);
 }

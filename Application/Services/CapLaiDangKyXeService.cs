@@ -72,29 +72,10 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
 
         if (quyen == null)
         {
-            throw new ArgumentException($"Không tìm thấy Ký hiệu quyển biên lai với Id '{request.KyHieuQuyenBienLaiId}'.");
+            quyen = new KyHieuQuyenBienLai();
         }
 
-        // 3. Kiểm tra chặn trùng số biên lai trong cùng một quyển (kiểm tra cả trong bảng CapLaiDangKyXe và XuatKhoBienSo)
-        var soBienLaiTrim = request.SoBienLai.Trim();
-        var checkTrungCapLai = await _dbContext.CapLaiDangKyXes
-            .AnyAsync(x => x.KyHieuQuyenBienLaiId == request.KyHieuQuyenBienLaiId 
-                        && x.SoBienLai == soBienLaiTrim 
-                        && x.Id != request.Id, cancellationToken);
-
-        if (checkTrungCapLai)
-        {
-            throw new InvalidOperationException($"Số biên lai '{request.SoBienLai}' trong quyển '{quyen.Ma}' đã được sử dụng trong hệ thống cấp lại đăng ký xe.");
-        }
-
-        var checkTrungXuatKho = await _dbContext.XuatKhoBienSos
-            .AnyAsync(x => x.KyHieuQuyenBienLaiId == request.KyHieuQuyenBienLaiId 
-                        && x.SoBienLai == soBienLaiTrim, cancellationToken);
-
-        if (checkTrungXuatKho)
-        {
-            throw new InvalidOperationException($"Số biên lai '{request.SoBienLai}' trong quyển '{quyen.Ma}' đã được sử dụng trong phiếu xuất kho biển số.");
-        }
+       
 
         // 4. Lấy thông tin snapshot loại xe nếu có
         string loaiPhuongTien = request.LoaiPhuongTien.Trim();
@@ -120,7 +101,7 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
                 CustomerId = customerId,
                 KyHieuQuyenBienLaiId = request.KyHieuQuyenBienLaiId,
                 KyHieuQuyen = quyen.Ma ?? string.Empty,
-                SoBienLai = soBienLaiTrim,
+                SoBienLai = request.SoBienLai,
                 NgayBienLai = request.NgayBienLai,
 
                 BienKiemSoat = request.BienKiemSoat.Trim().ToUpperInvariant(),
@@ -150,7 +131,7 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
             entity = existing!;
             entity.KyHieuQuyenBienLaiId = request.KyHieuQuyenBienLaiId;
             entity.KyHieuQuyen = quyen.Ma ?? entity.KyHieuQuyen;
-            entity.SoBienLai = soBienLaiTrim;
+            entity.SoBienLai = request.SoBienLai;
             entity.NgayBienLai = request.NgayBienLai;
 
             entity.BienKiemSoat = request.BienKiemSoat.Trim().ToUpperInvariant();
@@ -176,14 +157,7 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
             }
         }
 
-        // 5. Cập nhật Số hiện tại của Quyển biên lai nếu số mới lớn hơn
-        if (long.TryParse(soBienLaiTrim, out var soMoi))
-        {
-            if (!quyen.SoHienTai.HasValue || soMoi > quyen.SoHienTai.Value)
-            {
-                quyen.SoHienTai = soMoi;
-            }
-        }
+     
 
         // LƯU Ý QUAN TRỌNG: TUYỆT ĐỐI KHÔNG THAY ĐỔI DỮ LIỆU BẢNG KhoBienSo
         // (Không xuất kho, không giảm tồn kho, không đổi trạng thái của biển số)

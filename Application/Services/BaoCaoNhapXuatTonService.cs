@@ -774,7 +774,11 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
         var customerId = request.CustomerId ?? _currentUserService.CustomerId;
 
         var query = _dbContext.XuatKhoBienSos.AsNoTracking()
-            .Where(x => x.NgayThucHien >= fromDate && x.NgayThucHien <= toDate && x.TrangThai != "DaHuy" && !string.IsNullOrEmpty(x.BienKiemSoat));
+            .Where(x => x.NgayThucHien >= fromDate && 
+                        x.NgayThucHien <= toDate && 
+                        x.DaXuatKho && 
+                        x.TrangThai != "DaHuy" && 
+                        !string.IsNullOrEmpty(x.BienKiemSoat));
 
         if (!string.IsNullOrWhiteSpace(customerId))
         {

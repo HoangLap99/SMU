@@ -22,7 +22,7 @@ public class XuatKhoBienSo : Audit
     /// <summary>
     /// ID Danh mục Loại thủ tục thực hiện (LoaiThuTuc, ví dụ: "Cấp biển (Có xuất kho số)").
     /// </summary>
-    [Required]
+    
     [StringLength(36)]
     public string LoaiThuTucId { get; set; } = string.Empty;
 
@@ -53,7 +53,6 @@ public class XuatKhoBienSo : Audit
     /// <summary>
     /// Biển kiểm soát hoàn chỉnh xuất kho (Snapshot, ví dụ: "30B-207.66").
     /// </summary>
-    [Required]
     [StringLength(50)]
     public string BienKiemSoat { get; set; } = string.Empty;
 
@@ -100,7 +99,6 @@ public class XuatKhoBienSo : Audit
     /// <summary>
     /// ID Danh mục Mức thu lệ phí (MucThuLePhi).
     /// </summary>
-    [Required]
     [StringLength(36)]
     public string MucThuLePhiId { get; set; } = string.Empty;
 
@@ -113,7 +111,6 @@ public class XuatKhoBienSo : Audit
     /// <summary>
     /// ID Danh mục Khu vực áp dụng (KhuVucApDung, ví dụ: "Khu vực I (Hà Nội, TP.HCM)").
     /// </summary>
-    [Required]
     [StringLength(36)]
     public string KhuVucApDungId { get; set; } = string.Empty;
 
@@ -154,21 +151,18 @@ public class XuatKhoBienSo : Audit
     /// <summary>
     /// ID Danh mục Ký hiệu quyển biên lai (KyHieuQuyenBienLai).
     /// </summary>
-    [Required]
     [StringLength(36)]
     public string KyHieuQuyenBienLaiId { get; set; } = string.Empty;
 
     /// <summary>
     /// Ký hiệu quyển biên lai snapshot (Ví dụ: "AA/26E").
     /// </summary>
-    [Required]
     [StringLength(50)]
     public string KyHieuQuyen { get; set; } = string.Empty;
 
     /// <summary>
     /// Số biên lai thu tiền (Ví dụ: "0000113").
     /// </summary>
-    [Required]
     [StringLength(50)]
     public string SoBienLai { get; set; } = string.Empty;
 

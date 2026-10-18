@@ -175,7 +175,7 @@ public class SetXuatKhoRequest
     /// <summary>
     /// ID Danh mục Loại thủ tục thực hiện (LoaiThuTuc).
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng chọn Loại thủ tục thực hiện")]
+   
     public string LoaiThuTucId { get; set; } = string.Empty;
 
     /// <summary>
@@ -191,7 +191,7 @@ public class SetXuatKhoRequest
     /// <summary>
     /// ID Biển số được chọn từ kho (KhoBienSo).
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng chọn 01 biển số từ kho 'Biển được bấm'")]
+  
     public string KhoBienSoId { get; set; } = string.Empty;
 
     /// <summary>
@@ -221,13 +221,13 @@ public class SetXuatKhoRequest
     /// <summary>
     /// ID Danh mục Mức thu lệ phí (MucThuLePhi).
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng chọn Nội dung thu lệ phí")]
+   
     public string MucThuLePhiId { get; set; } = string.Empty;
 
     /// <summary>
     /// ID Danh mục Khu vực áp dụng (KhuVucApDung).
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng chọn Khu vực áp dụng")]
+   
     public string KhuVucApDungId { get; set; } = string.Empty;
 
     /// <summary>
@@ -257,7 +257,7 @@ public class SetXuatKhoRequest
     /// <summary>
     /// ID Danh mục Ký hiệu quyển biên lai (KyHieuQuyenBienLai).
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng chọn Ký hiệu quyển biên lai")]
+    
     public string KyHieuQuyenBienLaiId { get; set; } = string.Empty;
 
     /// <summary>
@@ -274,7 +274,7 @@ public class SetXuatKhoRequest
     /// <summary>
     /// Số tiền thu (VNĐ).
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng nhập Số tiền thu")]
+    
     [Range(0, 1000000000000, ErrorMessage = "Số tiền thu không hợp lệ")]
     public decimal SoTienThu { get; set; }
 
@@ -422,3 +422,88 @@ public class XuatKhoResponse
 }
 
 #endregion
+
+#region 10. Import Xuất kho từ tệp Excel
+
+/// <summary>
+/// Yêu cầu nhập xuất kho biển số xe từ tệp Excel.
+/// </summary>
+public class ImportXuatKhoExcelRequest
+{
+    /// <summary>
+    /// ID Danh mục Loại xe cần xuất kho (bắt buộc).
+    /// </summary>
+    [Required(ErrorMessage = "Vui lòng chọn Loại xe.")]
+    public string LoaiXeId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tên tệp tin Excel mẫu đã lưu trong thư mục StorageFolder (appsettings.json).
+    /// </summary>
+    [Required(ErrorMessage = "Vui lòng nhập tên tệp tin Excel trong thư mục StorageFolder.")]
+    public string FileName { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Kết quả sau khi nhập xuất kho từ tệp Excel.
+/// </summary>
+public class ImportXuatKhoExcelResponse
+{
+    /// <summary>
+    /// Tổng số dòng dữ liệu đọc được từ tệp Excel.
+    /// </summary>
+    public int TongSoDong { get; set; }
+
+    /// <summary>
+    /// Số lượng phiếu xuất kho tạo thành công.
+    /// </summary>
+    public int SoLuongThanhCong { get; set; }
+
+    /// <summary>
+    /// Số lượng dòng bị bỏ qua (ví dụ: đã xuất kho trước đó, thiếu số biển...).
+    /// </summary>
+    public int SoLuongBoQua { get; set; }
+
+    /// <summary>
+    /// Số lượng dòng bị lỗi khi xử lý.
+    /// </summary>
+    public int SoLuongLoi { get; set; }
+
+    /// <summary>
+    /// Tổng số tiền lệ phí thu được từ các phiếu xuất kho thành công (VNĐ).
+    /// </summary>
+    public decimal TongTienThu { get; set; }
+
+    /// <summary>
+    /// Danh sách các biển kiểm soát đã xuất kho thành công.
+    /// </summary>
+    public List<string> DanhSachBienSoXuatThanhCong { get; set; } = [];
+
+    /// <summary>
+    /// Danh sách chi tiết các dòng bị lỗi hoặc bỏ qua.
+    /// </summary>
+    public List<ImportXuatKhoLoiItem> DanhSachLoi { get; set; } = [];
+}
+
+/// <summary>
+/// Chi tiết dòng bị lỗi hoặc bỏ qua trong quá trình import Excel.
+/// </summary>
+public class ImportXuatKhoLoiItem
+{
+    /// <summary>
+    /// Số thứ tự dòng trong tệp Excel.
+    /// </summary>
+    public int Dong { get; set; }
+
+    /// <summary>
+    /// Biển kiểm soát đọc được tại dòng đó (nếu có).
+    /// </summary>
+    public string? BienKiemSoat { get; set; }
+
+    /// <summary>
+    /// Lý do lỗi hoặc bỏ qua.
+    /// </summary>
+    public string LyDoLoi { get; set; } = string.Empty;
+}
+
+#endregion
+

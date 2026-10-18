@@ -1794,6 +1794,59 @@ GET {{SMU_HostAddress}}/api/CapLaiDangKyXe/log
 Authorization: Bearer {{authToken}}
 Accept: application/json
 
+### ============================================================================
+### 16. HỆ THỐNG SAO LƯU DỮ LIỆU CƠ SỞ DỮ LIỆU (BACKUP DATABASE)
+### ============================================================================
+
+### 16.1. Thực hiện sao lưu toàn bộ cơ sở dữ liệu (Lưu vào thư mục cấu hình trong appsettings: Backups/)
+# @name createBackup
+POST {{SMU_HostAddress}}/api/Backup
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "ghiChu": "Sao lưu toàn bộ dữ liệu thủ công qua API",
+  "compressToZip": false
+}
+
+### 16.2. Thực hiện sao lưu toàn bộ cơ sở dữ liệu và nén thành tệp .ZIP
+# @name createBackupZip
+POST {{SMU_HostAddress}}/api/Backup
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "ghiChu": "Sao lưu định kỳ hệ thống (nén ZIP)",
+  "compressToZip": true
+}
+
+### 16.3. Lấy danh sách toàn bộ các tệp sao lưu trong thư mục cấu hình
+# @name getBackupFiles
+GET {{SMU_HostAddress}}/api/Backup
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 16.4. Tải tệp sao lưu về máy
+GET {{SMU_HostAddress}}/api/Backup/download/SMU_Backup_20261018_142500.sql
+Authorization: Bearer {{authToken}}
+
+### ============================================================================
+### 17. NHẬP XUẤT KHO BIỂN SỐ XE TỪ FILE EXCEL (IMPORT EXCEL)
+### ============================================================================
+
+### 17.1. Nhập xuất kho theo file Excel trong thư mục StorageFolder (Uploads/)
+# @name importXuatKhoExcel
+POST {{SMU_HostAddress}}/api/XuatKho/import-excel
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "loaiXeId": "f784e27f-94ad-4375-b40b-788e0ec5377f",
+  "fileName": "4d1bfde1-9083-4e96-8156-587d099ba43e.xlsx"
+}
+
+
+
 
 
 
