@@ -3519,6 +3519,32 @@
             Tên hiển thị trạng thái tiếng Việt ("Hoàn tất", "Lưu tạm", "Đã hủy").
             </summary>
         </member>
+        <member name="T:SMU.Application.DTOs.ExportMauXuatKhoResponse">
+            <summary>
+            Kết quả trả về của API export file mẫu xuất kho biển số xe.
+            Chứa các tham số phục vụ gọi trực tiếp API tải file: /api/FileUpload/download?filename=...&amp;path=...
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ExportMauXuatKhoResponse.FileName">
+            <summary>
+            Tham số filename mã hóa Base64 cho API tải file: ?filename=...
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ExportMauXuatKhoResponse.Path">
+            <summary>
+            Tham số path mã hóa Base64 từ đường dẫn StorageFolder của appsettings: &amp;path=...
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ExportMauXuatKhoResponse.DownloadUrl">
+            <summary>
+            Đường dẫn API hoàn chỉnh kèm query string để client tải file trực tiếp.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ExportMauXuatKhoResponse.OriginalFileName">
+            <summary>
+            Tên tệp tin gốc hiển thị khi tải về (mặc định: XuatKhoBienSo.xlsx).
+            </summary>
+        </member>
         <member name="T:SMU.Application.DTOs.ImportXuatKhoExcelRequest">
             <summary>
             Yêu cầu nhập xuất kho biển số xe từ tệp Excel.
@@ -3534,9 +3560,19 @@
             Tên tệp tin Excel mẫu đã lưu trong thư mục StorageFolder (appsettings.json).
             </summary>
         </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelRequest.ChiKiemTra">
+            <summary>
+            Tùy chọn: Nếu đặt là true, hệ thống chỉ kiểm tra tính hợp lệ và thông báo danh sách biển số chưa có trong kho mà không thực hiện lưu xuất kho.
+            </summary>
+        </member>
         <member name="T:SMU.Application.DTOs.ImportXuatKhoExcelResponse">
             <summary>
             Kết quả sau khi nhập xuất kho từ tệp Excel.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.ThongBao">
+            <summary>
+            Thông báo kết quả tổng hợp hoặc cảnh báo danh sách các biển số chưa có trong kho.
             </summary>
         </member>
         <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.TongSoDong">
@@ -3556,7 +3592,7 @@
         </member>
         <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.SoLuongLoi">
             <summary>
-            Số lượng dòng bị lỗi khi xử lý.
+            Số lượng dòng bị lỗi khi xử lý (ví dụ: chưa có trong kho, định dạng sai...).
             </summary>
         </member>
         <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.TongTienThu">
@@ -3567,6 +3603,11 @@
         <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.DanhSachBienSoXuatThanhCong">
             <summary>
             Danh sách các biển kiểm soát đã xuất kho thành công.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.DanhSachBienSoChuaCoTrongKho">
+            <summary>
+            Danh sách các biển kiểm soát trong tệp tin Excel CHƯA CÓ TRONG KHO (chưa được nhập kho).
             </summary>
         </member>
         <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.DanhSachLoi">
@@ -4292,6 +4333,18 @@
             <summary>
             API 9: Nhập xuất kho biển số xe tự động từ tệp tin Excel lưu trong thư mục StorageFolder.
             Tự động tạo các phiếu xuất kho với DaXuatKho = true và đánh dấu biển số trong KhoBienSo là đã xuất kho.
+            Kiểm tra chặt chẽ các biển số đã có trong kho hay chưa, nếu chưa có thì báo danh sách chi tiết.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IXuatKhoService.ExportFileMauXuatKhoAsync(System.Threading.CancellationToken)">
+            <summary>
+            API 10: (GET) Lấy thông tin tệp tin Excel mẫu xuất kho biển số xe (MauBaoCao/XuatKhoBienSo.xlsx).
+            Output trả về các tham số filename và path (mã hóa Base64) là input cho API tải file /api/FileUpload/download.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IXuatKhoService.DownloadFileMauXuatKhoAsync(System.Threading.CancellationToken)">
+            <summary>
+            Lấy luồng dữ liệu byte[] của tệp tin mẫu xuất kho Excel để hỗ trợ tải file trực tiếp từ controller.
             </summary>
         </member>
         <member name="T:SMU.Application.Services.BackupService">
@@ -4795,6 +4848,22 @@
             <summary>
             API 9: Nhập xuất kho biển số xe tự động từ tệp tin Excel lưu trong thư mục StorageFolder (appsettings.json).
             Tự động tạo các phiếu xuất kho với DaXuatKho = true và cập nhật bảng KhoBienSo.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.XuatKhoService.ExportFileMauXuatKhoAsync(System.Threading.CancellationToken)">
+            <summary>
+            API 10: (GET) Lấy thông tin tệp tin Excel mẫu xuất kho biển số xe (MauBaoCao/XuatKhoBienSo.xlsx).
+            Output trả về các tham số filename và path (mã hóa Base64) là input cho API tải file /api/FileUpload/download.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.XuatKhoService.DownloadFileMauXuatKhoAsync(System.Threading.CancellationToken)">
+            <summary>
+            Lấy dữ liệu file mẫu xuất kho để tải trực tiếp từ Controller (FileResult).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.XuatKhoService.GenerateMauXuatKhoExcelBytes">
+            <summary>
+            Tạo cấu trúc và dữ liệu mẫu tệp Excel xuất kho biển số xe theo chuẩn EPPlus.
             </summary>
         </member>
         <member name="T:SMU.Core.Entities.Account">
@@ -7949,14 +8018,34 @@
             API 10: (GET) Lấy lịch sử log của 1 phiếu xuất kho cụ thể theo Id hoặc Số biên lai.
             </summary>
         </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.ExportFileMau(System.Threading.CancellationToken)">
+            <summary>
+            API 11: (GET) Lấy thông tin tệp tin Excel mẫu xuất kho biển số xe (MauBaoCao/XuatKhoBienSo.xlsx).
+            Output trả về object chứa filename và path (mã hóa Base64 theo cấu hình StorageFolder của appsettings)
+            đóng vai trò là input cho API tải file /api/FileUpload/download?filename=...&amp;path=...
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.DownloadFileMau(System.Threading.CancellationToken)">
+            <summary>
+            API 12: (GET) Tải trực tiếp tệp tin Excel mẫu xuất kho biển số xe (XuatKhoBienSo.xlsx).
+            Hỗ trợ người dùng tải file trực tiếp trên trình duyệt hoặc qua nút Download mà không cần qua bước mã hóa Base64.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.CheckImportExcel(SMU.Application.DTOs.ImportXuatKhoExcelRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 13: (POST) Kiểm tra trước tệp tin Excel xuất kho (Dry-run / Check):
+            Kiểm tra xem các biển số trong tệp Excel đã có trong kho hay chưa, báo chi tiết danh sách biển số chưa có trong kho
+            và số lượng biển số hợp lệ sẵn sàng xuất kho mà không lưu dữ liệu vào cơ sở dữ liệu.
+            </summary>
+        </member>
         <member name="M:SMU.Presentation.Controllers.XuatKhoController.ImportXuatKhoExcel(SMU.Application.DTOs.ImportXuatKhoExcelRequest,System.Threading.CancellationToken)">
             <summary>
-            API 11: (POST) Nhập xuất kho biển số xe theo tệp tin Excel lưu trong thư mục StorageFolder (appsettings.json).
-            Tự động tạo phiếu xuất kho với DaXuatKho = true và cập nhật bảng KhoBienSo.
+            API 14: (POST) Nhập xuất kho biển số xe theo tệp tin Excel lưu trong thư mục StorageFolder (appsettings.json).
+            Kiểm tra chặt chẽ các biển số đã có trong kho hay chưa. Nếu biển số chưa có trong kho, hệ thống sẽ bỏ qua và liệt kê danh sách biển số chưa có trong kho trong kết quả trả về.
             </summary>
             <param name="request">Input gồm LoaiXeId và tên file (FileName).</param>
             <param name="cancellationToken">Token hủy yêu cầu.</param>
-            <returns>Kết quả tổng hợp số lượng xuất kho thành công, bỏ qua, lỗi và tổng tiền thu.</returns>
+            <returns>Kết quả tổng hợp số lượng xuất kho thành công, bỏ qua, lỗi, tổng tiền thu, danh sách biển số chưa có trong kho và chi tiết từng dòng lỗi.</returns>
         </member>
         <member name="T:SMU.Presentation.Middlewares.GlobalExceptionHandler">
             <summary>

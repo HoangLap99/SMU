@@ -178,7 +178,7 @@ public class XuatKhoService : IXuatKhoService
 
         var mucThuLePhi = await _dbContext.MucThuLePhis
             .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == mucThuLePhiId, cancellationToken);
+            .FirstOrDefaultAsync(x =>x.IsActive && x.Id == mucThuLePhiId, cancellationToken);
 
         if (mucThuLePhi == null)
         {
@@ -1217,7 +1217,30 @@ public class XuatKhoService : IXuatKhoService
 
         if (!File.Exists(filePath))
         {
-            throw new FileNotFoundException($"Không tìm thấy tệp tin '{safeFileName}' trong thư mục lưu trữ '{configuredFolder}'.", safeFileName);
+            if (File.Exists(request.FileName))
+            {
+                filePath = request.FileName;
+            }
+            else
+            {
+                var mauBaoCaoPath = Path.Combine(_environment.ContentRootPath, "MauBaoCao", safeFileName);
+                if (File.Exists(mauBaoCaoPath))
+                {
+                    filePath = mauBaoCaoPath;
+                }
+                else
+                {
+                    var altPath = Path.Combine(_environment.ContentRootPath, request.FileName.TrimStart('/', '\\'));
+                    if (File.Exists(altPath))
+                    {
+                        filePath = altPath;
+                    }
+                    else
+                    {
+                        throw new FileNotFoundException($"Không tìm thấy tệp tin '{safeFileName}' trong thư mục lưu trữ '{configuredFolder}'.", safeFileName);
+                    }
+                }
+            }
         }
 
         // 3. Đọc dữ liệu bằng EPPlus
@@ -1227,7 +1250,7 @@ public class XuatKhoService : IXuatKhoService
         var ws = package.Workbook.Worksheets.FirstOrDefault();
         if (ws == null || ws.Dimension == null)
         {
-            return new ImportXuatKhoExcelResponse { TongSoDong = 0 };
+            return new ImportXuatKhoExcelResponse { TongSoDong = 0, ThongBao = "Tệp Excel không chứa dữ liệu hoặc không có trang tính hợp lệ." };
         }
 
         // 4. Nhận diện dòng tiêu đề và vị trí các cột
@@ -1261,7 +1284,8 @@ public class XuatKhoService : IXuatKhoService
             for (int c = 1; c <= ws.Dimension.End.Column; c++)
             {
                 var text = ws.Cells[r, c].Text?.Trim().ToLowerInvariant();
-                if (text != null && (text.Contains("biển") || text.Contains("bien") || text.Contains("bks") || text.Contains("biên lai") || text.Contains("thủ tục")))
+                if (text != null && (text.Contains("biển") || text.Contains("bien") || text.Contains("bks") || text.Contains("biên lai") || text.Contains("thủ tục"))
+                    && !text.Contains("danh sách") && !text.Contains("báo cáo") && !text.Contains("tiêu đề"))
                 {
                     headerRow = r;
                     foundDynamicHeader = true;
@@ -1422,7 +1446,7 @@ public class XuatKhoService : IXuatKhoService
                 if (!string.IsNullOrWhiteSpace(soMay)) ghiChuParts.Add($"Số máy: {soMay}");
                 var ghiChu = ghiChuParts.Count > 0 ? string.Join("; ", ghiChuParts) : null;
 
-                // 7. Tìm biển số trong bảng KhoBienSo
+                // 7. Kiểm tra biển số trong bảng KhoBienSo
                 var bienSo = await _dbContext.KhoBienSos
                     .FirstOrDefaultAsync(x =>
                         (string.IsNullOrEmpty(customerId) || x.CustomerId == customerId || x.CustomerId == null) &&
@@ -1430,60 +1454,54 @@ public class XuatKhoService : IXuatKhoService
                          x.BienKiemSoat.Replace("-", "").Replace(".", "").Replace(" ", "").ToUpper() == normalizedPlate),
                         cancellationToken);
 
-                if (bienSo != null)
+                // Kiểm tra xem biển số đã có trong kho hay chưa
+                if (bienSo == null)
                 {
-                    if (bienSo.DaXuatKho)
+                    // Biển số CHƯA CÓ TRONG KHO: Báo lỗi và ghi nhận vào danh sách biển số chưa có trong kho
+                    response.SoLuongLoi++;
+                    response.DanhSachBienSoChuaCoTrongKho.Add(bienKiemSoat);
+                    response.DanhSachLoi.Add(new ImportXuatKhoLoiItem
                     {
-                        response.SoLuongBoQua++;
-                        response.DanhSachLoi.Add(new ImportXuatKhoLoiItem
-                        {
-                            Dong = row,
-                            BienKiemSoat = bienKiemSoat,
-                            LyDoLoi = $"Biển số '{bienKiemSoat}' đã được xuất kho trước đó."
-                        });
-                        continue;
-                    }
-
-                    // Cập nhật biển số trong KhoBienSo sang đã xuất kho
-                    bienSo.DaXuatKho = true;
-                    bienSo.NgayXuatKho = ngayThucHien;
-                    bienSo.TrangThai = "DaBam";
-                    bienSo.TrangThaiTen = statusDaBam?.Ten ?? "Đã bấm (Đã cấp)";
-                    bienSo.TrangThaiBienSoId = statusDaBam?.Id ?? bienSo.TrangThaiBienSoId;
-                    bienSo.Modified = DateTime.UtcNow;
-
-                    if (!string.IsNullOrWhiteSpace(bienSo.DotNhapKhoId))
-                    {
-                        affectedDotNhapIds.Add(bienSo.DotNhapKhoId);
-                    }
-                }
-                else
-                {
-                    // Tự động tạo bản ghi biển số mới trong KhoBienSo và đánh dấu đã xuất kho
-                    var matchingDauBien = listDauBien.FirstOrDefault(d =>
-                        bienKiemSoat.StartsWith(d.KyHieuSeries ?? d.Ma ?? string.Empty, StringComparison.OrdinalIgnoreCase));
-
-                    bienSo = new KhoBienSo
-                    {
-                        Id = Guid.NewGuid().ToString("D"),
-                        CustomerId = customerId,
-                        DotNhapKhoId = string.Empty,
+                        Dong = row,
                         BienKiemSoat = bienKiemSoat,
-                        LoaiXeId = loaiXe.Id,
-                        MauBienSoId = defaultMauBien?.Id,
-                        DauBienSoId = matchingDauBien?.Id,
-                        LaBienDauGia = false,
-                        TrangThai = "DaBam",
-                        TrangThaiTen = statusDaBam?.Ten ?? "Đã bấm (Đã cấp)",
-                        TrangThaiBienSoId = statusDaBam?.Id,
-                        NgayNhapKho = ngayThucHien,
-                        DaXuatKho = true,
-                        NgayXuatKho = ngayThucHien,
-                        GhiChu = $"Nhập xuất kho tự động từ tệp Excel: {safeFileName}",
-                        Created = DateTime.UtcNow,
-                        Modified = DateTime.UtcNow
-                    };
-                    await _dbContext.KhoBienSos.AddAsync(bienSo, cancellationToken);
+                        LyDoLoi = $"Biển số '{bienKiemSoat}' chưa có trong kho (chưa được nhập kho)."
+                    });
+                    continue;
+                }
+
+                // Kiểm tra nếu biển số đã xuất kho trước đó
+                if (bienSo.DaXuatKho)
+                {
+                    response.SoLuongBoQua++;
+                    response.DanhSachLoi.Add(new ImportXuatKhoLoiItem
+                    {
+                        Dong = row,
+                        BienKiemSoat = bienKiemSoat,
+                        LyDoLoi = $"Biển số '{bienKiemSoat}' đã được xuất kho trước đó."
+                    });
+                    continue;
+                }
+
+                // Nếu là chế độ chỉ kiểm tra (dry-run): Ghi nhận thành công mà không cập nhật cơ sở dữ liệu
+                if (request.ChiKiemTra == true)
+                {
+                    response.SoLuongThanhCong++;
+                    response.TongTienThu += soTienThu;
+                    response.DanhSachBienSoXuatThanhCong.Add(bienKiemSoat);
+                    continue;
+                }
+
+                // Cập nhật biển số trong KhoBienSo sang đã xuất kho
+                bienSo.DaXuatKho = true;
+                bienSo.NgayXuatKho = ngayThucHien;
+                bienSo.TrangThai = "DaBam";
+                bienSo.TrangThaiTen = statusDaBam?.Ten ?? "Đã bấm (Đã cấp)";
+                bienSo.TrangThaiBienSoId = statusDaBam?.Id ?? bienSo.TrangThaiBienSoId;
+                bienSo.Modified = DateTime.UtcNow;
+
+                if (!string.IsNullOrWhiteSpace(bienSo.DotNhapKhoId))
+                {
+                    affectedDotNhapIds.Add(bienSo.DotNhapKhoId);
                 }
 
                 // 8. Khớp nối các danh mục liên quan
@@ -1592,47 +1610,272 @@ public class XuatKhoService : IXuatKhoService
             }
         }
 
-        // 12. Lưu thay đổi vào cơ sở dữ liệu
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        // 13. Cập nhật lại số lượng của các đợt nhập kho bị ảnh hưởng (nếu có)
-        foreach (var dotNhapId in affectedDotNhapIds)
+        // Tạo thông báo kết quả
+        var thongBaoParts = new List<string>();
+        if (response.DanhSachBienSoChuaCoTrongKho.Count > 0)
         {
-            var dotNhap = await _dbContext.DotNhapKhos.FirstOrDefaultAsync(x => x.Id == dotNhapId, cancellationToken);
-            if (dotNhap != null)
-            {
-                var dotNhapKhoList = await _dbContext.KhoBienSos
-                    .Where(x => x.DotNhapKhoId == dotNhap.Id)
-                    .ToListAsync(cancellationToken);
+            thongBaoParts.Add($"Cảnh báo: Có {response.DanhSachBienSoChuaCoTrongKho.Count} biển số chưa có trong kho: {string.Join(", ", response.DanhSachBienSoChuaCoTrongKho)}.");
+        }
 
-                dotNhap.SoBienDaBam = dotNhapKhoList.Count(x => x.DaXuatKho);
-                dotNhap.SoBienDuocBam = dotNhapKhoList.Count(x => !x.DaXuatKho && !x.LaBienDauGia);
-                dotNhap.Modified = DateTime.UtcNow;
+        if (request.ChiKiemTra == true)
+        {
+            if (response.SoLuongThanhCong > 0)
+            {
+                thongBaoParts.Add($"Kiểm tra thành công: Có {response.SoLuongThanhCong}/{response.TongSoDong} biển số hợp lệ và sẵn sàng xuất kho.");
+            }
+            if (response.SoLuongBoQua > 0)
+            {
+                thongBaoParts.Add($"Bỏ qua {response.SoLuongBoQua} dòng (trùng lặp hoặc đã xuất kho trước đó).");
+            }
+            if (response.SoLuongThanhCong == 0 && response.DanhSachBienSoChuaCoTrongKho.Count > 0)
+            {
+                thongBaoParts.Insert(0, "Tất cả các biển số trong tệp Excel đều chưa có trong kho.");
+            }
+            if (thongBaoParts.Count == 0)
+            {
+                thongBaoParts.Add("Không tìm thấy dữ liệu biển số hợp lệ trong tệp Excel.");
+            }
+            response.ThongBao = string.Join(" ", thongBaoParts);
+            return response;
+        }
+
+        if (response.SoLuongThanhCong > 0)
+        {
+            thongBaoParts.Add($"Xuất kho thành công {response.SoLuongThanhCong}/{response.TongSoDong} biển số.");
+        }
+        if (response.SoLuongBoQua > 0)
+        {
+            thongBaoParts.Add($"Bỏ qua {response.SoLuongBoQua} dòng (trùng lặp hoặc đã xuất kho trước đó).");
+        }
+        if (response.SoLuongThanhCong == 0 && response.DanhSachBienSoChuaCoTrongKho.Count > 0)
+        {
+            thongBaoParts.Insert(0, "Không có biển số nào được xuất kho do các biển số trong tệp đều chưa có trong kho.");
+        }
+        response.ThongBao = string.Join(" ", thongBaoParts);
+
+        if (response.SoLuongThanhCong > 0)
+        {
+            // 12. Lưu thay đổi vào cơ sở dữ liệu
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            // 13. Cập nhật lại số lượng của các đợt nhập kho bị ảnh hưởng (nếu có)
+            foreach (var dotNhapId in affectedDotNhapIds)
+            {
+                var dotNhap = await _dbContext.DotNhapKhos.FirstOrDefaultAsync(x => x.Id == dotNhapId, cancellationToken);
+                if (dotNhap != null)
+                {
+                    var dotNhapKhoList = await _dbContext.KhoBienSos
+                        .Where(x => x.DotNhapKhoId == dotNhap.Id)
+                        .ToListAsync(cancellationToken);
+
+                    dotNhap.SoBienDaBam = dotNhapKhoList.Count(x => x.DaXuatKho);
+                    dotNhap.SoBienDuocBam = dotNhapKhoList.Count(x => !x.DaXuatKho && !x.LaBienDauGia);
+                    dotNhap.Modified = DateTime.UtcNow;
+                }
+            }
+
+            if (affectedDotNhapIds.Count > 0)
+            {
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            // 14. Ghi vết vào Nhật ký hoạt động (Audit Log)
+            try
+            {
+                await _logHoatDongService.GhiLogAsync(
+                    loaiNghiepVu: "XuatKho",
+                    hanhDong: "ThemMoi",
+                    maChungTu: $"IMPORT_{DateTime.Now:yyyyMMdd_HHmmss}",
+                    noiDung: $"Nhập xuất kho tự động từ tệp Excel '{safeFileName}': Thành công {response.SoLuongThanhCong}/{response.TongSoDong} biển số, Bỏ qua {response.SoLuongBoQua}, Lỗi {response.SoLuongLoi}. Chưa có trong kho: {response.DanhSachBienSoChuaCoTrongKho.Count}. Tổng lệ phí: {response.TongTienThu:N0}đ.",
+                    chiTietThayDoi: $"LoaiXeId: {loaiXe.Id} ({loaiXe.Ten}), Tệp: {safeFileName}, Số biển xuất: {response.SoLuongThanhCong}",
+                    cancellationToken: cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Không thể ghi nhật ký hoạt động khi import xuất kho từ Excel: {Message}", ex.Message);
             }
         }
 
-        if (affectedDotNhapIds.Count > 0)
-        {
-            await _dbContext.SaveChangesAsync(cancellationToken);
-        }
-
-        // 14. Ghi vết vào Nhật ký hoạt động (Audit Log)
-        try
-        {
-            await _logHoatDongService.GhiLogAsync(
-                loaiNghiepVu: "XuatKho",
-                hanhDong: "ThemMoi",
-                maChungTu: $"IMPORT_{DateTime.Now:yyyyMMdd_HHmmss}",
-                noiDung: $"Nhập xuất kho tự động từ tệp Excel '{safeFileName}': Thành công {response.SoLuongThanhCong}/{response.TongSoDong} biển số, Bỏ qua {response.SoLuongBoQua}, Lỗi {response.SoLuongLoi}. Tổng lệ phí: {response.TongTienThu:N0}đ.",
-                chiTietThayDoi: $"LoaiXeId: {loaiXe.Id} ({loaiXe.Ten}), Tệp: {safeFileName}, Số biển xuất: {response.SoLuongThanhCong}",
-                cancellationToken: cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Không thể ghi nhật ký hoạt động khi import xuất kho từ Excel: {Message}", ex.Message);
-        }
-
         return response;
+    }
+
+    /// <summary>
+    /// API 10: (GET) Lấy thông tin tệp tin Excel mẫu xuất kho biển số xe (MauBaoCao/XuatKhoBienSo.xlsx).
+    /// Output trả về các tham số filename và path (mã hóa Base64) là input cho API tải file /api/FileUpload/download.
+    /// </summary>
+    public async Task<ExportMauXuatKhoResponse> ExportFileMauXuatKhoAsync(CancellationToken cancellationToken = default)
+    {
+        var configuredFolder = string.IsNullOrWhiteSpace(_fileStorageSettings.StorageFolder) ? "Uploads" : _fileStorageSettings.StorageFolder;
+        var storageDir = Path.IsPathRooted(configuredFolder)
+            ? configuredFolder
+            : Path.Combine(_environment.ContentRootPath, configuredFolder);
+
+        if (!Directory.Exists(storageDir))
+        {
+            Directory.CreateDirectory(storageDir);
+        }
+
+        var templateFileName = "XuatKhoBienSo.xlsx";
+        var targetFilePath = Path.Combine(storageDir, templateFileName);
+        var sourceTemplate = Path.Combine(_environment.ContentRootPath, "MauBaoCao", templateFileName);
+
+        // 1. Đảm bảo file tồn tại ở MauBaoCao và sao chép sang StorageFolder
+        if (File.Exists(sourceTemplate))
+        {
+            File.Copy(sourceTemplate, targetFilePath, overwrite: true);
+        }
+        else
+        {
+            var mauBaoCaoDir = Path.Combine(_environment.ContentRootPath, "MauBaoCao");
+            if (!Directory.Exists(mauBaoCaoDir))
+            {
+                Directory.CreateDirectory(mauBaoCaoDir);
+            }
+
+            var excelBytes = GenerateMauXuatKhoExcelBytes();
+            await File.WriteAllBytesAsync(sourceTemplate, excelBytes, cancellationToken);
+            await File.WriteAllBytesAsync(targetFilePath, excelBytes, cancellationToken);
+        }
+
+        // 2. Mã hóa Base64 filename và path theo chuẩn chung của hệ thống (dùng cho /api/FileUpload/download)
+        var encodedFileName = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(templateFileName));
+        var encodedPath = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(targetFilePath));
+        var downloadUrl = $"/api/FileUpload/download?filename={Uri.EscapeDataString(encodedFileName)}&path={Uri.EscapeDataString(encodedPath)}";
+
+        _logger.LogInformation("Export mẫu xuất kho: Trả về input cho download file: filename='{FileName}', path='{Path}'", encodedFileName, encodedPath);
+
+        return new ExportMauXuatKhoResponse
+        {
+            FileName = encodedFileName,
+            Path = encodedPath,
+            DownloadUrl = downloadUrl,
+            OriginalFileName = templateFileName
+        };
+    }
+
+    /// <summary>
+    /// Lấy dữ liệu file mẫu xuất kho để tải trực tiếp từ Controller (FileResult).
+    /// </summary>
+    public async Task<(byte[] FileBytes, string ContentType, string FileName)> DownloadFileMauXuatKhoAsync(CancellationToken cancellationToken = default)
+    {
+        var templateFileName = "XuatKhoBienSo.xlsx";
+        var sourceTemplate = Path.Combine(_environment.ContentRootPath, "MauBaoCao", templateFileName);
+
+        byte[] bytes;
+        if (File.Exists(sourceTemplate))
+        {
+            bytes = await File.ReadAllBytesAsync(sourceTemplate, cancellationToken);
+        }
+        else
+        {
+            bytes = GenerateMauXuatKhoExcelBytes();
+            var mauBaoCaoDir = Path.Combine(_environment.ContentRootPath, "MauBaoCao");
+            if (!Directory.Exists(mauBaoCaoDir))
+            {
+                Directory.CreateDirectory(mauBaoCaoDir);
+            }
+            await File.WriteAllBytesAsync(sourceTemplate, bytes, cancellationToken);
+        }
+
+        return (bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", templateFileName);
+    }
+
+    /// <summary>
+    /// Tạo cấu trúc và dữ liệu mẫu tệp Excel xuất kho biển số xe theo chuẩn EPPlus.
+    /// </summary>
+    private static byte[] GenerateMauXuatKhoExcelBytes()
+    {
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        using var package = new ExcelPackage();
+        var ws = package.Workbook.Worksheets.Add("XuatKho");
+
+        // 1. Tiêu đề
+        ws.Cells[1, 1].Value = "DANH SÁCH BIỂN SỐ XE XUẤT KHO";
+        ws.Cells[1, 1, 1, 17].Merge = true;
+        ws.Cells[1, 1].Style.Font.Bold = true;
+        ws.Cells[1, 1].Style.Font.Size = 16;
+        ws.Cells[1, 1].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+        ws.Cells[1, 1].Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
+        ws.Row(1).Height = 35;
+
+        // 2. Phụ đề
+        ws.Cells[2, 1].Value = "(Áp dụng cho tệp mẫu nhập xuất kho biển số xe và biên lai thu phí)";
+        ws.Cells[2, 1, 2, 17].Merge = true;
+        ws.Cells[2, 1].Style.Font.Italic = true;
+        ws.Cells[2, 1].Style.Font.Size = 10;
+        ws.Cells[2, 1].Style.Font.Color.SetColor(System.Drawing.Color.Gray);
+        ws.Cells[2, 1].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+        ws.Row(2).Height = 20;
+
+        // 3. Dòng Header (Dòng 3)
+        var headers = new[]
+        {
+            "STT", "Mã hồ sơ DVC", "Loại thủ tục", "Tính chất", "Lệ phí (VNĐ)",
+            "Biển kiểm soát", "Khu vực", "Nhãn hiệu", "Số khung", "Số máy",
+            "Ký hiệu quyển", "Số biên lai", "Họ tên người nộp", "Số CCCD",
+            "Ngày thực hiện", "Căn cứ pháp lý", "Ghi chú"
+        };
+
+        ws.Row(3).Height = 28;
+        for (int c = 1; c <= headers.Length; c++)
+        {
+            var cell = ws.Cells[3, c];
+            cell.Value = headers[c - 1];
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.Size = 11;
+            cell.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+            cell.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(220, 230, 242));
+            cell.Style.Border.BorderAround(OfficeOpenXml.Style.ExcelBorderStyle.Thin);
+            cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+            cell.Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
+        }
+
+        // 4. Dữ liệu mẫu (Rows 4, 5, 6)
+        var sampleRows = new List<object[]>
+        {
+            new object[] { 1, "DVC-2026-0001", "Cấp biển (Có xuất kho số)", "Xuất 01 biển từ kho 'Biển được bấm'", 150000, "30A-999.99", "Khu vực I", "Toyota", "RL123456789", "SM987654321", "Q01", "0000001", "Nguyễn Văn A", "001234567890", "19/10/2026", "Thông tư 155/2025/TT-BTC", "Xuất kho theo thủ tục cấp biển" },
+            new object[] { 2, "DVC-2026-0002", "Cấp biển (Có xuất kho số)", "Xuất 01 biển từ kho 'Biển được bấm'", 150000, "30A-888.88", "Khu vực I", "Honda", "RL987654321", "SM123456789", "Q01", "0000002", "Trần Thị B", "001098765432", "19/10/2026", "Thông tư 155/2025/TT-BTC", "Xuất kho ô tô con" },
+            new object[] { 3, "DVC-2026-0003", "Cấp lại biển số", "Xuất 01 biển từ kho 'Biển được bấm'", 100000, "29B-123.45", "Khu vực I", "Hyundai", "RL555666777", "SM888999000", "Q01", "0000003", "Lê Văn C", "001087654321", "19/10/2026", "Thông tư 155/2025/TT-BTC", "Cấp lại biển số hỏng" }
+        };
+
+        for (int i = 0; i < sampleRows.Count; i++)
+        {
+            int rowIdx = 4 + i;
+            ws.Row(rowIdx).Height = 22;
+            var data = sampleRows[i];
+            for (int c = 1; c <= data.Length; c++)
+            {
+                var cell = ws.Cells[rowIdx, c];
+                cell.Value = data[c - 1];
+                cell.Style.Border.BorderAround(OfficeOpenXml.Style.ExcelBorderStyle.Thin);
+                cell.Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
+
+                if (c == 1) cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                else if (c == 5)
+                {
+                    cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Right;
+                    cell.Style.Numberformat.Format = "#,##0";
+                }
+                else if (c == 6)
+                {
+                    cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                    cell.Style.Font.Bold = true;
+                }
+                else if (c == 11 || c == 12 || c == 14 || c == 15)
+                {
+                    cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+                }
+            }
+        }
+
+        // Độ rộng cột
+        int[] colWidths = { 8, 18, 28, 32, 16, 18, 16, 16, 20, 18, 16, 16, 22, 18, 18, 26, 30 };
+        for (int c = 1; c <= colWidths.Length; c++)
+        {
+            ws.Column(c).Width = colWidths[c - 1];
+        }
+
+        return package.GetAsByteArray();
     }
 }
 

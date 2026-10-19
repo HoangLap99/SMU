@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SMU.Application.DTOs;
 
@@ -426,6 +427,37 @@ public class XuatKhoResponse
 #region 10. Import Xuất kho từ tệp Excel
 
 /// <summary>
+/// Kết quả trả về của API export file mẫu xuất kho biển số xe.
+/// Chứa các tham số phục vụ gọi trực tiếp API tải file: /api/FileUpload/download?filename=...&amp;path=...
+/// </summary>
+public class ExportMauXuatKhoResponse
+{
+    /// <summary>
+    /// Tham số filename mã hóa Base64 cho API tải file: ?filename=...
+    /// </summary>
+    [JsonPropertyName("filename")]
+    public string FileName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tham số path mã hóa Base64 từ đường dẫn StorageFolder của appsettings: &amp;path=...
+    /// </summary>
+    [JsonPropertyName("path")]
+    public string Path { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Đường dẫn API hoàn chỉnh kèm query string để client tải file trực tiếp.
+    /// </summary>
+    [JsonPropertyName("downloadUrl")]
+    public string DownloadUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tên tệp tin gốc hiển thị khi tải về (mặc định: XuatKhoBienSo.xlsx).
+    /// </summary>
+    [JsonPropertyName("originalFileName")]
+    public string OriginalFileName { get; set; } = "XuatKhoBienSo.xlsx";
+}
+
+/// <summary>
 /// Yêu cầu nhập xuất kho biển số xe từ tệp Excel.
 /// </summary>
 public class ImportXuatKhoExcelRequest
@@ -441,6 +473,11 @@ public class ImportXuatKhoExcelRequest
     /// </summary>
     [Required(ErrorMessage = "Vui lòng nhập tên tệp tin Excel trong thư mục StorageFolder.")]
     public string FileName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tùy chọn: Nếu đặt là true, hệ thống chỉ kiểm tra tính hợp lệ và thông báo danh sách biển số chưa có trong kho mà không thực hiện lưu xuất kho.
+    /// </summary>
+    public bool? ChiKiemTra { get; set; } = false;
 }
 
 /// <summary>
@@ -448,6 +485,11 @@ public class ImportXuatKhoExcelRequest
 /// </summary>
 public class ImportXuatKhoExcelResponse
 {
+    /// <summary>
+    /// Thông báo kết quả tổng hợp hoặc cảnh báo danh sách các biển số chưa có trong kho.
+    /// </summary>
+    public string ThongBao { get; set; } = string.Empty;
+
     /// <summary>
     /// Tổng số dòng dữ liệu đọc được từ tệp Excel.
     /// </summary>
@@ -464,7 +506,7 @@ public class ImportXuatKhoExcelResponse
     public int SoLuongBoQua { get; set; }
 
     /// <summary>
-    /// Số lượng dòng bị lỗi khi xử lý.
+    /// Số lượng dòng bị lỗi khi xử lý (ví dụ: chưa có trong kho, định dạng sai...).
     /// </summary>
     public int SoLuongLoi { get; set; }
 
@@ -477,6 +519,11 @@ public class ImportXuatKhoExcelResponse
     /// Danh sách các biển kiểm soát đã xuất kho thành công.
     /// </summary>
     public List<string> DanhSachBienSoXuatThanhCong { get; set; } = [];
+
+    /// <summary>
+    /// Danh sách các biển kiểm soát trong tệp tin Excel CHƯA CÓ TRONG KHO (chưa được nhập kho).
+    /// </summary>
+    public List<string> DanhSachBienSoChuaCoTrongKho { get; set; } = [];
 
     /// <summary>
     /// Danh sách chi tiết các dòng bị lỗi hoặc bỏ qua.

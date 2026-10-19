@@ -253,12 +253,77 @@ public class XuatKhoController : ControllerBase
     }
 
     /// <summary>
-    /// API 11: (POST) Nhập xuất kho biển số xe theo tệp tin Excel lưu trong thư mục StorageFolder (appsettings.json).
-    /// Tự động tạo phiếu xuất kho với DaXuatKho = true và cập nhật bảng KhoBienSo.
+    /// API 11: (GET) Lấy thông tin tệp tin Excel mẫu xuất kho biển số xe (MauBaoCao/XuatKhoBienSo.xlsx).
+    /// Output trả về object chứa filename và path (mã hóa Base64 theo cấu hình StorageFolder của appsettings)
+    /// đóng vai trò là input cho API tải file /api/FileUpload/download?filename=...&amp;path=...
+    /// </summary>
+    [HttpGet("export-mau")]
+    [HttpGet("mau-excel")]
+    [ProducesResponseType(typeof(ExportMauXuatKhoResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ExportMauXuatKhoResponse>> ExportFileMau(CancellationToken cancellationToken)
+    {
+        var result = await _xuatKhoService.ExportFileMauXuatKhoAsync(cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 12: (GET) Tải trực tiếp tệp tin Excel mẫu xuất kho biển số xe (XuatKhoBienSo.xlsx).
+    /// Hỗ trợ người dùng tải file trực tiếp trên trình duyệt hoặc qua nút Download mà không cần qua bước mã hóa Base64.
+    /// </summary>
+    [HttpGet("download-mau")]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> DownloadFileMau(CancellationToken cancellationToken)
+    {
+        var (fileBytes, contentType, fileName) = await _xuatKhoService.DownloadFileMauXuatKhoAsync(cancellationToken);
+        return File(fileBytes, contentType, fileName);
+    }
+
+    /// <summary>
+    /// API 13: (POST) Kiểm tra trước tệp tin Excel xuất kho (Dry-run / Check):
+    /// Kiểm tra xem các biển số trong tệp Excel đã có trong kho hay chưa, báo chi tiết danh sách biển số chưa có trong kho
+    /// và số lượng biển số hợp lệ sẵn sàng xuất kho mà không lưu dữ liệu vào cơ sở dữ liệu.
+    /// </summary>
+    [HttpPost("check-import-excel")]
+    [ProducesResponseType(typeof(ImportXuatKhoExcelResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ImportXuatKhoExcelResponse>> CheckImportExcel(
+        [FromBody] ImportXuatKhoExcelRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            request.ChiKiemTra = true;
+            var result = await _xuatKhoService.ImportXuatKhoTuExcelAsync(request, cancellationToken);
+            return Ok(result);
+        }
+        catch (FileNotFoundException ex)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Không tìm thấy tệp Excel",
+                Detail = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Dữ liệu yêu cầu không hợp lệ",
+                Detail = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// API 14: (POST) Nhập xuất kho biển số xe theo tệp tin Excel lưu trong thư mục StorageFolder (appsettings.json).
+    /// Kiểm tra chặt chẽ các biển số đã có trong kho hay chưa. Nếu biển số chưa có trong kho, hệ thống sẽ bỏ qua và liệt kê danh sách biển số chưa có trong kho trong kết quả trả về.
     /// </summary>
     /// <param name="request">Input gồm LoaiXeId và tên file (FileName).</param>
     /// <param name="cancellationToken">Token hủy yêu cầu.</param>
-    /// <returns>Kết quả tổng hợp số lượng xuất kho thành công, bỏ qua, lỗi và tổng tiền thu.</returns>
+    /// <returns>Kết quả tổng hợp số lượng xuất kho thành công, bỏ qua, lỗi, tổng tiền thu, danh sách biển số chưa có trong kho và chi tiết từng dòng lỗi.</returns>
     [HttpPost("import-excel")]
     [ProducesResponseType(typeof(ImportXuatKhoExcelResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]

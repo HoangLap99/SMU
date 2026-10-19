@@ -70,6 +70,18 @@ public interface IXuatKhoService
     /// <summary>
     /// API 9: Nhập xuất kho biển số xe tự động từ tệp tin Excel lưu trong thư mục StorageFolder.
     /// Tự động tạo các phiếu xuất kho với DaXuatKho = true và đánh dấu biển số trong KhoBienSo là đã xuất kho.
+    /// Kiểm tra chặt chẽ các biển số đã có trong kho hay chưa, nếu chưa có thì báo danh sách chi tiết.
     /// </summary>
     Task<ImportXuatKhoExcelResponse> ImportXuatKhoTuExcelAsync(ImportXuatKhoExcelRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// API 10: (GET) Lấy thông tin tệp tin Excel mẫu xuất kho biển số xe (MauBaoCao/XuatKhoBienSo.xlsx).
+    /// Output trả về các tham số filename và path (mã hóa Base64) là input cho API tải file /api/FileUpload/download.
+    /// </summary>
+    Task<ExportMauXuatKhoResponse> ExportFileMauXuatKhoAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lấy luồng dữ liệu byte[] của tệp tin mẫu xuất kho Excel để hỗ trợ tải file trực tiếp từ controller.
+    /// </summary>
+    Task<(byte[] FileBytes, string ContentType, string FileName)> DownloadFileMauXuatKhoAsync(CancellationToken cancellationToken = default);
 }
