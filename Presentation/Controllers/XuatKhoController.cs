@@ -14,6 +14,13 @@ namespace SMU.Presentation.Controllers;
 /// 6. GET /api/XuatKho/{id} : Lấy chi tiết phiếu xuất kho theo Id.
 /// 7. GET /api/XuatKho/delete/{id} : Xóa phiếu xuất kho theo Id và khôi phục biển số về kho.
 /// 8. GET /api/XuatKho/huy/{id} : Hủy phiếu xuất kho và cập nhật lại trạng thái biển số trong KhoBienSo.
+/// 11. GET /api/XuatKho/export-mau : Lấy thông tin tệp Excel mẫu để gọi API download Base64.
+/// 12. GET /api/XuatKho/download-mau : Tải trực tiếp tệp tin Excel mẫu XuatKhoBienSo.xlsx.
+/// 13. POST /api/XuatKho/check-import-excel : Kiểm tra trước tệp Excel xuất kho (dry-run).
+/// 14. POST /api/XuatKho/import-excel : Nhập xuất kho từ tệp Excel trong StorageFolder.
+/// 15. POST /api/XuatKho/import-ai : Nhập xuất kho sử dụng AI đọc tệp bất kỳ (Word, Excel, PNG, PDF...).
+/// 16. POST /api/XuatKho/import-ai-json : Nhập xuất kho sử dụng AI từ tệp đã lưu trong StorageFolder (JSON).
+/// 17. POST /api/XuatKho/check-import-ai : Kiểm tra trước kết quả AI đọc tệp xuất kho (dry-run).
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -343,6 +350,126 @@ public class XuatKhoController : ControllerBase
             {
                 Status = StatusCodes.Status404NotFound,
                 Title = "Không tìm thấy tệp Excel",
+                Detail = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Dữ liệu yêu cầu không hợp lệ",
+                Detail = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// API 15: (POST) Nhập xuất kho biển số xe sử dụng AI để đọc tệp tin bất kỳ (Word, Excel, PNG, JPG, PDF, Text...).
+    /// Hỗ trợ upload tệp trực tiếp (multipart/form-data) hoặc truyền tên file đã lưu trong StorageFolder.
+    /// Không cố định cấu trúc mẫu: AI tự động nhận diện và trích xuất mọi trường dữ liệu có trong tài liệu.
+    /// Đối soát biển số với KhoBienSo: Đặt DaXuatKho = true và lưu thay đổi vào KhoBienSo đối với các biển số đã có trong kho.
+    /// Nếu biển số chưa có trong kho thì đưa vào danh sách cảnh báo DanhSachBienSoChuaCoTrongKho và không xuất kho cho biển đó.
+    /// </summary>
+    /// <param name="request">File upload trực tiếp (Word, Excel, Image/PNG, PDF...), hoặc FileName, LoaiXeId, ChiKiemTra, Prompt.</param>
+    /// <param name="cancellationToken">Token hủy yêu cầu.</param>
+    /// <returns>Kết quả bóc tách và đối soát xuất kho của AI.</returns>
+    [HttpPost("import-ai")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ImportXuatKhoAiResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ImportXuatKhoAiResponse>> ImportXuatKhoAi(
+        [FromForm] ImportXuatKhoAiRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _xuatKhoService.ImportXuatKhoTuFileAiAsync(request, cancellationToken);
+            return Ok(result);
+        }
+        catch (FileNotFoundException ex)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Không tìm thấy tệp tin",
+                Detail = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Dữ liệu yêu cầu không hợp lệ",
+                Detail = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// API 16: (POST) Nhập xuất kho biển số xe sử dụng AI từ tệp tin đã lưu trong StorageFolder qua JSON (application/json).
+    /// </summary>
+    [HttpPost("import-ai-json")]
+    [Consumes("application/json")]
+    [ProducesResponseType(typeof(ImportXuatKhoAiResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ImportXuatKhoAiResponse>> ImportXuatKhoAiJson(
+        [FromBody] ImportXuatKhoAiRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _xuatKhoService.ImportXuatKhoTuFileAiAsync(request, cancellationToken);
+            return Ok(result);
+        }
+        catch (FileNotFoundException ex)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Không tìm thấy tệp tin",
+                Detail = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Dữ liệu yêu cầu không hợp lệ",
+                Detail = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// API 17: (POST) Kiểm tra trước kết quả đọc AI (Dry-run / Preview):
+    /// AI bóc tách mọi trường dữ liệu từ tệp tin (Word, Excel, PNG, PDF...), đối soát với KhoBienSo và thông báo danh sách biển số hợp lệ/chưa có trong kho mà KHÔNG lưu thay đổi vào cơ sở dữ liệu.
+    /// </summary>
+    [HttpPost("check-import-ai")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ImportXuatKhoAiResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ImportXuatKhoAiResponse>> CheckImportAi(
+        [FromForm] ImportXuatKhoAiRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            request.ChiKiemTra = true;
+            var result = await _xuatKhoService.ImportXuatKhoTuFileAiAsync(request, cancellationToken);
+            return Ok(result);
+        }
+        catch (FileNotFoundException ex)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Không tìm thấy tệp tin",
                 Detail = ex.Message
             });
         }

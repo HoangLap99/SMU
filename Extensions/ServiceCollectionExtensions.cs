@@ -137,6 +137,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDocumentExtractorStrategy, WordExtractorStrategy>();
         services.AddScoped<IDocumentExtractorStrategy, PdfExtractorStrategy>();
         services.AddScoped<IDocumentExtractorStrategy, PlainTextExtractorStrategy>();
+        services.AddScoped<IDocumentExtractorStrategy, ImageExtractorStrategy>();
 
         // 7. Đăng ký Strategy Resolver / Facade
         services.AddScoped<IDocumentExtractionService, DocumentExtractionService>();

@@ -84,4 +84,11 @@ public interface IXuatKhoService
     /// Lấy luồng dữ liệu byte[] của tệp tin mẫu xuất kho Excel để hỗ trợ tải file trực tiếp từ controller.
     /// </summary>
     Task<(byte[] FileBytes, string ContentType, string FileName)> DownloadFileMauXuatKhoAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// API 15: Nhập xuất kho biển số xe sử dụng AI để đọc tệp tin bất kỳ (Word, Excel, Image/PNG, PDF, Text).
+    /// Không cố định mẫu, AI tự động nhận diện và trích xuất mọi trường dữ liệu có trong tài liệu.
+    /// Đối soát biển số với bảng KhoBienSo: Đặt DaXuatKho = true và lưu thay đổi vào KhoBienSo đối với các biển số đã có trong kho.
+    /// </summary>
+    Task<ImportXuatKhoAiResponse> ImportXuatKhoTuFileAiAsync(ImportXuatKhoAiRequest request, CancellationToken cancellationToken = default);
 }

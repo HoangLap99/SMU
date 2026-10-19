@@ -1,4 +1,7 @@
 using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -8,6 +11,7 @@ using SMU.Application.DTOs;
 using SMU.Application.Interfaces;
 using SMU.Core.Entities;
 using SMU.Infrastructure.Data;
+using SMU.Infrastructure.Extractors.Abstractions;
 using SMU.Infrastructure.Storage.Configuration;
 
 namespace SMU.Application.Services;
@@ -28,6 +32,8 @@ public class XuatKhoService : IXuatKhoService
     private readonly ILogHoatDongService _logHoatDongService;
     private readonly IWebHostEnvironment _environment;
     private readonly FileStorageSettings _fileStorageSettings;
+    private readonly IDocumentExtractionService _extractionService;
+    private readonly IAiService _aiService;
 
     public XuatKhoService(
         PostgresDbContext dbContext,
@@ -35,7 +41,9 @@ public class XuatKhoService : IXuatKhoService
         ILogger<XuatKhoService> logger,
         ILogHoatDongService logHoatDongService,
         IWebHostEnvironment environment,
-        IOptions<FileStorageSettings> fileStorageOptions)
+        IOptions<FileStorageSettings> fileStorageOptions,
+        IDocumentExtractionService extractionService,
+        IAiService aiService)
     {
         _dbContext = dbContext;
         _currentUserService = currentUserService;
@@ -43,6 +51,8 @@ public class XuatKhoService : IXuatKhoService
         _logHoatDongService = logHoatDongService;
         _environment = environment;
         _fileStorageSettings = fileStorageOptions.Value;
+        _extractionService = extractionService;
+        _aiService = aiService;
     }
 
     /// <summary>
@@ -1876,6 +1886,662 @@ public class XuatKhoService : IXuatKhoService
         }
 
         return package.GetAsByteArray();
+    }
+
+    /// <summary>
+    /// API 15: Nhập xuất kho biển số xe sử dụng AI để đọc tệp tin bất kỳ (Word, Excel, Image/PNG, PDF, Text...).
+    /// Không cố định cấu trúc mẫu: AI tự động nhận diện và trích xuất mọi trường dữ liệu có trong tài liệu.
+    /// Đối soát biển số với bảng KhoBienSo: Đặt DaXuatKho = true và lưu thay đổi vào KhoBienSo đối với các biển số đã có trong kho.
+    /// </summary>
+    public async Task<ImportXuatKhoAiResponse> ImportXuatKhoTuFileAiAsync(
+        ImportXuatKhoAiRequest request, 
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request), "Dữ liệu yêu cầu không được rỗng.");
+        }
+
+        // 1. Xác định luồng tệp tin cần bóc tách
+        ExtractedDocument extractedDoc;
+        string fileName;
+        string fileExtension;
+
+        if (request.File != null && request.File.Length > 0)
+        {
+            fileName = request.File.FileName;
+            fileExtension = Path.GetExtension(fileName).ToLowerInvariant();
+            _logger.LogInformation("Bắt đầu phân tích AI xuất kho từ file upload: {FileName} ({Length} bytes)", fileName, request.File.Length);
+            extractedDoc = await _extractionService.ExtractAsync(request.File, cancellationToken);
+        }
+        else if (!string.IsNullOrWhiteSpace(request.FileName))
+        {
+            var configuredFolder = string.IsNullOrWhiteSpace(_fileStorageSettings.StorageFolder) ? "Uploads" : _fileStorageSettings.StorageFolder;
+            var destinationFolder = Path.IsPathRooted(configuredFolder)
+                ? configuredFolder
+                : Path.Combine(_environment.ContentRootPath, configuredFolder);
+
+            var safeFileName = Path.GetFileName(request.FileName);
+            var filePath = Path.Combine(destinationFolder, safeFileName);
+
+            if (!File.Exists(filePath))
+            {
+                if (File.Exists(request.FileName))
+                {
+                    filePath = request.FileName;
+                }
+                else
+                {
+                    var mauBaoCaoPath = Path.Combine(_environment.ContentRootPath, "MauBaoCao", safeFileName);
+                    if (File.Exists(mauBaoCaoPath))
+                    {
+                        filePath = mauBaoCaoPath;
+                    }
+                    else
+                    {
+                        var altPath = Path.Combine(_environment.ContentRootPath, request.FileName.TrimStart('/', '\\'));
+                        if (File.Exists(altPath))
+                        {
+                            filePath = altPath;
+                        }
+                        else
+                        {
+                            throw new FileNotFoundException($"Không tìm thấy tệp tin '{safeFileName}' trong thư mục lưu trữ '{configuredFolder}'.", safeFileName);
+                        }
+                    }
+                }
+            }
+
+            fileName = safeFileName;
+            fileExtension = Path.GetExtension(fileName).ToLowerInvariant();
+            _logger.LogInformation("Bắt đầu phân tích AI xuất kho từ tệp tin đã lưu: {FilePath}", filePath);
+
+            await using var fileStream = File.OpenRead(filePath);
+            extractedDoc = await _extractionService.ExtractAsync(fileStream, fileName, cancellationToken);
+        }
+        else
+        {
+            throw new ArgumentException("Vui lòng tải lên tệp tin (File) hoặc cung cấp tên file (FileName) đã lưu trong thư mục lưu trữ.");
+        }
+
+        // 2. Chuẩn bị Prompt và System Instruction cho AI
+        var systemInstruction =
+            "Bạn là một trợ lý AI chuyên nghiệp về bóc tách và số hóa dữ liệu nghiệp vụ xuất kho biển số xe, đăng ký phương tiện giao thông. " +
+            "Nhiệm vụ của bạn là đọc hiểu tài liệu dưới bất kỳ định dạng nào (bảng tính Excel, tài liệu Word, văn bản PDF, hoặc hình ảnh PNG/JPG hóa đơn/biên lai/danh sách). " +
+            "Tài liệu KHÔNG THEO MẪU CỐ ĐỊNH: đọc được trường nào thì nhận trường đó, trường nào không có thì để null hoặc chuỗi rỗng. " +
+            "BẮT BUỘC chỉ trả về duy nhất một JSON Array hợp lệ chứa danh sách các object, tuyệt đối không bọc trong markdown block ```json, không giải thích bên ngoài. " +
+            "Mỗi object đại diện cho 1 biển số xe gồm các trường: " +
+            "bienKiemSoat (bắt buộc, ví dụ '30A-999.99'), maHoSoDvc, loaiThuTuc, tinhChat, soTienThu (số hoặc null), khuVuc, nhanHieu, soKhung, soMay, kyHieuQuyen, soBienLai, hoTenNguoiNop, soCccd, ngayThucHien (YYYY-MM-DD hoặc DD/MM/YYYY), canCuPhapLy, ghiChu.";
+
+        var aiPrompt =
+            "Hãy quét và đọc hiểu toàn bộ tài liệu được cung cấp để trích xuất danh sách tất cả các bản ghi xuất kho biển số xe. " +
+            "Không cố định mẫu biểu: Đọc được trường nào thì nhận trường đó (Biển kiểm soát, Người nộp, CCCD, Lệ phí, Số biên lai, Quyển, Số khung, Số máy, Nhãn hiệu xe, Loại thủ tục, v.v.). " +
+            (string.IsNullOrWhiteSpace(request.Prompt) ? "" : $"Chỉ dẫn thêm từ người dùng: {request.Prompt}\n") +
+            "Trả về duy nhất JSON array thuần túy.";
+
+        // 3. Thực thi gọi AI (kèm fallback Heuristic Engine nếu AI Key chưa cấu hình hoặc gặp lỗi)
+        string aiResult = string.Empty;
+        string engineUsed = "Gemini AI";
+
+        try
+        {
+            if (extractedDoc.IsMultimodalPreferred && extractedDoc.RawBytes != null && extractedDoc.RawBytes.Length > 0)
+            {
+                _logger.LogInformation("Gửi tài liệu dạng Multimodal ({MimeType}, {Bytes} bytes) tới AI Model", extractedDoc.MimeType, extractedDoc.RawBytes.Length);
+                aiResult = await _aiService.GenerateContentFromBytesAsync(
+                    aiPrompt,
+                    extractedDoc.RawBytes,
+                    extractedDoc.MimeType,
+                    systemInstruction,
+                    cancellationToken);
+            }
+            else
+            {
+                _logger.LogInformation("Gửi tài liệu dạng Text Context ({Length} ký tự) tới AI Model", extractedDoc.TextContent?.Length ?? 0);
+                aiResult = await _aiService.GenerateContentFromTextAsync(
+                    aiPrompt,
+                    extractedDoc.TextContent ?? string.Empty,
+                    systemInstruction,
+                    cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Không thể hoàn thành phân tích qua Gemini AI ({Message}). Kích hoạt Heuristic Pattern Engine...", ex.Message);
+            engineUsed = "Heuristic Pattern Engine (Fallback)";
+            aiResult = string.Empty;
+        }
+
+        // 4. Phân tích kết quả JSON hoặc trích xuất biểu mẫu dự phòng
+        var rawItems = ExtractItemsFromJsonOrHeuristic(aiResult, extractedDoc.TextContent ?? string.Empty);
+
+        var response = new ImportXuatKhoAiResponse
+        {
+            Success = true,
+            FileName = fileName,
+            FileExtension = fileExtension,
+            EngineUsed = engineUsed,
+            TongSoDongTrichXuat = rawItems.Count
+        };
+
+        if (rawItems.Count == 0)
+        {
+            response.ThongBao = "AI đã quét tài liệu nhưng không tìm thấy dữ liệu biển số xe nào phù hợp.";
+            return response;
+        }
+
+        // 5. Nạp danh mục cần thiết để liên kết và tạo bản ghi xuất kho
+        var customerId = _currentUserService.CustomerId;
+
+        var statusDaBam = await _dbContext.TrangThaiBienSos.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Ma == "DA_BAM" || x.Ten.ToLower().Contains("đã bấm") || x.Ten.ToLower().Contains("đã cấp"), cancellationToken);
+
+        var listLoaiThuTuc = await _dbContext.LoaiThuTucs.AsNoTracking().ToListAsync(cancellationToken);
+        var listKhuVuc = await _dbContext.KhuVucApDungs.AsNoTracking().ToListAsync(cancellationToken);
+        var listQuyen = await _dbContext.KyHieuQuyenBienLais.ToListAsync(cancellationToken);
+        var listDauBien = await _dbContext.DauBienSos.AsNoTracking().ToListAsync(cancellationToken);
+        var defaultMauBien = await _dbContext.MauBienSos.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Ten.ToLower().Contains("trắng") || x.Ma == "TRANG", cancellationToken);
+        var listLoaiXe = await _dbContext.LoaiXes.AsNoTracking().ToListAsync(cancellationToken);
+        var listMucThu = await _dbContext.MucThuLePhis
+            .Include(x => x.ChiTietMucThuKhuVuc)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        // Xác định loại xe ưu tiên nếu người dùng chỉ định LoaiXeId
+        LoaiXe? requestedLoaiXe = null;
+        if (!string.IsNullOrWhiteSpace(request.LoaiXeId))
+        {
+            requestedLoaiXe = listLoaiXe.FirstOrDefault(x => x.Id == request.LoaiXeId || x.Ma == request.LoaiXeId);
+        }
+
+        var processedPlatesInFile = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var affectedDotNhapIds = new HashSet<string>();
+        int stt = 0;
+
+        // 6. Quét từng bản ghi đã trích xuất được
+        foreach (var item in rawItems)
+        {
+            stt++;
+            var rawPlate = item.BienKiemSoat?.Trim();
+            if (string.IsNullOrWhiteSpace(rawPlate))
+            {
+                continue;
+            }
+
+            var bienKiemSoat = rawPlate.ToUpperInvariant();
+            var normalizedPlate = bienKiemSoat.Replace("-", "").Replace(".", "").Replace(" ", "").ToUpperInvariant();
+
+            var chiTietItem = new ImportXuatKhoAiChiTietItem
+            {
+                Stt = stt,
+                BienKiemSoat = bienKiemSoat,
+                MaHoSoDvc = item.MaHoSoDvc,
+                LoaiThuTuc = item.LoaiThuTuc,
+                TinhChat = item.TinhChat,
+                SoTienThu = item.SoTienThu,
+                KhuVuc = item.KhuVuc,
+                NhanHieu = item.NhanHieu,
+                SoKhung = item.SoKhung,
+                SoMay = item.SoMay,
+                KyHieuQuyen = item.KyHieuQuyen,
+                SoBienLai = item.SoBienLai,
+                HoTenNguoiNop = item.HoTenNguoiNop,
+                SoCccd = item.SoCccd,
+                NgayThucHien = item.NgayThucHien,
+                CanCuPhapLy = item.CanCuPhapLy,
+                GhiChu = item.GhiChu
+            };
+
+            // Kiểm tra trùng lặp trong cùng tệp
+            if (!processedPlatesInFile.Add(normalizedPlate))
+            {
+                response.SoLuongBoQua++;
+                response.DanhSachLoi.Add(new ImportXuatKhoLoiItem
+                {
+                    Dong = stt,
+                    BienKiemSoat = bienKiemSoat,
+                    LyDoLoi = $"Biển số '{bienKiemSoat}' bị trùng lặp nhiều lần trong tài liệu."
+                });
+                chiTietItem.TrangThaiXuLy = "Bị trùng lặp trong tệp";
+                response.ChiTietCacBanGhi.Add(chiTietItem);
+                continue;
+            }
+
+            try
+            {
+                // 7. Kiểm tra sự tồn tại trong KhoBienSo
+                var bienSo = await _dbContext.KhoBienSos
+                    .FirstOrDefaultAsync(x =>
+                        (string.IsNullOrEmpty(customerId) || x.CustomerId == customerId || x.CustomerId == null) &&
+                        (x.BienKiemSoat.ToUpper() == bienKiemSoat ||
+                         x.BienKiemSoat.Replace("-", "").Replace(".", "").Replace(" ", "").ToUpper() == normalizedPlate),
+                        cancellationToken);
+
+                if (bienSo == null)
+                {
+                    // Biển số CHƯA CÓ TRONG KHO: Ghi nhận và thông báo, không thực hiện xuất kho
+                    response.SoLuongLoi++;
+                    response.DanhSachBienSoChuaCoTrongKho.Add(bienKiemSoat);
+                    response.DanhSachLoi.Add(new ImportXuatKhoLoiItem
+                    {
+                        Dong = stt,
+                        BienKiemSoat = bienKiemSoat,
+                        LyDoLoi = $"Biển số '{bienKiemSoat}' chưa có trong kho (chưa được nhập kho)."
+                    });
+                    chiTietItem.TonTaiTrongKho = false;
+                    chiTietItem.TrangThaiXuLy = "Chưa có trong kho";
+                    response.ChiTietCacBanGhi.Add(chiTietItem);
+                    continue;
+                }
+
+                chiTietItem.TonTaiTrongKho = true;
+
+                // Kiểm tra nếu biển số đã xuất kho trước đó
+                if (bienSo.DaXuatKho)
+                {
+                    response.SoLuongBoQua++;
+                    response.DanhSachLoi.Add(new ImportXuatKhoLoiItem
+                    {
+                        Dong = stt,
+                        BienKiemSoat = bienKiemSoat,
+                        LyDoLoi = $"Biển số '{bienKiemSoat}' đã được xuất kho trước đó."
+                    });
+                    chiTietItem.DaXuatKhoTruocDo = true;
+                    chiTietItem.TrangThaiXuLy = "Đã xuất kho trước đó";
+                    response.ChiTietCacBanGhi.Add(chiTietItem);
+                    continue;
+                }
+
+                // Xử lý ngày thực hiện
+                DateTime ngayThucHien = DateTime.UtcNow;
+                if (!string.IsNullOrWhiteSpace(item.NgayThucHien))
+                {
+                    if (DateTime.TryParse(item.NgayThucHien, CultureInfo.GetCultureInfo("vi-VN"), DateTimeStyles.None, out var dtVi))
+                        ngayThucHien = dtVi;
+                    else if (DateTime.TryParse(item.NgayThucHien, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dtInv))
+                        ngayThucHien = dtInv;
+                }
+
+                // Xử lý số tiền lệ phí
+                decimal soTienThu = item.SoTienThu ?? 0;
+
+                // Chế độ Dry-run (chỉ kiểm tra)
+                if (request.ChiKiemTra == true)
+                {
+                    response.SoLuongThanhCong++;
+                    response.TongTienThu += soTienThu;
+                    response.DanhSachBienSoXuatThanhCong.Add(bienKiemSoat);
+                    chiTietItem.XuatKhoThanhCong = true;
+                    chiTietItem.TrangThaiXuLy = "Hợp lệ sẵn sàng xuất kho";
+                    response.ChiTietCacBanGhi.Add(chiTietItem);
+                    continue;
+                }
+
+                // 8. CẬP NHẬT KHO BIỂN SỐ VỚI DaXuatKho = true
+                bienSo.DaXuatKho = true;
+                bienSo.NgayXuatKho = ngayThucHien;
+                bienSo.TrangThai = "DaBam";
+                bienSo.TrangThaiTen = statusDaBam?.Ten ?? "Đã bấm (Đã cấp)";
+                bienSo.TrangThaiBienSoId = statusDaBam?.Id ?? bienSo.TrangThaiBienSoId;
+                bienSo.Modified = DateTime.UtcNow;
+
+                if (!string.IsNullOrWhiteSpace(bienSo.DotNhapKhoId))
+                {
+                    affectedDotNhapIds.Add(bienSo.DotNhapKhoId);
+                }
+
+                // 9. Khớp nối các danh mục liên quan (nhận diện linh hoạt trường nào có thì nhận trường đó)
+                var loaiXe = requestedLoaiXe
+                    ?? listLoaiXe.FirstOrDefault(x => x.Id == bienSo.LoaiXeId)
+                    ?? listLoaiXe.FirstOrDefault(x => !string.IsNullOrWhiteSpace(item.NhanHieu) && (x.Ten.Contains(item.NhanHieu, StringComparison.OrdinalIgnoreCase) || item.NhanHieu.Contains(x.Ten, StringComparison.OrdinalIgnoreCase)))
+                    ?? listLoaiXe.FirstOrDefault();
+
+                var loaiThuTuc = listLoaiThuTuc.FirstOrDefault(x =>
+                    !string.IsNullOrWhiteSpace(item.LoaiThuTuc) &&
+                    (x.Ten.Contains(item.LoaiThuTuc, StringComparison.OrdinalIgnoreCase) || item.LoaiThuTuc.Contains(x.Ten, StringComparison.OrdinalIgnoreCase)))
+                    ?? listLoaiThuTuc.FirstOrDefault();
+
+                var khuVuc = listKhuVuc.FirstOrDefault(x =>
+                    !string.IsNullOrWhiteSpace(item.KhuVuc) &&
+                    (x.Ten.Contains(item.KhuVuc, StringComparison.OrdinalIgnoreCase) || item.KhuVuc.Contains(x.Ten, StringComparison.OrdinalIgnoreCase)))
+                    ?? listKhuVuc.FirstOrDefault();
+
+                var quyen = listQuyen.FirstOrDefault(x =>
+                    !string.IsNullOrWhiteSpace(item.KyHieuQuyen) &&
+                    (x.Ma.Equals(item.KyHieuQuyen, StringComparison.OrdinalIgnoreCase) || x.Ten.Contains(item.KyHieuQuyen, StringComparison.OrdinalIgnoreCase)))
+                    ?? listQuyen.FirstOrDefault();
+
+                var mucThu = listMucThu.FirstOrDefault(x => loaiThuTuc != null && x.LoaiThuTucId == loaiThuTuc.Id && (loaiXe == null || x.LoaiXeId == null || x.LoaiXeId == loaiXe.Id))
+                    ?? listMucThu.FirstOrDefault();
+
+                if (soTienThu == 0 && mucThu != null)
+                {
+                    var mucThuKv = mucThu.ChiTietMucThuKhuVuc?.FirstOrDefault(k => khuVuc != null && k.KhuVucApDungId == khuVuc.Id)
+                        ?? mucThu.ChiTietMucThuKhuVuc?.FirstOrDefault();
+                    if (mucThuKv != null && mucThuKv.MucThu > 0)
+                    {
+                        soTienThu = mucThuKv.MucThu;
+                    }
+                }
+
+                var dauBien = listDauBien.FirstOrDefault(d => d.Id == bienSo.DauBienSoId);
+                var mauBien = defaultMauBien;
+
+                // Ghép nối thông tin phụ vào GhiChu
+                var ghiChuParts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(item.GhiChu)) ghiChuParts.Add(item.GhiChu);
+                if (!string.IsNullOrWhiteSpace(item.NhanHieu)) ghiChuParts.Add($"Nhãn hiệu: {item.NhanHieu}");
+                if (!string.IsNullOrWhiteSpace(item.SoKhung)) ghiChuParts.Add($"Số khung: {item.SoKhung}");
+                if (!string.IsNullOrWhiteSpace(item.SoMay)) ghiChuParts.Add($"Số máy: {item.SoMay}");
+                var ghiChu = ghiChuParts.Count > 0 ? string.Join("; ", ghiChuParts) : $"Import tự động bằng AI từ tệp {fileName}";
+
+                // 10. Tạo thực thể XuatKhoBienSo với DaXuatKho = true
+                var xuatKho = new XuatKhoBienSo
+                {
+                    Id = Guid.NewGuid().ToString("D"),
+                    CustomerId = customerId,
+                    LoaiThuTucId = loaiThuTuc?.Id ?? string.Empty,
+                    LoaiThuTucTen = loaiThuTuc?.Ten ?? item.LoaiThuTuc ?? "Cấp biển (Có xuất kho số)",
+                    NgayThucHien = ngayThucHien,
+                    TinhChatXuatKho = !string.IsNullOrWhiteSpace(item.TinhChat) ? item.TinhChat : "Xuất 01 biển từ kho 'Biển được bấm'",
+                    KhoBienSoId = bienSo.Id,
+                    BienKiemSoat = bienKiemSoat,
+                    LoaiXeId = loaiXe?.Id ?? bienSo.LoaiXeId,
+                    LoaiXeTen = loaiXe?.Ten ?? "Ô tô",
+                    MauBienSoId = bienSo.MauBienSoId ?? defaultMauBien?.Id,
+                    MauBienSoTen = mauBien?.Ten ?? "Biển Trắng",
+                    DauBienSoId = bienSo.DauBienSoId,
+                    DauBienSoTen = dauBien?.KyHieuSeries ?? dauBien?.Ten,
+
+                    MucThuLePhiId = mucThu?.Id ?? string.Empty,
+                    MucThuLePhiTen = mucThu?.Ten,
+                    KhuVucApDungId = khuVuc?.Id ?? string.Empty,
+                    KhuVucApDungTen = khuVuc?.Ten,
+                    DieuKienTriGiaXe = null,
+                    CanCuPhapLy = !string.IsNullOrWhiteSpace(item.CanCuPhapLy) ? item.CanCuPhapLy : (mucThu?.CanCuPhapLy ?? "Thông tư 155/2025/TT-BTC"),
+                    SoTienTuDongDien = soTienThu,
+
+                    KyHieuQuyenBienLaiId = quyen?.Id ?? string.Empty,
+                    KyHieuQuyen = !string.IsNullOrWhiteSpace(item.KyHieuQuyen) ? item.KyHieuQuyen : (quyen?.Ma ?? string.Empty),
+                    SoBienLai = !string.IsNullOrWhiteSpace(item.SoBienLai) ? item.SoBienLai : bienKiemSoat,
+                    NgayBienLai = ngayThucHien,
+                    SoTienThu = soTienThu,
+                    HoTenNguoiNop = !string.IsNullOrWhiteSpace(item.HoTenNguoiNop) ? item.HoTenNguoiNop : "Người nộp tiền",
+                    SoCccd = item.SoCccd,
+                    MaHoSoDvc = item.MaHoSoDvc,
+                    GhiChu = ghiChu,
+                    DaXuatKho = true,
+                    TrangThai = "HoanTat",
+                    Created = DateTime.UtcNow,
+                    Modified = DateTime.UtcNow
+                };
+
+                await _dbContext.XuatKhoBienSos.AddAsync(xuatKho, cancellationToken);
+                bienSo.XuatKhoId = xuatKho.Id;
+
+                // 11. Cập nhật chi tiết đợt nhập nếu có
+                if (!string.IsNullOrWhiteSpace(bienSo.ChiTietDotNhapBienSoId))
+                {
+                    var chiTiet = await _dbContext.ChiTietDotNhapBienSos
+                        .FirstOrDefaultAsync(x => x.Id == bienSo.ChiTietDotNhapBienSoId, cancellationToken);
+                    if (chiTiet != null)
+                    {
+                        chiTiet.TrangThaiBienSoId = statusDaBam?.Id ?? chiTiet.TrangThaiBienSoId;
+                        chiTiet.TrangThaiBienSoTen = statusDaBam?.Ten ?? "Đã bấm (Đã cấp)";
+                        chiTiet.MauSacHienThi = statusDaBam?.MauSacHienThi ?? "secondary";
+                        chiTiet.Modified = DateTime.UtcNow;
+                    }
+                }
+
+                // 12. Cập nhật số hiện tại của quyển biên lai
+                if (quyen != null && !string.IsNullOrWhiteSpace(item.SoBienLai) && long.TryParse(item.SoBienLai, out var soBL))
+                {
+                    if (!quyen.SoHienTai.HasValue || soBL > quyen.SoHienTai.Value)
+                    {
+                        quyen.SoHienTai = soBL;
+                    }
+                }
+
+                response.SoLuongThanhCong++;
+                response.TongTienThu += soTienThu;
+                response.DanhSachBienSoXuatThanhCong.Add(bienKiemSoat);
+                chiTietItem.XuatKhoThanhCong = true;
+                chiTietItem.TrangThaiXuLy = "Xuất kho thành công";
+                response.ChiTietCacBanGhi.Add(chiTietItem);
+            }
+            catch (Exception ex)
+            {
+                response.SoLuongLoi++;
+                response.DanhSachLoi.Add(new ImportXuatKhoLoiItem
+                {
+                    Dong = stt,
+                    BienKiemSoat = bienKiemSoat,
+                    LyDoLoi = $"Lỗi xử lý: {ex.Message}"
+                });
+                chiTietItem.TrangThaiXuLy = $"Lỗi: {ex.Message}";
+                response.ChiTietCacBanGhi.Add(chiTietItem);
+            }
+        }
+
+        // 13. Lưu dữ liệu nếu có bản ghi thành công
+        if (request.ChiKiemTra != true && response.SoLuongThanhCong > 0)
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            foreach (var dotNhapId in affectedDotNhapIds)
+            {
+                var dotNhap = await _dbContext.DotNhapKhos.FirstOrDefaultAsync(x => x.Id == dotNhapId, cancellationToken);
+                if (dotNhap != null)
+                {
+                    var dotNhapKhoList = await _dbContext.KhoBienSos
+                        .Where(x => x.DotNhapKhoId == dotNhap.Id)
+                        .ToListAsync(cancellationToken);
+
+                    dotNhap.SoBienDaBam = dotNhapKhoList.Count(x => x.DaXuatKho);
+                    dotNhap.SoBienDuocBam = dotNhapKhoList.Count(x => !x.DaXuatKho && !x.LaBienDauGia);
+                    dotNhap.Modified = DateTime.UtcNow;
+                }
+            }
+
+            if (affectedDotNhapIds.Count > 0)
+            {
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            try
+            {
+                await _logHoatDongService.GhiLogAsync(
+                    loaiNghiepVu: "XuatKho",
+                    hanhDong: "ThemMoi",
+                    maChungTu: $"AI_IMPORT_{DateTime.Now:yyyyMMdd_HHmmss}",
+                    noiDung: $"Import xuất kho biển số bằng AI từ tệp '{fileName}': Trích xuất {response.TongSoDongTrichXuat} bản ghi, Xuất thành công {response.SoLuongThanhCong}, Chưa có trong kho {response.DanhSachBienSoChuaCoTrongKho.Count}, Bỏ qua {response.SoLuongBoQua}. Tổng lệ phí: {response.TongTienThu:N0}đ.",
+                    chiTietThayDoi: $"Động cơ: {engineUsed}, Tệp: {fileName}, Số biển xuất: {response.SoLuongThanhCong}",
+                    cancellationToken: cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Không thể ghi nhật ký hoạt động khi import xuất kho bằng AI: {Message}", ex.Message);
+            }
+        }
+
+        // 14. Tổng hợp thông báo kết quả
+        var thongBaoParts = new List<string>();
+        if (request.ChiKiemTra == true)
+        {
+            thongBaoParts.Add($"[Chế độ kiểm tra] AI đã đọc và trích xuất thành công {response.TongSoDongTrichXuat} bản ghi từ tệp '{fileName}'.");
+            if (response.SoLuongThanhCong > 0)
+            {
+                thongBaoParts.Add($"Có {response.SoLuongThanhCong} biển số hợp lệ trong kho sẵn sàng xuất.");
+            }
+        }
+        else
+        {
+            if (response.SoLuongThanhCong > 0)
+            {
+                thongBaoParts.Add($"Xuất kho thành công {response.SoLuongThanhCong}/{response.TongSoDongTrichXuat} biển số từ tệp '{fileName}'.");
+            }
+        }
+
+        if (response.DanhSachBienSoChuaCoTrongKho.Count > 0)
+        {
+            thongBaoParts.Add($"Cảnh báo: Có {response.DanhSachBienSoChuaCoTrongKho.Count} biển số chưa có trong kho: {string.Join(", ", response.DanhSachBienSoChuaCoTrongKho)}.");
+        }
+
+        if (response.SoLuongBoQua > 0)
+        {
+            thongBaoParts.Add($"Bỏ qua {response.SoLuongBoQua} bản ghi (đã xuất kho trước đó hoặc trùng lặp).");
+        }
+
+        if (response.SoLuongThanhCong == 0 && response.DanhSachBienSoChuaCoTrongKho.Count > 0)
+        {
+            thongBaoParts.Insert(0, "Không thể thực hiện xuất kho do các biển số AI trích xuất được đều chưa có trong kho.");
+        }
+
+        response.ThongBao = string.Join(" ", thongBaoParts);
+        return response;
+    }
+
+    /// <summary>
+    /// Bóc tách các bản ghi từ phản hồi JSON của AI hoặc fallback bằng biểu thức chính quy (Heuristic).
+    /// </summary>
+    private static List<RawAiXuatKhoItem> ExtractItemsFromJsonOrHeuristic(string aiText, string extractedRawText)
+    {
+        var list = new List<RawAiXuatKhoItem>();
+        if (!string.IsNullOrWhiteSpace(aiText))
+        {
+            try
+            {
+                var cleaned = aiText.Trim();
+                if (cleaned.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
+                {
+                    cleaned = cleaned.Substring(7);
+                }
+                else if (cleaned.StartsWith("```", StringComparison.OrdinalIgnoreCase))
+                {
+                    cleaned = cleaned.Substring(3);
+                }
+
+                if (cleaned.EndsWith("```", StringComparison.OrdinalIgnoreCase))
+                {
+                    cleaned = cleaned.Substring(0, cleaned.Length - 3);
+                }
+                cleaned = cleaned.Trim();
+
+                var firstBracket = cleaned.IndexOf('[');
+                var lastBracket = cleaned.LastIndexOf(']');
+                if (firstBracket >= 0 && lastBracket > firstBracket)
+                {
+                    var jsonArrayStr = cleaned.Substring(firstBracket, lastBracket - firstBracket + 1);
+                    var parsed = JsonSerializer.Deserialize<List<RawAiXuatKhoItem>>(jsonArrayStr, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+                    if (parsed != null && parsed.Count > 0)
+                    {
+                        return parsed;
+                    }
+                }
+                else
+                {
+                    var firstObj = cleaned.IndexOf('{');
+                    var lastObj = cleaned.LastIndexOf('}');
+                    if (firstObj >= 0 && lastObj > firstObj)
+                    {
+                        var jsonSingle = cleaned.Substring(firstObj, lastObj - firstObj + 1);
+                        var single = JsonSerializer.Deserialize<RawAiXuatKhoItem>(jsonSingle, new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+                        if (single != null && !string.IsNullOrWhiteSpace(single.BienKiemSoat))
+                        {
+                            list.Add(single);
+                            return list;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Fallback nếu parse JSON thất bại
+            }
+        }
+
+        // Heuristic engine fallback (nếu AI không trả về JSON hoặc AI không khả dụng)
+        var sourceText = !string.IsNullOrWhiteSpace(extractedRawText) ? extractedRawText : aiText;
+        if (!string.IsNullOrWhiteSpace(sourceText))
+        {
+            // Nhận diện định dạng biển số xe: ví dụ 30A-999.99, 29B1-1234, 51F-111.11, 80A-123.45...
+            var plateRegex = new Regex(@"\b(\d{2}[A-Za-z]{1,2}[-\s.]?\d{3,5}(?:\.\d{2})?)\b", RegexOptions.Multiline);
+            var matches = plateRegex.Matches(sourceText);
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (Match match in matches)
+            {
+                var plate = match.Groups[1].Value.Trim();
+                if (plate.Length >= 5 && seen.Add(plate))
+                {
+                    list.Add(new RawAiXuatKhoItem
+                    {
+                        BienKiemSoat = plate,
+                        GhiChu = "Bóc tách tự động qua Heuristic Pattern Engine"
+                    });
+                }
+            }
+        }
+
+        return list;
+    }
+
+    private class RawAiXuatKhoItem
+    {
+        [JsonPropertyName("bienKiemSoat")]
+        public string? BienKiemSoat { get; set; }
+
+        [JsonPropertyName("maHoSoDvc")]
+        public string? MaHoSoDvc { get; set; }
+
+        [JsonPropertyName("loaiThuTuc")]
+        public string? LoaiThuTuc { get; set; }
+
+        [JsonPropertyName("tinhChat")]
+        public string? TinhChat { get; set; }
+
+        [JsonPropertyName("soTienThu")]
+        public decimal? SoTienThu { get; set; }
+
+        [JsonPropertyName("khuVuc")]
+        public string? KhuVuc { get; set; }
+
+        [JsonPropertyName("nhanHieu")]
+        public string? NhanHieu { get; set; }
+
+        [JsonPropertyName("soKhung")]
+        public string? SoKhung { get; set; }
+
+        [JsonPropertyName("soMay")]
+        public string? SoMay { get; set; }
+
+        [JsonPropertyName("kyHieuQuyen")]
+        public string? KyHieuQuyen { get; set; }
+
+        [JsonPropertyName("soBienLai")]
+        public string? SoBienLai { get; set; }
+
+        [JsonPropertyName("hoTenNguoiNop")]
+        public string? HoTenNguoiNop { get; set; }
+
+        [JsonPropertyName("soCccd")]
+        public string? SoCccd { get; set; }
+
+        [JsonPropertyName("ngayThucHien")]
+        public string? NgayThucHien { get; set; }
+
+        [JsonPropertyName("canCuPhapLy")]
+        public string? CanCuPhapLy { get; set; }
+
+        [JsonPropertyName("ghiChu")]
+        public string? GhiChu { get; set; }
     }
 }
 

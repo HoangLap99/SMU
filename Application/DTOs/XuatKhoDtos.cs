@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Http;
 
 namespace SMU.Application.DTOs;
 
@@ -550,6 +551,229 @@ public class ImportXuatKhoLoiItem
     /// Lý do lỗi hoặc bỏ qua.
     /// </summary>
     public string LyDoLoi { get; set; } = string.Empty;
+}
+
+#endregion
+
+#region 11. AI Import Xuất kho từ tệp tin bất kỳ (Word, Excel, Image/PNG, PDF, Text)
+
+/// <summary>
+/// Yêu cầu nhập xuất kho biển số xe sử dụng AI để đọc tệp tin bất kỳ (Word, Excel, PNG, JPG, PDF...).
+/// Không cố định cấu trúc mẫu, AI tự động nhận diện và bóc tách các trường dữ liệu có trong tài liệu.
+/// </summary>
+public class ImportXuatKhoAiRequest
+{
+    /// <summary>
+    /// Tệp tin bất kỳ tải lên trực tiếp (hỗ trợ .xlsx, .xls, .docx, .doc, .png, .jpg, .jpeg, .pdf, .txt, .csv...).
+    /// </summary>
+    public IFormFile? File { get; set; }
+
+    /// <summary>
+    /// Hoặc tên tệp tin đã lưu trong thư mục StorageFolder (nếu không truyền File trực tiếp).
+    /// </summary>
+    public string? FileName { get; set; }
+
+    /// <summary>
+    /// Tùy chọn chỉ định ID hoặc Mã Loại xe mặc định nếu tài liệu không đề cập loại xe.
+    /// </summary>
+    public string? LoaiXeId { get; set; }
+
+    /// <summary>
+    /// Tùy chọn chế độ chỉ kiểm tra (Dry-run / Preview): Nếu đặt true, hệ thống chỉ đọc và phân tích biển số, đối soát kho mà KHÔNG lưu thay đổi vào cơ sở dữ liệu.
+    /// </summary>
+    public bool? ChiKiemTra { get; set; } = false;
+
+    /// <summary>
+    /// Gợi ý hoặc chỉ dẫn bổ sung cho mô hình AI khi đọc tệp (tùy chọn).
+    /// </summary>
+    public string? Prompt { get; set; }
+}
+
+/// <summary>
+/// Kết quả trả về của API nhập xuất kho biển số sử dụng AI.
+/// </summary>
+public class ImportXuatKhoAiResponse
+{
+    /// <summary>
+    /// Trạng thái thực hiện thành công.
+    /// </summary>
+    public bool Success { get; set; } = true;
+
+    /// <summary>
+    /// Tên tệp tin đã phân tích và import.
+    /// </summary>
+    public string FileName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Định dạng tệp tin (.png, .docx, .xlsx, .pdf,...).
+    /// </summary>
+    public string FileExtension { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Động cơ trích xuất đã dùng ("Gemini AI" hoặc "Heuristic Pattern Engine").
+    /// </summary>
+    public string EngineUsed { get; set; } = "Gemini AI";
+
+    /// <summary>
+    /// Thông báo tổng hợp kết quả nghiệp vụ (số lượng thành công, cảnh báo biển số chưa có trong kho...).
+    /// </summary>
+    public string ThongBao { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tổng số dòng / bản ghi biển số xe mà AI trích xuất được từ tệp.
+    /// </summary>
+    public int TongSoDongTrichXuat { get; set; }
+
+    /// <summary>
+    /// Số lượng biển số xuất kho thành công (DaXuatKho = true).
+    /// </summary>
+    public int SoLuongThanhCong { get; set; }
+
+    /// <summary>
+    /// Số lượng biển số bị bỏ qua (đã xuất kho trước đó, trùng lặp trong tệp...).
+    /// </summary>
+    public int SoLuongBoQua { get; set; }
+
+    /// <summary>
+    /// Số lượng biển số bị lỗi (chưa có trong kho...).
+    /// </summary>
+    public int SoLuongLoi { get; set; }
+
+    /// <summary>
+    /// Tổng số tiền lệ phí thu được từ các biển số xuất kho thành công (VNĐ).
+    /// </summary>
+    public decimal TongTienThu { get; set; }
+
+    /// <summary>
+    /// Danh sách các biển kiểm soát đã xuất kho thành công.
+    /// </summary>
+    public List<string> DanhSachBienSoXuatThanhCong { get; set; } = [];
+
+    /// <summary>
+    /// Danh sách các biển kiểm soát trong tệp tin mà AI đọc được nhưng CHƯA CÓ TRONG KHO (chưa được nhập kho).
+    /// </summary>
+    public List<string> DanhSachBienSoChuaCoTrongKho { get; set; } = [];
+
+    /// <summary>
+    /// Danh sách chi tiết từng bản ghi dữ liệu AI trích xuất được kèm trạng thái đối soát trong kho.
+    /// </summary>
+    public List<ImportXuatKhoAiChiTietItem> ChiTietCacBanGhi { get; set; } = [];
+
+    /// <summary>
+    /// Danh sách chi tiết các dòng bị lỗi hoặc bỏ qua kèm lý do.
+    /// </summary>
+    public List<ImportXuatKhoLoiItem> DanhSachLoi { get; set; } = [];
+}
+
+/// <summary>
+/// Chi tiết một dòng / bản ghi biển số trích xuất được từ AI và trạng thái xử lý kho.
+/// </summary>
+public class ImportXuatKhoAiChiTietItem
+{
+    /// <summary>
+    /// Số thứ tự dòng.
+    /// </summary>
+    public int Stt { get; set; }
+
+    /// <summary>
+    /// Biển kiểm soát đọc được.
+    /// </summary>
+    public string BienKiemSoat { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Mã hồ sơ DVC đọc được (nếu có).
+    /// </summary>
+    public string? MaHoSoDvc { get; set; }
+
+    /// <summary>
+    /// Loại thủ tục đọc được (nếu có).
+    /// </summary>
+    public string? LoaiThuTuc { get; set; }
+
+    /// <summary>
+    /// Tính chất xuất kho đọc được (nếu có).
+    /// </summary>
+    public string? TinhChat { get; set; }
+
+    /// <summary>
+    /// Số tiền thu lệ phí đọc được (nếu có).
+    /// </summary>
+    public decimal? SoTienThu { get; set; }
+
+    /// <summary>
+    /// Khu vực áp dụng đọc được (nếu có).
+    /// </summary>
+    public string? KhuVuc { get; set; }
+
+    /// <summary>
+    /// Nhãn hiệu xe đọc được (nếu có).
+    /// </summary>
+    public string? NhanHieu { get; set; }
+
+    /// <summary>
+    /// Số khung đọc được (nếu có).
+    /// </summary>
+    public string? SoKhung { get; set; }
+
+    /// <summary>
+    /// Số máy đọc được (nếu có).
+    /// </summary>
+    public string? SoMay { get; set; }
+
+    /// <summary>
+    /// Ký hiệu quyển biên lai đọc được (nếu có).
+    /// </summary>
+    public string? KyHieuQuyen { get; set; }
+
+    /// <summary>
+    /// Số biên lai đọc được (nếu có).
+    /// </summary>
+    public string? SoBienLai { get; set; }
+
+    /// <summary>
+    /// Họ tên người nộp tiền đọc được (nếu có).
+    /// </summary>
+    public string? HoTenNguoiNop { get; set; }
+
+    /// <summary>
+    /// Số CCCD / CMND đọc được (nếu có).
+    /// </summary>
+    public string? SoCccd { get; set; }
+
+    /// <summary>
+    /// Ngày thực hiện đọc được (nếu có).
+    /// </summary>
+    public string? NgayThucHien { get; set; }
+
+    /// <summary>
+    /// Căn cứ pháp lý đọc được (nếu có).
+    /// </summary>
+    public string? CanCuPhapLy { get; set; }
+
+    /// <summary>
+    /// Ghi chú đọc được (nếu có).
+    /// </summary>
+    public string? GhiChu { get; set; }
+
+    /// <summary>
+    /// Đánh dấu biển số có tồn tại trong kho hay không.
+    /// </summary>
+    public bool TonTaiTrongKho { get; set; }
+
+    /// <summary>
+    /// Đánh dấu biển số đã xuất kho trước đó hay chưa.
+    /// </summary>
+    public bool DaXuatKhoTruocDo { get; set; }
+
+    /// <summary>
+    /// Đánh dấu xuất kho thành công trong phiên này.
+    /// </summary>
+    public bool XuatKhoThanhCong { get; set; }
+
+    /// <summary>
+    /// Trạng thái xử lý hiển thị trực quan (Ví dụ: "Xuất kho thành công", "Chưa có trong kho", "Đã xuất kho trước đó").
+    /// </summary>
+    public string TrangThaiXuLy { get; set; } = string.Empty;
 }
 
 #endregion
