@@ -1185,8 +1185,8 @@ public class XuatKhoService : IXuatKhoService
     }
 
     /// <summary>
-    /// API 9: Nhập xuất kho biển số xe tự động từ tệp tin Excel lưu trong thư mục StorageFolder (appsettings.json).
-    /// Tự động tạo các phiếu xuất kho với DaXuatKho = true và cập nhật bảng KhoBienSo.
+    /// API 9: Nhập xuất kho biển số xe tự động từ tệp tin Excel theo mẫu chuẩn MauBaoCao/XuatKhoBienSo.xlsx (14 cột).
+    /// Tự động đối soát bảng KhoBienSo, tạo các phiếu xuất kho với DaXuatKho = true và cập nhật trạng thái biển số.
     /// </summary>
     public async Task<ImportXuatKhoExcelResponse> ImportXuatKhoTuExcelAsync(
         ImportXuatKhoExcelRequest request, 
@@ -1216,7 +1216,7 @@ public class XuatKhoService : IXuatKhoService
             throw new ArgumentException($"Không tìm thấy Loại xe với Id: '{request.LoaiXeId}'.", nameof(request.LoaiXeId));
         }
 
-        // 2. Xác định đường dẫn tệp tin trong thư mục StorageFolder
+        // 2. Xác định đường dẫn tệp tin Excel trong thư mục lưu trữ hoặc thư mục mẫu
         var configuredFolder = string.IsNullOrWhiteSpace(_fileStorageSettings.StorageFolder) ? "Uploads" : _fileStorageSettings.StorageFolder;
         var destinationFolder = Path.IsPathRooted(configuredFolder)
             ? configuredFolder
@@ -1257,54 +1257,75 @@ public class XuatKhoService : IXuatKhoService
         ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
         using var package = new ExcelPackage(new FileInfo(filePath));
-        var ws = package.Workbook.Worksheets.FirstOrDefault();
+        var ws = package.Workbook.Worksheets.FirstOrDefault(w => w.Name.Equals("XuatKho", StringComparison.OrdinalIgnoreCase))
+                 ?? package.Workbook.Worksheets.FirstOrDefault();
+
         if (ws == null || ws.Dimension == null)
         {
             return new ImportXuatKhoExcelResponse { TongSoDong = 0, ThongBao = "Tệp Excel không chứa dữ liệu hoặc không có trang tính hợp lệ." };
         }
 
-        // 4. Nhận diện dòng tiêu đề và vị trí các cột
-        int headerRow = 1;
+        // 4. Cấu hình vị trí cột theo mẫu chuẩn MauBaoCao/XuatKhoBienSo.xlsx (Dòng 3 - 14 cột A -> N)
+        // A: STT, B: Ngày thực hiện, C: Thủ tục, D: Biển số xe, E: Xuất kho, F: Ký hiệu quyển, G: Số biên lai,
+        // H: Ngày biên lai, I: Số tiền thu (VNĐ), J: Người nộp tiền, K: Số CCCD, L: Mã hồ sơ DVC, M: Cán bộ lập, N: Trạng thái
+        int headerRow = 3;
         int colStt = 1;
-        int colMaHoSoDvc = 2;
+        int colNgayThucHien = 2;
         int colLoaiThuTuc = 3;
-        int colTinhChat = 4;
-        int colSoTienThu = 5;
-        int colBienSo = 6;
-        int colKhuVuc = 7;
-        int colNhanHieu = 8;
-        int colSoKhung = 9;
-        int colSoMay = 10;
-        int colGhiChu = 11;
-        int colNgay = 12;
-        int colKyHieuQuyen = 13;
-        int colSoBienLai = 14;
-        int colSoTienThu2 = 15;
-        int colCanCuPhapLy = 16;
-        int colHoTenNguoiNop = 17;
-        int colSoCccd = 18;
-        int colNgayThucHien = 19;
-        int colTrangThai = 20;
+        int colBienSo = 4;
+        int colTinhChat = 5;
+        int colKyHieuQuyen = 6;
+        int colSoBienLai = 7;
+        int colNgayBienLai = 8;
+        int colSoTienThu = 9;
+        int colHoTenNguoiNop = 10;
+        int colSoCccd = 11;
+        int colMaHoSoDvc = 12;
+        int colCanBoLap = 13;
+        int colTrangThai = 14;
 
+        // Các cột hỗ trợ tương thích ngược (nếu file cũ có chứa)
+        int colKhuVuc = -1;
+        int colNhanHieu = -1;
+        int colSoKhung = -1;
+        int colSoMay = -1;
+        int colCanCuPhapLy = -1;
+        int colGhiChu = -1;
+
+        // Quét thông minh nhận diện dòng header thực tế (tránh nhầm dòng 1 tiêu đề lớn hoặc dòng 2 phụ đề)
         int maxScanRow = Math.Min(10, ws.Dimension.End.Row);
         bool foundDynamicHeader = false;
 
         for (int r = 1; r <= maxScanRow; r++)
         {
+            int matchedHeaderCells = 0;
             for (int c = 1; c <= ws.Dimension.End.Column; c++)
             {
                 var text = ws.Cells[r, c].Text?.Trim().ToLowerInvariant();
-                if (text != null && (text.Contains("biển") || text.Contains("bien") || text.Contains("bks") || text.Contains("biên lai") || text.Contains("thủ tục"))
-                    && !text.Contains("danh sách") && !text.Contains("báo cáo") && !text.Contains("tiêu đề"))
+                if (string.IsNullOrWhiteSpace(text)) continue;
+
+                if (text == "stt" || text.Contains("thứ tự") ||
+                    text.Contains("biển số") || text.Contains("biển kiểm soát") || text == "bks" ||
+                    text.Contains("thủ tục") || text.Contains("xuất kho") ||
+                    text.Contains("quyển") || text.Contains("số biên lai") || text.Contains("ngày biên lai") ||
+                    text.Contains("ngày thực hiện") || text.Contains("người nộp") ||
+                    text.Contains("cccd") || text.Contains("mã hồ sơ") || text.Contains("dvc") ||
+                    text.Contains("cán bộ") || text.Contains("lệ phí") || text.Contains("tiền thu"))
                 {
-                    headerRow = r;
-                    foundDynamicHeader = true;
-                    break;
+                    matchedHeaderCells++;
                 }
             }
-            if (foundDynamicHeader) break;
+
+            // Dòng header thực sự phải có ít nhất 2 tiêu đề cột riêng biệt
+            if (matchedHeaderCells >= 2)
+            {
+                headerRow = r;
+                foundDynamicHeader = true;
+                break;
+            }
         }
 
+        // Tự động map lại chỉ số cột nếu vị trí các cột có thay đổi
         if (foundDynamicHeader)
         {
             for (int c = 1; c <= ws.Dimension.End.Column; c++)
@@ -1313,31 +1334,38 @@ public class XuatKhoService : IXuatKhoService
                 if (string.IsNullOrWhiteSpace(text)) continue;
 
                 if (text == "stt" || text.Contains("thứ tự")) colStt = c;
+                else if (text.Contains("ngày thực hiện") || text.Contains("ngày xuất") || text.Contains("thời gian")) colNgayThucHien = c;
+                else if (text.Contains("ngày biên lai") || text.Contains("ngày bl")) colNgayBienLai = c;
+                else if (text.Contains("thủ tục")) colLoaiThuTuc = c;
+                else if (text.Contains("biển") || text.Contains("bks")) colBienSo = c;
+                else if (text.Contains("xuất kho") || text.Contains("tính chất") || text.Contains("hình thức")) colTinhChat = c;
+                else if (text.Contains("quyển") || text.Contains("quyen")) colKyHieuQuyen = c;
+                else if (text.Contains("số biên lai") || text.Contains("số bl") || text.Contains("so bl")) colSoBienLai = c;
+                else if (text.Contains("tiền") || text.Contains("lệ phí") || text.Contains("mức thu")) colSoTienThu = c;
+                else if (text.Contains("người nộp") || text.Contains("họ tên") || text.Contains("chủ phương tiện")) colHoTenNguoiNop = c;
+                else if (text.Contains("cccd") || text.Contains("cmnd") || text.Contains("định danh")) colSoCccd = c;
                 else if (text.Contains("hồ sơ") || text.Contains("dvc") || text.Contains("mã hs")) colMaHoSoDvc = c;
-                else if (text.Contains("thủ tục") || text.Contains("thu tuc")) colLoaiThuTuc = c;
-                else if (text.Contains("hình thức") || text.Contains("tính chất") || text.Contains("tinh chat")) colTinhChat = c;
-                else if (text.Contains("khu vực") || text.Contains("khu vuc")) colKhuVuc = c;
+                else if (text.Contains("cán bộ") || text.Contains("người lập")) colCanBoLap = c;
+                else if (text.Contains("trạng thái")) colTrangThai = c;
+                else if (text.Contains("khu vực")) colKhuVuc = c;
                 else if (text.Contains("nhãn hiệu") || text.Contains("hiệu xe")) colNhanHieu = c;
                 else if (text.Contains("khung")) colSoKhung = c;
                 else if (text.Contains("máy") || text.Contains("so may")) colSoMay = c;
                 else if (text.Contains("căn cứ") || text.Contains("pháp lý")) colCanCuPhapLy = c;
-                else if (text.Contains("người nộp") || text.Contains("họ tên") || text.Contains("chủ phương tiện")) colHoTenNguoiNop = c;
-                else if (text.Contains("cccd") || text.Contains("cmnd") || text.Contains("định danh")) colSoCccd = c;
-                else if (text.Contains("trạng thái") || text.Contains("trang thai")) colTrangThai = c;
-                else if (text.Contains("quyển") || text.Contains("quyen")) colKyHieuQuyen = c;
-                else if (text.Contains("số bl") || text.Contains("số biên lai") || text.Contains("so bl")) colSoBienLai = c;
-                else if (text.Contains("thời gian") || text.Contains("ngày thực hiện") || text.Contains("ngày nộp") || text.Contains("ngày biên lai")) colNgay = c;
-                else if (text.Contains("biển") || text.Contains("bien") || text.Contains("bks")) colBienSo = c;
-                else if (text.Contains("tiền") || text.Contains("lệ phí") || text.Contains("mức thu"))
-                {
-                    if (colSoTienThu == 5) colSoTienThu = c;
-                    else colSoTienThu2 = c;
-                }
                 else if (text.Contains("ghi chú")) colGhiChu = c;
             }
         }
 
-        // 5. Nạp danh mục cần thiết để liên kết
+        if (ws.Dimension.End.Row <= headerRow)
+        {
+            return new ImportXuatKhoExcelResponse
+            {
+                TongSoDong = 0,
+                ThongBao = "Tệp Excel chỉ chứa dòng tiêu đề, không có dữ liệu biển số xuất kho nào."
+            };
+        }
+
+        // 5. Nạp danh mục cần thiết để liên kết và tra cứu
         var customerId = _currentUserService.CustomerId;
 
         var statusDaBam = await _dbContext.TrangThaiBienSos.AsNoTracking()
@@ -1357,11 +1385,19 @@ public class XuatKhoService : IXuatKhoService
         var processedPlatesInFile = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var affectedDotNhapIds = new HashSet<string>();
 
-        // 6. Quét từng dòng dữ liệu từ Excel
+        // 6. Quét từng dòng dữ liệu từ Excel (từ sau dòng header)
         for (int row = headerRow + 1; row <= ws.Dimension.End.Row; row++)
         {
-            var rawBienSo = ws.Cells[row, colBienSo].Text?.Trim();
+            var rawBienSo = colBienSo > 0 ? ws.Cells[row, colBienSo].Text?.Trim() : null;
             if (string.IsNullOrWhiteSpace(rawBienSo))
+            {
+                continue;
+            }
+
+            // Bỏ qua nếu dòng là tiêu đề lặp lại
+            if (rawBienSo.Equals("biển số xe", StringComparison.OrdinalIgnoreCase) || 
+                rawBienSo.Equals("biển kiểm soát", StringComparison.OrdinalIgnoreCase) ||
+                rawBienSo.Equals("bks", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -1370,7 +1406,7 @@ public class XuatKhoService : IXuatKhoService
 
             // Chuẩn hóa biển kiểm soát
             var bienKiemSoat = rawBienSo.ToUpperInvariant().Trim();
-            var normalizedPlate = bienKiemSoat.Replace("-", "").Replace(".", "").Replace(" ", "").ToUpperInvariant();
+            var normalizedPlate = Regex.Replace(bienKiemSoat, @"[\s\.\-]+", "").ToUpperInvariant();
 
             // Kiểm tra trùng lặp trong cùng tệp Excel
             if (!processedPlatesInFile.Add(normalizedPlate))
@@ -1387,36 +1423,48 @@ public class XuatKhoService : IXuatKhoService
 
             try
             {
-                // Đọc các trường thông tin từ dòng
-                var maHoSoDvc = colMaHoSoDvc > 0 ? ws.Cells[row, colMaHoSoDvc].Text?.Trim() : null;
+                // Đọc các trường thông tin theo mẫu 14 cột
                 var loaiThuTucRaw = colLoaiThuTuc > 0 ? ws.Cells[row, colLoaiThuTuc].Text?.Trim() : null;
-                var tinhChatRaw = colTinhChat > 0 ? ws.Cells[row, colTinhChat].Text?.Trim() : null;
-                var khuVucRaw = colKhuVuc > 0 ? ws.Cells[row, colKhuVuc].Text?.Trim() : null;
-                var nhanHieu = colNhanHieu > 0 ? ws.Cells[row, colNhanHieu].Text?.Trim() : null;
-                var soKhung = colSoKhung > 0 ? ws.Cells[row, colSoKhung].Text?.Trim() : null;
-                var soMay = colSoMay > 0 ? ws.Cells[row, colSoMay].Text?.Trim() : null;
-                var rawGhiChu = colGhiChu > 0 ? ws.Cells[row, colGhiChu].Text?.Trim() : null;
+                var rawXuatKho = colTinhChat > 0 ? ws.Cells[row, colTinhChat].Text?.Trim() : null;
                 var kyHieuQuyen = colKyHieuQuyen > 0 ? ws.Cells[row, colKyHieuQuyen].Text?.Trim() : string.Empty;
                 var soBienLai = colSoBienLai > 0 ? ws.Cells[row, colSoBienLai].Text?.Trim() : string.Empty;
-                var canCuPhapLy = colCanCuPhapLy > 0 ? ws.Cells[row, colCanCuPhapLy].Text?.Trim() : null;
-                var hoTenNguoiNop = colHoTenNguoiNop > 0 ? ws.Cells[row, colHoTenNguoiNop].Text?.Trim() : "Người nộp tiền";
+                var hoTenNguoiNop = colHoTenNguoiNop > 0 ? ws.Cells[row, colHoTenNguoiNop].Text?.Trim() : null;
+                if (string.IsNullOrWhiteSpace(hoTenNguoiNop)) hoTenNguoiNop = "Người nộp tiền";
                 var soCccd = colSoCccd > 0 ? ws.Cells[row, colSoCccd].Text?.Trim() : null;
+                var maHoSoDvc = colMaHoSoDvc > 0 ? ws.Cells[row, colMaHoSoDvc].Text?.Trim() : null;
+                var canBoLap = colCanBoLap > 0 ? ws.Cells[row, colCanBoLap].Text?.Trim() : null;
+                var rawTrangThai = colTrangThai > 0 ? ws.Cells[row, colTrangThai].Text?.Trim() : null;
 
-                // Đọc số tiền lệ phí
+                // Xác định tính chất xuất kho
+                var tinhChatXuatKho = "Xuất 01 biển từ kho 'Biển được bấm'";
+                if (!string.IsNullOrWhiteSpace(rawXuatKho) &&
+                    (rawXuatKho.Contains("kho", StringComparison.OrdinalIgnoreCase) ||
+                     rawXuatKho.Contains("biển", StringComparison.OrdinalIgnoreCase) ||
+                     rawXuatKho.Contains("xuất", StringComparison.OrdinalIgnoreCase)))
+                {
+                    tinhChatXuatKho = rawXuatKho;
+                }
+
+                // Chuẩn hóa trạng thái phiếu
+                var trangThai = "HoanTat";
+                if (!string.IsNullOrWhiteSpace(rawTrangThai))
+                {
+                    var lowerTt = rawTrangThai.ToLowerInvariant();
+                    if (lowerTt.Contains("tạm") || lowerTt.Contains("luutam")) trangThai = "LuuTam";
+                    else if (lowerTt.Contains("hủy") || lowerTt.Contains("dahuy")) trangThai = "DaHuy";
+                    else trangThai = "HoanTat";
+                }
+
+                // Đọc số tiền lệ phí thu
                 decimal soTienThu = 0;
                 var valMoney = colSoTienThu > 0 ? ws.Cells[row, colSoTienThu].Value : null;
-                if (valMoney == null && colSoTienThu2 > 0) valMoney = ws.Cells[row, colSoTienThu2].Value;
-
                 if (valMoney is double dVal) soTienThu = Convert.ToDecimal(dVal);
                 else if (valMoney is decimal decVal) soTienThu = decVal;
                 else if (valMoney is int iVal) soTienThu = iVal;
                 else if (valMoney is long lVal) soTienThu = lVal;
                 else
                 {
-                    var textMoney = (colSoTienThu > 0 ? ws.Cells[row, colSoTienThu].Text?.Trim() : null);
-                    if (string.IsNullOrWhiteSpace(textMoney) && colSoTienThu2 > 0)
-                        textMoney = ws.Cells[row, colSoTienThu2].Text?.Trim();
-
+                    var textMoney = colSoTienThu > 0 ? ws.Cells[row, colSoTienThu].Text?.Trim() : null;
                     if (!string.IsNullOrWhiteSpace(textMoney))
                     {
                         var cleanMoney = textMoney.Replace(",", "").Replace(".", "").Replace("đ", "").Replace("VND", "").Trim();
@@ -1424,10 +1472,10 @@ public class XuatKhoService : IXuatKhoService
                     }
                 }
 
-                // Đọc ngày thực hiện / ngày biên lai
+                // Đọc ngày thực hiện
                 DateTime ngayThucHien = DateTime.UtcNow;
-                var dateCellVal = colNgay > 0 ? ws.Cells[row, colNgay].Value : null;
-                if (dateCellVal == null && colNgayThucHien > 0) dateCellVal = ws.Cells[row, colNgayThucHien].Value;
+                var dateCellVal = colNgayThucHien > 0 ? ws.Cells[row, colNgayThucHien].Value : null;
+                if (dateCellVal == null && colNgayBienLai > 0) dateCellVal = ws.Cells[row, colNgayBienLai].Value;
 
                 if (dateCellVal is DateTime dt)
                 {
@@ -1435,25 +1483,63 @@ public class XuatKhoService : IXuatKhoService
                 }
                 else
                 {
-                    var dateText = colNgay > 0 ? ws.Cells[row, colNgay].Text?.Trim() : null;
-                    if (string.IsNullOrWhiteSpace(dateText) && colNgayThucHien > 0) dateText = ws.Cells[row, colNgayThucHien].Text?.Trim();
+                    var dateText = colNgayThucHien > 0 ? ws.Cells[row, colNgayThucHien].Text?.Trim() : null;
+                    if (string.IsNullOrWhiteSpace(dateText) && colNgayBienLai > 0) dateText = ws.Cells[row, colNgayBienLai].Text?.Trim();
 
-                    if (!string.IsNullOrWhiteSpace(dateText) && DateTime.TryParse(dateText, CultureInfo.GetCultureInfo("vi-VN"), DateTimeStyles.None, out var parsedDt))
+                    if (!string.IsNullOrWhiteSpace(dateText))
                     {
-                        ngayThucHien = parsedDt;
-                    }
-                    else if (!string.IsNullOrWhiteSpace(dateText) && DateTime.TryParse(dateText, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDtInv))
-                    {
-                        ngayThucHien = parsedDtInv;
+                        if (DateTime.TryParse(dateText, CultureInfo.GetCultureInfo("vi-VN"), DateTimeStyles.None, out var parsedDt))
+                            ngayThucHien = parsedDt;
+                        else if (DateTime.TryParse(dateText, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDtInv))
+                            ngayThucHien = parsedDtInv;
                     }
                 }
 
-                // Ghép thông tin xe vào GhiChu
+                // Đọc ngày biên lai
+                DateTime ngayBienLai = ngayThucHien;
+                var blDateCellVal = colNgayBienLai > 0 ? ws.Cells[row, colNgayBienLai].Value : null;
+                if (blDateCellVal is DateTime dtBL)
+                {
+                    ngayBienLai = dtBL;
+                }
+                else
+                {
+                    var blDateText = colNgayBienLai > 0 ? ws.Cells[row, colNgayBienLai].Text?.Trim() : null;
+                    if (!string.IsNullOrWhiteSpace(blDateText))
+                    {
+                        if (DateTime.TryParse(blDateText, CultureInfo.GetCultureInfo("vi-VN"), DateTimeStyles.None, out var parsedBLDt))
+                            ngayBienLai = parsedBLDt;
+                        else if (DateTime.TryParse(blDateText, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedBLDtInv))
+                            ngayBienLai = parsedBLDtInv;
+                    }
+                }
+
+                // Ghép thông tin bổ sung vào GhiChu (cán bộ lập, nhãn hiệu, số khung, số máy nếu có)
                 var ghiChuParts = new List<string>();
-                if (!string.IsNullOrWhiteSpace(rawGhiChu)) ghiChuParts.Add(rawGhiChu);
-                if (!string.IsNullOrWhiteSpace(nhanHieu)) ghiChuParts.Add($"Nhãn hiệu: {nhanHieu}");
-                if (!string.IsNullOrWhiteSpace(soKhung)) ghiChuParts.Add($"Số khung: {soKhung}");
-                if (!string.IsNullOrWhiteSpace(soMay)) ghiChuParts.Add($"Số máy: {soMay}");
+                if (colGhiChu > 0)
+                {
+                    var legacyGhiChu = ws.Cells[row, colGhiChu].Text?.Trim();
+                    if (!string.IsNullOrWhiteSpace(legacyGhiChu)) ghiChuParts.Add(legacyGhiChu);
+                }
+                if (!string.IsNullOrWhiteSpace(canBoLap))
+                {
+                    ghiChuParts.Add($"Cán bộ lập: {canBoLap}");
+                }
+                if (colNhanHieu > 0)
+                {
+                    var nhanHieu = ws.Cells[row, colNhanHieu].Text?.Trim();
+                    if (!string.IsNullOrWhiteSpace(nhanHieu)) ghiChuParts.Add($"Nhãn hiệu: {nhanHieu}");
+                }
+                if (colSoKhung > 0)
+                {
+                    var soKhung = ws.Cells[row, colSoKhung].Text?.Trim();
+                    if (!string.IsNullOrWhiteSpace(soKhung)) ghiChuParts.Add($"Số khung: {soKhung}");
+                }
+                if (colSoMay > 0)
+                {
+                    var soMay = ws.Cells[row, colSoMay].Text?.Trim();
+                    if (!string.IsNullOrWhiteSpace(soMay)) ghiChuParts.Add($"Số máy: {soMay}");
+                }
                 var ghiChu = ghiChuParts.Count > 0 ? string.Join("; ", ghiChuParts) : null;
 
                 // 7. Kiểm tra biển số trong bảng KhoBienSo
@@ -1467,7 +1553,6 @@ public class XuatKhoService : IXuatKhoService
                 // Kiểm tra xem biển số đã có trong kho hay chưa
                 if (bienSo == null)
                 {
-                    // Biển số CHƯA CÓ TRONG KHO: Báo lỗi và ghi nhận vào danh sách biển số chưa có trong kho
                     response.SoLuongLoi++;
                     response.DanhSachBienSoChuaCoTrongKho.Add(bienKiemSoat);
                     response.DanhSachLoi.Add(new ImportXuatKhoLoiItem
@@ -1517,12 +1602,15 @@ public class XuatKhoService : IXuatKhoService
                 // 8. Khớp nối các danh mục liên quan
                 var loaiThuTuc = listLoaiThuTuc.FirstOrDefault(x =>
                     !string.IsNullOrWhiteSpace(loaiThuTucRaw) &&
-                    (x.Ten.ToLower().Contains(loaiThuTucRaw.ToLower()) || loaiThuTucRaw.ToLower().Contains(x.Ten.ToLower())))
+                    (x.Ten.Contains(loaiThuTucRaw, StringComparison.OrdinalIgnoreCase) || 
+                     loaiThuTucRaw.Contains(x.Ten, StringComparison.OrdinalIgnoreCase) ||
+                     x.Ma.Equals(loaiThuTucRaw, StringComparison.OrdinalIgnoreCase)))
                     ?? listLoaiThuTuc.FirstOrDefault();
 
+                var khuVucRaw = colKhuVuc > 0 ? ws.Cells[row, colKhuVuc].Text?.Trim() : null;
                 var khuVuc = listKhuVuc.FirstOrDefault(x =>
                     !string.IsNullOrWhiteSpace(khuVucRaw) &&
-                    (x.Ten.ToLower().Contains(khuVucRaw.ToLower()) || khuVucRaw.ToLower().Contains(x.Ten.ToLower())))
+                    (x.Ten.Contains(khuVucRaw, StringComparison.OrdinalIgnoreCase) || khuVucRaw.Contains(x.Ten, StringComparison.OrdinalIgnoreCase)))
                     ?? listKhuVuc.FirstOrDefault();
 
                 var quyen = listQuyen.FirstOrDefault(x =>
@@ -1536,6 +1624,8 @@ public class XuatKhoService : IXuatKhoService
 
                 var dauBien = listDauBien.FirstOrDefault(d => d.Id == bienSo.DauBienSoId);
                 var mauBien = defaultMauBien;
+                var canCuPhapLy = (colCanCuPhapLy > 0 ? ws.Cells[row, colCanCuPhapLy].Text?.Trim() : null)
+                                  ?? (mucThu?.CanCuPhapLy ?? "Thông tư 155/2025/TT-BTC");
 
                 // 9. Tạo thực thể XuatKhoBienSo với DaXuatKho = true
                 var xuatKho = new XuatKhoBienSo
@@ -1545,8 +1635,8 @@ public class XuatKhoService : IXuatKhoService
                     LoaiThuTucId = loaiThuTuc?.Id ?? string.Empty,
                     LoaiThuTucTen = loaiThuTuc?.Ten ?? loaiThuTucRaw ?? "Cấp biển (Có xuất kho số)",
                     NgayThucHien = ngayThucHien,
-                    TinhChatXuatKho = !string.IsNullOrWhiteSpace(tinhChatRaw) ? tinhChatRaw : "Xuất 01 biển từ kho 'Biển được bấm'",
-                    KhoBienSoId = bienSo.Id,
+                    TinhChatXuatKho = tinhChatXuatKho,
+                    KhoBienSoId = bienSo.Id ?? string.Empty,
                     BienKiemSoat = bienKiemSoat,
                     LoaiXeId = loaiXe.Id,
                     LoaiXeTen = loaiXe.Ten ?? "Ô tô",
@@ -1560,22 +1650,24 @@ public class XuatKhoService : IXuatKhoService
                     KhuVucApDungId = khuVuc?.Id ?? string.Empty,
                     KhuVucApDungTen = khuVuc?.Ten,
                     DieuKienTriGiaXe = null,
-                    CanCuPhapLy = !string.IsNullOrWhiteSpace(canCuPhapLy) ? canCuPhapLy : (mucThu?.CanCuPhapLy ?? "Thông tư 155/2025/TT-BTC"),
+                    CanCuPhapLy = canCuPhapLy,
                     SoTienTuDongDien = soTienThu,
 
                     KyHieuQuyenBienLaiId = quyen?.Id ?? string.Empty,
                     KyHieuQuyen = !string.IsNullOrWhiteSpace(kyHieuQuyen) ? kyHieuQuyen : (quyen?.Ma ?? string.Empty),
                     SoBienLai = !string.IsNullOrWhiteSpace(soBienLai) ? soBienLai : bienKiemSoat,
-                    NgayBienLai = ngayThucHien,
+                    NgayBienLai = ngayBienLai,
                     SoTienThu = soTienThu,
-                    HoTenNguoiNop = !string.IsNullOrWhiteSpace(hoTenNguoiNop) ? hoTenNguoiNop : "Người nộp tiền",
+                    HoTenNguoiNop = hoTenNguoiNop,
                     SoCccd = soCccd,
                     MaHoSoDvc = maHoSoDvc,
                     GhiChu = ghiChu,
                     DaXuatKho = true,
-                    TrangThai = "HoanTat",
+                    TrangThai = trangThai,
                     Created = DateTime.UtcNow,
-                    Modified = DateTime.UtcNow
+                    Modified = DateTime.UtcNow,
+                    CreatedByName = !string.IsNullOrWhiteSpace(canBoLap) ? canBoLap : (_currentUserService.FullName ?? _currentUserService.Username),
+                    CreatedById = _currentUserService.UserId
                 };
 
                 await _dbContext.XuatKhoBienSos.AddAsync(xuatKho, cancellationToken);
@@ -1791,7 +1883,7 @@ public class XuatKhoService : IXuatKhoService
     }
 
     /// <summary>
-    /// Tạo cấu trúc và dữ liệu mẫu tệp Excel xuất kho biển số xe theo chuẩn EPPlus.
+    /// Tạo cấu trúc và dữ liệu mẫu tệp Excel xuất kho biển số xe theo chuẩn 14 cột của MauBaoCao/XuatKhoBienSo.xlsx bằng EPPlus.
     /// </summary>
     private static byte[] GenerateMauXuatKhoExcelBytes()
     {
@@ -1799,31 +1891,30 @@ public class XuatKhoService : IXuatKhoService
         using var package = new ExcelPackage();
         var ws = package.Workbook.Worksheets.Add("XuatKho");
 
-        // 1. Tiêu đề
+        // 1. Tiêu đề (Merge A1:N1)
         ws.Cells[1, 1].Value = "DANH SÁCH BIỂN SỐ XE XUẤT KHO";
-        ws.Cells[1, 1, 1, 17].Merge = true;
+        ws.Cells[1, 1, 1, 14].Merge = true;
         ws.Cells[1, 1].Style.Font.Bold = true;
         ws.Cells[1, 1].Style.Font.Size = 16;
         ws.Cells[1, 1].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
         ws.Cells[1, 1].Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
         ws.Row(1).Height = 35;
 
-        // 2. Phụ đề
+        // 2. Phụ đề (Merge A2:N2)
         ws.Cells[2, 1].Value = "(Áp dụng cho tệp mẫu nhập xuất kho biển số xe và biên lai thu phí)";
-        ws.Cells[2, 1, 2, 17].Merge = true;
+        ws.Cells[2, 1, 2, 14].Merge = true;
         ws.Cells[2, 1].Style.Font.Italic = true;
         ws.Cells[2, 1].Style.Font.Size = 10;
         ws.Cells[2, 1].Style.Font.Color.SetColor(System.Drawing.Color.Gray);
         ws.Cells[2, 1].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
         ws.Row(2).Height = 20;
 
-        // 3. Dòng Header (Dòng 3)
+        // 3. Dòng Header (Dòng 3 - 14 cột chuẩn)
         var headers = new[]
         {
-            "STT", "Mã hồ sơ DVC", "Loại thủ tục", "Tính chất", "Lệ phí (VNĐ)",
-            "Biển kiểm soát", "Khu vực", "Nhãn hiệu", "Số khung", "Số máy",
-            "Ký hiệu quyển", "Số biên lai", "Họ tên người nộp", "Số CCCD",
-            "Ngày thực hiện", "Căn cứ pháp lý", "Ghi chú"
+            "STT", "Ngày thực hiện", "Thủ tục", "Biển số xe", "Xuất kho",
+            "Ký hiệu quyển", "Số biên lai", "Ngày biên lai", "Số tiền thu (VNĐ)", "Người nộp tiền",
+            "Số CCCD", "Mã hồ sơ DVC", "Cán bộ lập", "Trạng thái"
         };
 
         ws.Row(3).Height = 28;
@@ -1843,9 +1934,9 @@ public class XuatKhoService : IXuatKhoService
         // 4. Dữ liệu mẫu (Rows 4, 5, 6)
         var sampleRows = new List<object[]>
         {
-            new object[] { 1, "DVC-2026-0001", "Cấp biển (Có xuất kho số)", "Xuất 01 biển từ kho 'Biển được bấm'", 150000, "30A-999.99", "Khu vực I", "Toyota", "RL123456789", "SM987654321", "Q01", "0000001", "Nguyễn Văn A", "001234567890", "19/10/2026", "Thông tư 155/2025/TT-BTC", "Xuất kho theo thủ tục cấp biển" },
-            new object[] { 2, "DVC-2026-0002", "Cấp biển (Có xuất kho số)", "Xuất 01 biển từ kho 'Biển được bấm'", 150000, "30A-888.88", "Khu vực I", "Honda", "RL987654321", "SM123456789", "Q01", "0000002", "Trần Thị B", "001098765432", "19/10/2026", "Thông tư 155/2025/TT-BTC", "Xuất kho ô tô con" },
-            new object[] { 3, "DVC-2026-0003", "Cấp lại biển số", "Xuất 01 biển từ kho 'Biển được bấm'", 100000, "29B-123.45", "Khu vực I", "Hyundai", "RL555666777", "SM888999000", "Q01", "0000003", "Lê Văn C", "001087654321", "19/10/2026", "Thông tư 155/2025/TT-BTC", "Cấp lại biển số hỏng" }
+            new object[] { 1, "19/10/2026", "Cấp biển (Có xuất kho số)", "30A-999.99", "Xuất 01 biển từ kho 'Biển được bấm'", "Q01", "0000001", "19/10/2026", 150000, "Nguyễn Văn A", "001234567890", "DVC-2026-0001", "Cán bộ quản lý", "Hoàn tất" },
+            new object[] { 2, "19/10/2026", "Cấp biển (Có xuất kho số)", "30A-888.88", "Xuất 01 biển từ kho 'Biển được bấm'", "Q01", "0000002", "19/10/2026", 150000, "Trần Thị B", "001098765432", "DVC-2026-0002", "Cán bộ quản lý", "Hoàn tất" },
+            new object[] { 3, "19/10/2026", "Cấp lại biển số", "29B-123.45", "Xuất 01 biển từ kho 'Biển được bấm'", "Q01", "0000003", "19/10/2026", 100000, "Lê Văn C", "001087654321", "DVC-2026-0003", "Cán bộ quản lý", "Hoàn tất" }
         };
 
         for (int i = 0; i < sampleRows.Count; i++)
@@ -1861,25 +1952,25 @@ public class XuatKhoService : IXuatKhoService
                 cell.Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
 
                 if (c == 1) cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
-                else if (c == 5)
-                {
-                    cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Right;
-                    cell.Style.Numberformat.Format = "#,##0";
-                }
-                else if (c == 6)
+                else if (c == 4)
                 {
                     cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
                     cell.Style.Font.Bold = true;
                 }
-                else if (c == 11 || c == 12 || c == 14 || c == 15)
+                else if (c == 9)
+                {
+                    cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Right;
+                    cell.Style.Numberformat.Format = "#,##0";
+                }
+                else if (c == 2 || c == 6 || c == 7 || c == 8 || c == 11 || c == 12 || c == 14)
                 {
                     cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
                 }
             }
         }
 
-        // Độ rộng cột
-        int[] colWidths = { 8, 18, 28, 32, 16, 18, 16, 16, 20, 18, 16, 16, 22, 18, 18, 26, 30 };
+        // Độ rộng các cột tương ứng theo MauBaoCao/XuatKhoBienSo.xlsx
+        int[] colWidths = { 8, 18, 28, 32, 16, 18, 16, 16, 20, 18, 16, 16, 22, 18 };
         for (int c = 1; c <= colWidths.Length; c++)
         {
             ws.Column(c).Width = colWidths[c - 1];
