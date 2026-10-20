@@ -3635,6 +3635,222 @@
             Lý do lỗi hoặc bỏ qua.
             </summary>
         </member>
+        <member name="T:SMU.Application.DTOs.ImportXuatKhoAiRequest">
+            <summary>
+            Yêu cầu nhập xuất kho biển số xe sử dụng AI để đọc tệp tin bất kỳ (Word, Excel, PNG, JPG, PDF...).
+            Không cố định cấu trúc mẫu, AI tự động nhận diện và bóc tách các trường dữ liệu có trong tài liệu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiRequest.File">
+            <summary>
+            Tệp tin bất kỳ tải lên trực tiếp (hỗ trợ .xlsx, .xls, .docx, .doc, .png, .jpg, .jpeg, .pdf, .txt, .csv...).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiRequest.FileName">
+            <summary>
+            Hoặc tên tệp tin đã lưu trong thư mục StorageFolder (nếu không truyền File trực tiếp).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiRequest.LoaiXeId">
+            <summary>
+            Tùy chọn chỉ định ID hoặc Mã Loại xe mặc định nếu tài liệu không đề cập loại xe.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiRequest.ChiKiemTra">
+            <summary>
+            Tùy chọn chế độ chỉ kiểm tra (Dry-run / Preview): Nếu đặt true, hệ thống chỉ đọc và phân tích biển số, đối soát kho mà KHÔNG lưu thay đổi vào cơ sở dữ liệu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiRequest.Prompt">
+            <summary>
+            Gợi ý hoặc chỉ dẫn bổ sung cho mô hình AI khi đọc tệp (tùy chọn).
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.ImportXuatKhoAiResponse">
+            <summary>
+            Kết quả trả về của API nhập xuất kho biển số sử dụng AI.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiResponse.Success">
+            <summary>
+            Trạng thái thực hiện thành công.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiResponse.FileName">
+            <summary>
+            Tên tệp tin đã phân tích và import.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiResponse.FileExtension">
+            <summary>
+            Định dạng tệp tin (.png, .docx, .xlsx, .pdf,...).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiResponse.EngineUsed">
+            <summary>
+            Động cơ trích xuất đã dùng ("Gemini AI" hoặc "Heuristic Pattern Engine").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiResponse.ThongBao">
+            <summary>
+            Thông báo tổng hợp kết quả nghiệp vụ (số lượng thành công, cảnh báo biển số chưa có trong kho...).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiResponse.TongSoDongTrichXuat">
+            <summary>
+            Tổng số dòng / bản ghi biển số xe mà AI trích xuất được từ tệp.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiResponse.SoLuongThanhCong">
+            <summary>
+            Số lượng biển số xuất kho thành công (DaXuatKho = true).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiResponse.SoLuongBoQua">
+            <summary>
+            Số lượng biển số bị bỏ qua (đã xuất kho trước đó, trùng lặp trong tệp...).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiResponse.SoLuongLoi">
+            <summary>
+            Số lượng biển số bị lỗi (chưa có trong kho...).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiResponse.TongTienThu">
+            <summary>
+            Tổng số tiền lệ phí thu được từ các biển số xuất kho thành công (VNĐ).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiResponse.DanhSachBienSoXuatThanhCong">
+            <summary>
+            Danh sách các biển kiểm soát đã xuất kho thành công.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiResponse.DanhSachBienSoChuaCoTrongKho">
+            <summary>
+            Danh sách các biển kiểm soát trong tệp tin mà AI đọc được nhưng CHƯA CÓ TRONG KHO (chưa được nhập kho).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiResponse.ChiTietCacBanGhi">
+            <summary>
+            Danh sách chi tiết từng bản ghi dữ liệu AI trích xuất được kèm trạng thái đối soát trong kho.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiResponse.DanhSachLoi">
+            <summary>
+            Danh sách chi tiết các dòng bị lỗi hoặc bỏ qua kèm lý do.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem">
+            <summary>
+            Chi tiết một dòng / bản ghi biển số trích xuất được từ AI và trạng thái xử lý kho.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.Stt">
+            <summary>
+            Số thứ tự dòng.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.BienKiemSoat">
+            <summary>
+            Biển kiểm soát đọc được.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.MaHoSoDvc">
+            <summary>
+            Mã hồ sơ DVC đọc được (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.LoaiThuTuc">
+            <summary>
+            Loại thủ tục đọc được (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.TinhChat">
+            <summary>
+            Tính chất xuất kho đọc được (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.SoTienThu">
+            <summary>
+            Số tiền thu lệ phí đọc được (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.KhuVuc">
+            <summary>
+            Khu vực áp dụng đọc được (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.NhanHieu">
+            <summary>
+            Nhãn hiệu xe đọc được (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.SoKhung">
+            <summary>
+            Số khung đọc được (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.SoMay">
+            <summary>
+            Số máy đọc được (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.KyHieuQuyen">
+            <summary>
+            Ký hiệu quyển biên lai đọc được (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.SoBienLai">
+            <summary>
+            Số biên lai đọc được (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.HoTenNguoiNop">
+            <summary>
+            Họ tên người nộp tiền đọc được (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.SoCccd">
+            <summary>
+            Số CCCD / CMND đọc được (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.NgayThucHien">
+            <summary>
+            Ngày thực hiện đọc được (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.CanCuPhapLy">
+            <summary>
+            Căn cứ pháp lý đọc được (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.GhiChu">
+            <summary>
+            Ghi chú đọc được (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.TonTaiTrongKho">
+            <summary>
+            Đánh dấu biển số có tồn tại trong kho hay không.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.DaXuatKhoTruocDo">
+            <summary>
+            Đánh dấu biển số đã xuất kho trước đó hay chưa.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.XuatKhoThanhCong">
+            <summary>
+            Đánh dấu xuất kho thành công trong phiên này.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoAiChiTietItem.TrangThaiXuLy">
+            <summary>
+            Trạng thái xử lý hiển thị trực quan (Ví dụ: "Xuất kho thành công", "Chưa có trong kho", "Đã xuất kho trước đó").
+            </summary>
+        </member>
         <member name="T:SMU.Application.Interfaces.IAiService">
             <summary>
             Trừu tượng hóa dịch vụ AI (Gemini, OpenAI, Claude...), tuân thủ Dependency Inversion (DIP).
@@ -4347,6 +4563,13 @@
             Lấy luồng dữ liệu byte[] của tệp tin mẫu xuất kho Excel để hỗ trợ tải file trực tiếp từ controller.
             </summary>
         </member>
+        <member name="M:SMU.Application.Interfaces.IXuatKhoService.ImportXuatKhoTuFileAiAsync(SMU.Application.DTOs.ImportXuatKhoAiRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 15: Nhập xuất kho biển số xe sử dụng AI để đọc tệp tin bất kỳ (Word, Excel, Image/PNG, PDF, Text).
+            Không cố định mẫu, AI tự động nhận diện và trích xuất mọi trường dữ liệu có trong tài liệu.
+            Đối soát biển số với bảng KhoBienSo: Đặt DaXuatKho = true và lưu thay đổi vào KhoBienSo đối với các biển số đã có trong kho.
+            </summary>
+        </member>
         <member name="T:SMU.Application.Services.BackupService">
             <summary>
             Dịch vụ sao lưu toàn bộ dữ liệu cơ sở dữ liệu PostgreSQL vào thư mục cấu hình trong appsettings.json.
@@ -4846,8 +5069,8 @@
         </member>
         <member name="M:SMU.Application.Services.XuatKhoService.ImportXuatKhoTuExcelAsync(SMU.Application.DTOs.ImportXuatKhoExcelRequest,System.Threading.CancellationToken)">
             <summary>
-            API 9: Nhập xuất kho biển số xe tự động từ tệp tin Excel lưu trong thư mục StorageFolder (appsettings.json).
-            Tự động tạo các phiếu xuất kho với DaXuatKho = true và cập nhật bảng KhoBienSo.
+            API 9: Nhập xuất kho biển số xe tự động từ tệp tin Excel theo mẫu chuẩn MauBaoCao/XuatKhoBienSo.xlsx (14 cột).
+            Tự động đối soát bảng KhoBienSo, tạo các phiếu xuất kho với DaXuatKho = true và cập nhật trạng thái biển số.
             </summary>
         </member>
         <member name="M:SMU.Application.Services.XuatKhoService.ExportFileMauXuatKhoAsync(System.Threading.CancellationToken)">
@@ -4863,7 +5086,19 @@
         </member>
         <member name="M:SMU.Application.Services.XuatKhoService.GenerateMauXuatKhoExcelBytes">
             <summary>
-            Tạo cấu trúc và dữ liệu mẫu tệp Excel xuất kho biển số xe theo chuẩn EPPlus.
+            Tạo cấu trúc và dữ liệu mẫu tệp Excel xuất kho biển số xe theo chuẩn 14 cột của MauBaoCao/XuatKhoBienSo.xlsx bằng EPPlus.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.XuatKhoService.ImportXuatKhoTuFileAiAsync(SMU.Application.DTOs.ImportXuatKhoAiRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 15: Nhập xuất kho biển số xe sử dụng AI để đọc tệp tin bất kỳ (Word, Excel, Image/PNG, PDF, Text...).
+            Không cố định cấu trúc mẫu: AI tự động nhận diện và trích xuất mọi trường dữ liệu có trong tài liệu.
+            Đối soát biển số với bảng KhoBienSo: Đặt DaXuatKho = true và lưu thay đổi vào KhoBienSo đối với các biển số đã có trong kho.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.XuatKhoService.ExtractItemsFromJsonOrHeuristic(System.String,System.String)">
+            <summary>
+            Bóc tách các bản ghi từ phản hồi JSON của AI hoặc fallback bằng biểu thức chính quy (Heuristic).
             </summary>
         </member>
         <member name="T:SMU.Core.Entities.Account">
@@ -6776,6 +7011,11 @@
             Chiến lược trích xuất bảng tính Excel (.xlsx, .xls) thành định dạng Markdown tables.
             </summary>
         </member>
+        <member name="T:SMU.Infrastructure.Extractors.Implementations.ImageExtractorStrategy">
+            <summary>
+            Chiến lược trích xuất tệp tin hình ảnh (PNG, JPG, JPEG, WEBP, BMP, GIF) phục vụ phân tích thị giác AI Multimodal.
+            </summary>
+        </member>
         <member name="T:SMU.Infrastructure.Extractors.Implementations.PdfExtractorStrategy">
             <summary>
             Chiến lược trích xuất tài liệu PDF bằng thư viện PdfPig, hỗ trợ song song Multimodal Binary.
@@ -7941,6 +8181,13 @@
             6. GET /api/XuatKho/{id} : Lấy chi tiết phiếu xuất kho theo Id.
             7. GET /api/XuatKho/delete/{id} : Xóa phiếu xuất kho theo Id và khôi phục biển số về kho.
             8. GET /api/XuatKho/huy/{id} : Hủy phiếu xuất kho và cập nhật lại trạng thái biển số trong KhoBienSo.
+            11. GET /api/XuatKho/export-mau : Lấy thông tin tệp Excel mẫu để gọi API download Base64.
+            12. GET /api/XuatKho/download-mau : Tải trực tiếp tệp tin Excel mẫu XuatKhoBienSo.xlsx.
+            13. POST /api/XuatKho/check-import-excel : Kiểm tra trước tệp Excel xuất kho (dry-run).
+            14. POST /api/XuatKho/import-excel : Nhập xuất kho từ tệp Excel trong StorageFolder.
+            15. POST /api/XuatKho/import-ai : Nhập xuất kho sử dụng AI đọc tệp bất kỳ (Word, Excel, PNG, PDF...).
+            16. POST /api/XuatKho/import-ai-json : Nhập xuất kho sử dụng AI từ tệp đã lưu trong StorageFolder (JSON).
+            17. POST /api/XuatKho/check-import-ai : Kiểm tra trước kết quả AI đọc tệp xuất kho (dry-run).
             </summary>
         </member>
         <member name="M:SMU.Presentation.Controllers.XuatKhoController.LayDanhSachBienSoKhaDung(SMU.Application.DTOs.FilterBienSoKhaDungRequest,System.Threading.CancellationToken)">
@@ -8046,6 +8293,29 @@
             <param name="request">Input gồm LoaiXeId và tên file (FileName).</param>
             <param name="cancellationToken">Token hủy yêu cầu.</param>
             <returns>Kết quả tổng hợp số lượng xuất kho thành công, bỏ qua, lỗi, tổng tiền thu, danh sách biển số chưa có trong kho và chi tiết từng dòng lỗi.</returns>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.ImportXuatKhoAi(SMU.Application.DTOs.ImportXuatKhoAiRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 15: (POST) Nhập xuất kho biển số xe sử dụng AI để đọc tệp tin bất kỳ (Word, Excel, PNG, JPG, PDF, Text...).
+            Hỗ trợ upload tệp trực tiếp (multipart/form-data) hoặc truyền tên file đã lưu trong StorageFolder.
+            Không cố định cấu trúc mẫu: AI tự động nhận diện và trích xuất mọi trường dữ liệu có trong tài liệu.
+            Đối soát biển số với KhoBienSo: Đặt DaXuatKho = true và lưu thay đổi vào KhoBienSo đối với các biển số đã có trong kho.
+            Nếu biển số chưa có trong kho thì đưa vào danh sách cảnh báo DanhSachBienSoChuaCoTrongKho và không xuất kho cho biển đó.
+            </summary>
+            <param name="request">File upload trực tiếp (Word, Excel, Image/PNG, PDF...), hoặc FileName, LoaiXeId, ChiKiemTra, Prompt.</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+            <returns>Kết quả bóc tách và đối soát xuất kho của AI.</returns>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.ImportXuatKhoAiJson(SMU.Application.DTOs.ImportXuatKhoAiRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 16: (POST) Nhập xuất kho biển số xe sử dụng AI từ tệp tin đã lưu trong StorageFolder qua JSON (application/json).
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.CheckImportAi(SMU.Application.DTOs.ImportXuatKhoAiRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 17: (POST) Kiểm tra trước kết quả đọc AI (Dry-run / Preview):
+            AI bóc tách mọi trường dữ liệu từ tệp tin (Word, Excel, PNG, PDF...), đối soát với KhoBienSo và thông báo danh sách biển số hợp lệ/chưa có trong kho mà KHÔNG lưu thay đổi vào cơ sở dữ liệu.
+            </summary>
         </member>
         <member name="T:SMU.Presentation.Middlewares.GlobalExceptionHandler">
             <summary>

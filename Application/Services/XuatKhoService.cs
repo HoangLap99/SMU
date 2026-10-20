@@ -1523,7 +1523,7 @@ public class XuatKhoService : IXuatKhoService
                 }
                 if (!string.IsNullOrWhiteSpace(canBoLap))
                 {
-                    ghiChuParts.Add($"Cán bộ lập: {canBoLap}");
+                    ghiChuParts.Add($"{canBoLap}");
                 }
                 if (colNhanHieu > 0)
                 {
