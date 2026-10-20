@@ -21,10 +21,14 @@ namespace SMU.Presentation.Controllers;
 public class KiemKeKhoController : ControllerBase
 {
     private readonly IKiemKeKhoService _kiemKeKhoService;
+    private readonly ILogHoatDongService _logHoatDongService;
 
-    public KiemKeKhoController(IKiemKeKhoService kiemKeKhoService)
+    public KiemKeKhoController(
+        IKiemKeKhoService kiemKeKhoService,
+        ILogHoatDongService logHoatDongService)
     {
         _kiemKeKhoService = kiemKeKhoService;
+        _logHoatDongService = logHoatDongService;
     }
 
     /// <summary>
@@ -70,15 +74,8 @@ public class KiemKeKhoController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        try
-        {
-            var result = await _kiemKeKhoService.LayChiTietBienPopupAsync(request, cancellationToken);
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _kiemKeKhoService.LayChiTietBienPopupAsync(request, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -104,6 +101,7 @@ public class KiemKeKhoController : ControllerBase
     [HttpPost("set")]
     [ProducesResponseType(typeof(KiemKeKhoResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> Set([FromBody] SetKiemKeKhoRequest request, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
@@ -111,19 +109,8 @@ public class KiemKeKhoController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        try
-        {
-            var result = await _kiemKeKhoService.SetKiemKeKhoAsync(request, cancellationToken);
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _kiemKeKhoService.SetKiemKeKhoAsync(request, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -192,15 +179,8 @@ public class KiemKeKhoController : ControllerBase
             return BadRequest(new { message = "Vui lòng truyền biển kiểm soát cần xác định." });
         }
 
-        try
-        {
-            var result = await _kiemKeKhoService.XacDinhDauBienTuBienSoAsync(request.BienKiemSoat, request.CustomerId, cancellationToken);
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _kiemKeKhoService.XacDinhDauBienTuBienSoAsync(request.BienKiemSoat, request.CustomerId, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -209,6 +189,7 @@ public class KiemKeKhoController : ControllerBase
     [HttpGet("xacdinhdaubien")]
     [ProducesResponseType(typeof(XacDinhDauBienResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> XacDinhDauBienGet([FromQuery] string bienKiemSoat, [FromQuery] string? customerId, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(bienKiemSoat))
@@ -216,14 +197,32 @@ public class KiemKeKhoController : ControllerBase
             return BadRequest(new { message = "Vui lòng truyền biển kiểm soát cần xác định." });
         }
 
-        try
-        {
-            var result = await _kiemKeKhoService.XacDinhDauBienTuBienSoAsync(bienKiemSoat, customerId, cancellationToken);
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var result = await _kiemKeKhoService.XacDinhDauBienTuBienSoAsync(bienKiemSoat, customerId, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 8: (GET/POST) Lấy nhật ký hoạt động của phân hệ Kiểm kê kho biển số xe.
+    /// </summary>
+    [HttpGet("log")]
+    [HttpPost("log")]
+    [ProducesResponseType(typeof(PagedResult<LogHoatDongResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LayLogKiemKeKho([FromQuery] FilterLogHoatDongRequest? request, CancellationToken cancellationToken)
+    {
+        request ??= new FilterLogHoatDongRequest();
+        request.LoaiNghiepVu = "KiemKe";
+        var result = await _logHoatDongService.LayDanhSachLogAsync(request, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 9: (GET) Lấy lịch sử log của 1 phiếu kiểm kê kho cụ thể theo Id hoặc MaPhieuKiemKe.
+    /// </summary>
+    [HttpGet("{id}/log")]
+    [ProducesResponseType(typeof(IReadOnlyList<LogHoatDongResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LayLogTheoPhieuKiemKe([FromRoute] string id, CancellationToken cancellationToken)
+    {
+        var result = await _logHoatDongService.LayLogTheoChungTuAsync(id, cancellationToken);
+        return Ok(result);
     }
 }

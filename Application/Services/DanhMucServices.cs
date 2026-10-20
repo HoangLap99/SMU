@@ -84,6 +84,7 @@ public abstract class BaseDanhMucService<TEntity, TResponse, TSetRequest>
 
         // 2. Sắp xếp danh sách theo: Thứ tự (ThuTu), sau đó đến Mã (Ma)
         var list = await query
+            .Where(x=>x.IsActive)
             .OrderBy(x => x.ThuTu)
             .ThenBy(x => x.Ma)
             .ToListAsync(cancellationToken);

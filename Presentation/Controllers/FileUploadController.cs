@@ -47,4 +47,56 @@ public class FileUploadController : ControllerBase
         var result = await _fileStorageService.SaveFileAsync(file, cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>
+    /// API hỗ trợ tải tệp tin từ máy chủ với Input theo dạng query string: ?filename=...&amp;path=...
+    /// Trong đó:
+    /// - filename: Tên tệp tin tải về (mã hóa Base64 hoặc chuỗi thuần, ví dụ: QmFvQ2FvLnhsc3g= -> BaoCao.xlsx).
+    /// - path: Đường dẫn tệp tin lưu trữ (được mã hóa Base64 từ đường dẫn StorageFolder của appsettings hoặc đường dẫn tuyệt đối/tương đối).
+    /// Hỗ trợ [AllowAnonymous] để trình duyệt tải trực tiếp qua thẻ &lt;a href&gt; hoặc window.open mà không bị chặn token.
+    /// </summary>
+    /// <param name="filename">Tên tệp tin hiển thị khi tải về (mã hóa Base64).</param>
+    /// <param name="path">Đường dẫn tệp tin trên máy chủ (mã hóa Base64).</param>
+    /// <returns>Tệp tin dạng FileResult với Content-Type phù hợp và hỗ trợ resume download (Range processing).</returns>
+    [AllowAnonymous]
+    [HttpGet("download")]
+    [HttpGet("get-file")]
+    [HttpGet]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public IActionResult DownloadFile(
+        [FromQuery] string? filename,
+        [FromQuery] string? path)
+    {
+        // Hỗ trợ fallback các biến thể đặt tên query param
+        var targetPath = !string.IsNullOrWhiteSpace(path)
+            ? path
+            : Request.Query["filePath"].FirstOrDefault() ?? Request.Query["file_path"].FirstOrDefault();
+
+        var targetFileName = !string.IsNullOrWhiteSpace(filename)
+            ? filename
+            : Request.Query["fileName"].FirstOrDefault() ?? Request.Query["file_name"].FirstOrDefault();
+
+        if (string.IsNullOrWhiteSpace(targetPath))
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Thiếu tham số bắt buộc",
+                Detail = "Vui lòng cung cấp tham số 'path' (đường dẫn tệp tin mã hóa Base64 từ StorageFolder của appsettings)."
+            });
+        }
+
+        var resolved = _fileStorageService.ResolveFileForDownload(targetFileName, targetPath);
+        if (resolved == null)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Title = "Không tìm thấy tệp tin",
+                Detail = "Tệp tin yêu cầu không tồn tại trên hệ thống lưu trữ hoặc đường dẫn không hợp lệ."
+            });
+        }
+
+        return PhysicalFile(resolved.PhysicalFilePath, resolved.ContentType, resolved.DownloadFileName, enableRangeProcessing: true);
+    }
 }

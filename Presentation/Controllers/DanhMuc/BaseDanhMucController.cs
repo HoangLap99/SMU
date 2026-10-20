@@ -79,20 +79,8 @@ public abstract class BaseDanhMucController<TService, TResponse, TSetRequest> : 
         [FromBody] TSetRequest request,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await Service.SetAsync(request, cancellationToken);
-            return Ok(result);
-        }
-        catch (BadHttpRequestException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Dữ liệu không hợp lệ",
-                Detail = ex.Message
-            });
-        }
+        var result = await Service.SetAsync(request, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -135,43 +123,14 @@ public abstract class BaseDanhMucController<TService, TResponse, TSetRequest> : 
     [HttpPost("import")]
     [ProducesResponseType(typeof(ImportResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public virtual async Task<ActionResult<ImportResult>> ImportExcel(
         [FromBody] ImportExcelRequest request,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await Service.ImportExcelAsync(request.FileName, request.CustomerId, cancellationToken);
-            return Ok(result);
-        }
-        catch (FileNotFoundException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Không tìm thấy tệp tin",
-                Detail = ex.Message
-            });
-        }
-        catch (BadHttpRequestException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Lỗi định dạng tệp",
-                Detail = ex.Message
-            });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Lỗi xử lý file Excel",
-                Detail = ex.Message
-            });
-        }
+        var result = await Service.ImportExcelAsync(request.FileName, request.CustomerId, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>

@@ -66,4 +66,20 @@ public interface ICustomerService
     /// Xóa cán bộ khỏi đơn vị.
     /// </summary>
     Task<bool> RemoveUserFromCustomerAsync(string customerId, string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gia hạn gói thuê bao hoặc nâng cấp/đổi gói cho Khách hàng / Đơn vị.
+    /// Tự động cập nhật ngày hết hạn, hạn mức User (Quota), trạng thái và ghi vết lịch sử giao dịch.
+    /// </summary>
+    Task<LichSuGoiThueBaoResponse> GiaHanGoiThueBaoAsync(string? customerId, GiaHanGoiThueBaoRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lấy thông tin tổng quan gói thuê bao hiện tại kèm toàn bộ lịch sử các lần đăng ký và gia hạn của Khách hàng / Đơn vị.
+    /// </summary>
+    Task<ThongTinGoiThueBaoCustomerResponse> LayThongTinVaLichSuGoiThueBaoAsync(string? customerId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lấy danh sách lịch sử đăng ký và gia hạn gói thuê bao của Khách hàng / Đơn vị.
+    /// </summary>
+    Task<IReadOnlyList<LichSuGoiThueBaoResponse>> LayLichSuGoiThueBaoAsync(string? customerId, CancellationToken cancellationToken = default);
 }

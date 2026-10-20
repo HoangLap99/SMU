@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+using SMU.Application.Common.Converters;
 
 namespace SMU.Application.DTOs;
 
@@ -34,13 +36,15 @@ public class FilterBaoCaoBienThienRequest
     public string? MocThoiGianNhanh { get; set; }
 
     /// <summary>
-    /// Lọc từ ngày (Từ: dd/MM/yyyy).
+    /// Lọc từ ngày (Từ: dd/MM/yyyy hoặc ISO: yyyy-MM-dd).
     /// </summary>
+    [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
     public DateTime? TuNgay { get; set; }
 
     /// <summary>
-    /// Lọc đến ngày (Đến: dd/MM/yyyy).
+    /// Lọc đến ngày (Đến: dd/MM/yyyy hoặc ISO: yyyy-MM-dd).
     /// </summary>
+    [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
     public DateTime? DenNgay { get; set; }
 
     /// <summary>
@@ -426,6 +430,11 @@ public class BaoCaoBienThienDashboardResponse
     /// Khoanh 6: Bảng số liệu biến thiên nhập - xuất - tiền thu chi tiết.
     /// </summary>
     public BangSoLieuBienThienResponse BangChiTiet { get; set; } = new();
+
+    /// <summary>
+    /// Danh sách các mốc thời gian hiển thị trong kỳ (theo tháng hoặc theo ngày) dựa theo TuNgay/DenNgay truyền vào.
+    /// </summary>
+    public List<string> DanhSachThoiGian { get; set; } = new();
 }
 
 #endregion

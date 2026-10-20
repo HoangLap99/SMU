@@ -8,7 +8,7 @@ namespace SMU.Core.Exceptions;
 public class DocumentExtractionException : AppException
 {
     public DocumentExtractionException(string message, Exception? innerException = null) 
-        : base(message, innerException!, HttpStatusCode.UnprocessableEntity)
+        : base(message, innerException!, HttpStatusCode.InternalServerError)
     {
     }
 }

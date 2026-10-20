@@ -21,7 +21,7 @@ public class CapLaiDangKyXe : Audit
     /// <summary>
     /// ID Danh mục Ký hiệu quyển biên lai (KyHieuQuyenBienLai).
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng chọn Ký hiệu quyển biên lai.")]
+  
     [StringLength(36)]
     public string KyHieuQuyenBienLaiId { get; set; } = string.Empty;
 
@@ -35,7 +35,7 @@ public class CapLaiDangKyXe : Audit
     /// <summary>
     /// Số biên lai thu tiền (Ví dụ: "0000113").
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng nhập Số biên lai.")]
+    
     [StringLength(50)]
     public string SoBienLai { get; set; } = string.Empty;
 
@@ -52,7 +52,7 @@ public class CapLaiDangKyXe : Audit
     /// Biển số xe cần cấp lại đăng ký (Ví dụ: "30A-123.45" hoặc "29E-895.02").
     /// Không thực hiện xuất kho và không làm thay đổi trạng thái tồn kho của biển số này.
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng nhập Biển số xe cần cấp lại đăng ký.")]
+   
     [StringLength(50)]
     public string BienKiemSoat { get; set; } = string.Empty;
 
@@ -65,7 +65,7 @@ public class CapLaiDangKyXe : Audit
     /// <summary>
     /// Loại phương tiện: "Ô tô", "Mô tô, Xe máy", "Xe máy điện", "Khác"...
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng chọn Loại phương tiện.")]
+    
     [StringLength(100)]
     public string LoaiPhuongTien { get; set; } = "Ô tô";
 
@@ -82,7 +82,7 @@ public class CapLaiDangKyXe : Audit
     /// <summary>
     /// Nội dung thu phí (Ví dụ: "Cấp lại riêng giấy chứng nhận đăng ký xe (mất, hư hỏng - không cấp biển mới) (50.000 đ)").
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng chọn hoặc nhập Nội dung thu phí.")]
+  
     [StringLength(500)]
     public string NoiDungThuPhi { get; set; } = string.Empty;
 
@@ -105,7 +105,7 @@ public class CapLaiDangKyXe : Audit
     /// <summary>
     /// Họ và tên chủ xe / người nộp tiền (Ví dụ: "Nguyễn Văn A").
     /// </summary>
-    [Required(ErrorMessage = "Vui lòng nhập Họ và tên chủ xe.")]
+   
     [StringLength(250)]
     public string HoTenChuXe { get; set; } = string.Empty;
 

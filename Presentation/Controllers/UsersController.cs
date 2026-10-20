@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SMU.Application.DTOs;
 using SMU.Application.Interfaces;
+using SMU.Core.Enums;
 
 namespace SMU.Presentation.Controllers;
 
@@ -36,20 +37,48 @@ public class UsersController : ControllerBase
     public async Task<ActionResult<CurrentUserProfileResponse>> GetCurrentUser(CancellationToken cancellationToken)
     {
         var customerId = _currentUserService.CustomerId;
-        if (string.IsNullOrEmpty(customerId) && !string.IsNullOrEmpty(_currentUserService.UserId))
+        UserResponse? user = null;
+
+        if (!string.IsNullOrEmpty(_currentUserService.UserId))
         {
-            var user = await _userService.GetUserByIdAsync(_currentUserService.UserId, cancellationToken);
-            customerId = user?.CustomerId;
+            user = await _userService.GetUserByIdAsync(_currentUserService.UserId, cancellationToken);
+            if (string.IsNullOrEmpty(customerId))
+            {
+                customerId = user?.CustomerId;
+            }
+        }
+
+        int? roleValue = null;
+        string? roleName = null;
+
+        if (user?.Account != null)
+        {
+            roleValue = (int)user.Account.Role;
+            roleName = user.Account.Role.ToString();
+        }
+        else if (!string.IsNullOrWhiteSpace(_currentUserService.Role))
+        {
+            if (Enum.TryParse<UserRole>(_currentUserService.Role, true, out var parsedRole))
+            {
+                roleValue = (int)parsedRole;
+                roleName = parsedRole.ToString();
+            }
+            else if (int.TryParse(_currentUserService.Role, out var intRole))
+            {
+                roleValue = intRole;
+                roleName = ((UserRole)intRole).ToString();
+            }
         }
 
         return Ok(new CurrentUserProfileResponse
         {
             UserId = _currentUserService.UserId,
             CustomerId = customerId,
-            Username = _currentUserService.Username,
-            Email = _currentUserService.Email,
-            Role = _currentUserService.Role,
-            FullName = _currentUserService.FullName,
+            Username = _currentUserService.Username ?? user?.Account?.Username,
+            Email = _currentUserService.Email ?? user?.Email,
+            Role = roleValue,
+            RoleName = roleName,
+            FullName = _currentUserService.FullName ?? user?.FullName,
             IsAuthenticated = _currentUserService.IsAuthenticated
         });
     }

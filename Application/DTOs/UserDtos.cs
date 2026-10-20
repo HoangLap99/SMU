@@ -305,7 +305,17 @@ public class CurrentUserProfileResponse
     public string? CustomerId { get; set; }
     public string? Username { get; set; }
     public string? Email { get; set; }
-    public string? Role { get; set; }
+
+    /// <summary>
+    /// Phân quyền vai trò tài khoản trả về theo số nguyên: 1 = Admin, 2 = AdminCustomer, 3 = User, 4 = Trial.
+    /// </summary>
+    public int? Role { get; set; }
+
+    /// <summary>
+    /// Tên vai trò tài khoản (Admin, AdminCustomer, User, Trial).
+    /// </summary>
+    public string? RoleName { get; set; }
+
     public string? FullName { get; set; }
     public bool IsAuthenticated { get; set; }
 }

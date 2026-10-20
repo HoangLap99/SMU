@@ -4,6 +4,141 @@
         <name>SMU</name>
     </assembly>
     <members>
+        <member name="T:SMU.Application.Common.Converters.FlexibleDateTimeConverter">
+            <summary>
+            Converter linh hoạt hỗ trợ parse DateTime từ nhiều định dạng:
+            - ISO 8601 (yyyy-MM-dd, yyyy-MM-ddTHH:mm:ssZ...)
+            - Định dạng ngày Việt Nam (dd/MM/yyyy, d/M/yyyy, dd/MM/yyyy HH:mm:ss...)
+            - Dấu gạch ngang (dd-MM-yyyy...)
+            - Dấu gạch chéo (yyyy/MM/dd...)
+            - Unix timestamp (seconds hoặc milliseconds)
+            </summary>
+        </member>
+        <member name="T:SMU.Application.Common.Converters.FlexibleNullableDateTimeConverter">
+            <summary>
+            Converter linh hoạt hỗ trợ parse Nullable DateTime (DateTime?) từ nhiều định dạng khác nhau.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.BackupRequest">
+            <summary>
+            Yêu cầu tạo bản sao lưu dữ liệu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupRequest.GhiChu">
+            <summary>
+            Ghi chú hoặc mô tả lý do sao lưu (ví dụ: "Sao lưu định kỳ cuối tuần", "Trước khi nâng cấp hệ thống").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupRequest.CompressToZip">
+            <summary>
+            Chỉ định có nén thành tệp .zip hay không (nếu null sẽ lấy theo cấu hình appsettings.json).
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.BackupResultDto">
+            <summary>
+            Kết quả sau khi thực hiện sao lưu toàn bộ dữ liệu cơ sở dữ liệu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.FileName">
+            <summary>
+            Tên tệp tin sao lưu (Ví dụ: "SMU_Backup_20261018_142500.sql" hoặc ".zip").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.RelativePath">
+            <summary>
+            Đường dẫn tương đối của tệp sao lưu tính từ thư mục cấu hình.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.FilePath">
+            <summary>
+            Đường dẫn tuyệt đối của tệp sao lưu trên ổ đĩa máy chủ.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.FileSizeBytes">
+            <summary>
+            Dung lượng tệp tính bằng byte.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.FileSizeFormatted">
+            <summary>
+            Dung lượng tệp định dạng thân thiện (Ví dụ: "1.25 MB", "540 KB").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.TotalTables">
+            <summary>
+            Tổng số lượng bảng dữ liệu đã được sao lưu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.TotalRows">
+            <summary>
+            Tổng số lượng dòng / bản ghi dữ liệu đã được sao lưu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.DurationSeconds">
+            <summary>
+            Thời gian thực thi sao lưu (tính bằng giây).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.CreatedAt">
+            <summary>
+            Thời điểm hoàn tất sao lưu (UTC).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.CreatedBy">
+            <summary>
+            Người thực hiện sao lưu (Username / UserId).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupResultDto.TableSummaries">
+            <summary>
+            Danh sách chi tiết số dòng sao lưu theo từng bảng.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.BackupTableSummaryDto">
+            <summary>
+            Tóm tắt kết quả sao lưu của từng bảng dữ liệu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupTableSummaryDto.TableName">
+            <summary>
+            Tên bảng dữ liệu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupTableSummaryDto.RowCount">
+            <summary>
+            Số lượng bản ghi đã sao lưu trong bảng.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.BackupFileInfo">
+            <summary>
+            Thông tin tệp sao lưu lưu trữ trong thư mục cấu hình.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupFileInfo.FileName">
+            <summary>
+            Tên tệp tin sao lưu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupFileInfo.RelativePath">
+            <summary>
+            Đường dẫn tương đối của tệp sao lưu.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupFileInfo.FileSizeBytes">
+            <summary>
+            Dung lượng tệp tính bằng byte.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupFileInfo.FileSizeFormatted">
+            <summary>
+            Dung lượng tệp định dạng thân thiện (Ví dụ: "1.25 MB", "540 KB").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.BackupFileInfo.CreatedAt">
+            <summary>
+            Thời điểm tạo tệp.
+            </summary>
+        </member>
         <member name="T:SMU.Application.DTOs.FilterBaoCaoBienThienRequest">
             <summary>
             Bộ lọc dùng chung cho trang Biểu đồ phân tích biến thiên Nhập - Xuất - Chi phí lệ phí (Khoanh số 1).
@@ -35,12 +170,12 @@
         </member>
         <member name="P:SMU.Application.DTOs.FilterBaoCaoBienThienRequest.TuNgay">
             <summary>
-            Lọc từ ngày (Từ: dd/MM/yyyy).
+            Lọc từ ngày (Từ: dd/MM/yyyy hoặc ISO: yyyy-MM-dd).
             </summary>
         </member>
         <member name="P:SMU.Application.DTOs.FilterBaoCaoBienThienRequest.DenNgay">
             <summary>
-            Lọc đến ngày (Đến: dd/MM/yyyy).
+            Lọc đến ngày (Đến: dd/MM/yyyy hoặc ISO: yyyy-MM-dd).
             </summary>
         </member>
         <member name="P:SMU.Application.DTOs.FilterBaoCaoBienThienRequest.LoaiXeId">
@@ -348,6 +483,11 @@
             Khoanh 6: Bảng số liệu biến thiên nhập - xuất - tiền thu chi tiết.
             </summary>
         </member>
+        <member name="P:SMU.Application.DTOs.BaoCaoBienThienDashboardResponse.DanhSachThoiGian">
+            <summary>
+            Danh sách các mốc thời gian hiển thị trong kỳ (theo tháng hoặc theo ngày) dựa theo TuNgay/DenNgay truyền vào.
+            </summary>
+        </member>
         <member name="T:SMU.Application.DTOs.BoLocGomTheoItemDto">
             <summary>
             Tùy chọn trong bộ lọc 'Gom theo' (Theo tháng / Theo ngày).
@@ -418,41 +558,106 @@
             Loại mốc thời gian: "All", "Month", "Quarter", "Custom".
             </summary>
         </member>
+        <member name="T:SMU.Application.DTOs.FilterBaoCaoCommonRequest">
+            <summary>
+            Bộ lọc dùng chung cho tất cả các báo cáo Nhập - Xuất - Tồn.
+            Bổ sung đầy đủ 100% các tiêu chí lọc tương đồng với API /TonKho/tonghop (FilterTonKhoRequest).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.TimSoBien">
+            <summary>
+            Từ khóa tìm kiếm số biển (Ví dụ: "29E-895.05", "30B-532...").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.Keyword">
+            <summary>
+            Từ khóa tìm kiếm chung (Keyword).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.TimKiem">
+            <summary>
+            Từ khóa tìm kiếm (TimKiem tương thích ngược).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.DauBien">
+            <summary>
+            Đầu biển cần lọc (Ví dụ: "29AH-316", "30B-532", "29E-895" hoặc "30B").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.TimDauBien">
+            <summary>
+            Từ khóa tìm kiếm Đầu biển (TimDauBien tương thích ngược).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.LoaiXeId">
+            <summary>
+            ID Danh mục Loại phương tiện / Loại xe (LoaiXe).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.MauBienSoId">
+            <summary>
+            ID Danh mục Màu biển số (MauBienSo).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.TrangThai">
+            <summary>
+            Trạng thái biển số ("DuocBam", "DaBam", "ChoDauGia", "ThuHoi" hoặc null là tất cả).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.LoaiThoiGian">
+            <summary>
+            Loại thời gian ("TatCa", "HomNay", "TuanNay", "ThangNay", "TuyChon").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.FromDate">
+            <summary>
+            Từ ngày nhập kho / ngày báo cáo (dd/MM/yyyy) theo chuẩn TonKho.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.ToDate">
+            <summary>
+            Đến ngày nhập kho / ngày báo cáo (dd/MM/yyyy) theo chuẩn TonKho.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.TuNgay">
+            <summary>
+            Ngày bắt đầu kỳ báo cáo (tương thích ngược cho TuNgay).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.DenNgay">
+            <summary>
+            Ngày kết thúc kỳ báo cáo (tương thích ngược cho DenNgay).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoCommonRequest.CustomerId">
+            <summary>
+            ID Khách hàng / Đơn vị sở hữu kho (nếu null sẽ lấy tự động từ tài khoản hiện tại).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.DTOs.FilterBaoCaoCommonRequest.GetTuNgay">
+            <summary>
+            Helper: Lấy từ ngày thực tế (ưu tiên TuNgay nếu có, hoặc FromDate).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.DTOs.FilterBaoCaoCommonRequest.GetDenNgay">
+            <summary>
+            Helper: Lấy đến ngày thực tế (ưu tiên DenNgay nếu có, hoặc ToDate).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.DTOs.FilterBaoCaoCommonRequest.GetSearchKeyword">
+            <summary>
+            Helper: Lấy từ khóa tìm kiếm biển số / từ khóa chung.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.DTOs.FilterBaoCaoCommonRequest.GetDauBienFilter">
+            <summary>
+            Helper: Lấy thông tin lọc đầu biển.
+            </summary>
+        </member>
         <member name="T:SMU.Application.DTOs.FilterBaoCaoNhapXuatTonRequest">
             <summary>
             Yêu cầu lọc Báo cáo Nhập - Xuất - Tồn Biển số xe.
-            </summary>
-        </member>
-        <member name="P:SMU.Application.DTOs.FilterBaoCaoNhapXuatTonRequest.TuNgay">
-            <summary>
-            Ngày bắt đầu kỳ báo cáo (Ví dụ: 01/08/2026).
-            Mặc định: 01/08/2026.
-            </summary>
-        </member>
-        <member name="P:SMU.Application.DTOs.FilterBaoCaoNhapXuatTonRequest.DenNgay">
-            <summary>
-            Ngày kết thúc kỳ báo cáo (Ví dụ: 31/10/2026).
-            Mặc định: 31/10/2026.
-            </summary>
-        </member>
-        <member name="P:SMU.Application.DTOs.FilterBaoCaoNhapXuatTonRequest.LoaiXeId">
-            <summary>
-            Lọc theo ID Loại xe (chọn từ danh mục LoaiXe: Ô tô, Xe máy...). Để trống lấy tất cả.
-            </summary>
-        </member>
-        <member name="P:SMU.Application.DTOs.FilterBaoCaoNhapXuatTonRequest.MauBienSoId">
-            <summary>
-            Lọc theo ID Màu biển số (Trắng, Vàng, Xanh...). Để trống lấy tất cả.
-            </summary>
-        </member>
-        <member name="P:SMU.Application.DTOs.FilterBaoCaoNhapXuatTonRequest.TimDauBien">
-            <summary>
-            Từ khóa tìm kiếm Đầu biển (Ví dụ: "29A", "29AC", "30B"...).
-            </summary>
-        </member>
-        <member name="P:SMU.Application.DTOs.FilterBaoCaoNhapXuatTonRequest.CustomerId">
-            <summary>
-            ID Khách hàng / Đơn vị sở hữu kho. Tự động lấy theo User đăng nhập nếu không truyền.
+            Tương thích hoàn toàn với bộ lọc của API /TonKho/tonghop.
             </summary>
         </member>
         <member name="T:SMU.Application.DTOs.BaoCaoNhapXuatTonResponse">
@@ -604,11 +809,52 @@
         <member name="T:SMU.Application.DTOs.FilterBaoCaoTonTaiThoiDiemRequest">
             <summary>
             Yêu cầu lọc Báo cáo Biển số tồn kho tại thời điểm.
+            Kế thừa và đồng bộ 100% bộ lọc của API /TonKho/tonghop.
             </summary>
         </member>
         <member name="P:SMU.Application.DTOs.FilterBaoCaoTonTaiThoiDiemRequest.ChotTonTaiNgay">
             <summary>
             Mốc ngày chốt tồn kho (Ví dụ: 31/08/2026).
+            Nếu không truyền, hệ thống sẽ tự động dùng DenNgay hoặc ToDate.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.DTOs.FilterBaoCaoTonTaiThoiDiemRequest.GetChotNgay">
+            <summary>
+            Helper: Lấy ngày chốt tồn kho thực tế.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.FilterBaoCaoTienThuBienLaiRequest">
+            <summary>
+            Yêu cầu lọc Báo cáo Tiền thu theo biên lai và thủ tục.
+            Kế thừa và đồng bộ 100% bộ lọc của API /TonKho/tonghop.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBaoCaoTienThuBienLaiRequest.LoaiThuTucId">
+            <summary>
+            ID Danh mục Loại thủ tục (LoaiThuTuc). Để trống lấy tất cả.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.FilterBangThongKeThuTucRequest">
+            <summary>
+            Yêu cầu lọc Bảng thống kê thủ tục và tiền thu.
+            Kế thừa và đồng bộ 100% bộ lọc của API /TonKho/tonghop.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FilterBangThongKeThuTucRequest.LoaiThuTucId">
+            <summary>
+            ID Danh mục Loại thủ tục (LoaiThuTuc). Để trống lấy tất cả.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.FilterBangKeChiTietDotNhapRequest">
+            <summary>
+            Yêu cầu lọc Bảng kê chi tiết đợt nhập biển số xe.
+            Kế thừa và đồng bộ 100% bộ lọc của API /TonKho/tonghop.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.FilterBangKeChiTietXuatKhoRequest">
+            <summary>
+            Yêu cầu lọc Bảng kê chi tiết biển số đã xuất kho.
+            Kế thừa và đồng bộ 100% bộ lọc của API /TonKho/tonghop.
             </summary>
         </member>
         <member name="T:SMU.Application.DTOs.SetCapLaiDangKyXeRequest">
@@ -808,9 +1054,65 @@
             Danh sách cán bộ được khởi tạo cùng đơn vị (tùy chọn).
             </summary>
         </member>
+        <member name="P:SMU.Application.DTOs.CreateCustomerRequest.Username">
+            <summary>
+            Tên đăng nhập cho tài khoản quản trị / cán bộ ban đầu của đơn vị (tùy chọn).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.CreateCustomerRequest.Password">
+            <summary>
+            Mật khẩu cho tài khoản đăng nhập (mặc định nếu để trống: "MatKhau123@").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.CreateCustomerRequest.FullName">
+            <summary>
+            Họ và tên cán bộ sở hữu tài khoản (mặc định lấy theo tên khách hàng nếu để trống).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.CreateCustomerRequest.Role">
+            <summary>
+            Phân quyền vai trò tài khoản: Admin (1), AdminCustomer (2), User (3), Trial (4).
+            Mặc định: AdminCustomer nếu tạo tài khoản ban đầu cho đơn vị, hoặc User nếu không chỉ định.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.CreateCustomerRequest.CapBacId">
+            <summary>
+            Cấp bậc cán bộ (tùy chọn).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.CreateCustomerRequest.SoHieuCAND">
+            <summary>
+            Số hiệu Công an nhân dân (tùy chọn).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.CreateCustomerRequest.ChucVu">
+            <summary>
+            Chức vụ công tác (tùy chọn).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.CreateCustomerRequest.VaiTroPhanQuyenId">
+            <summary>
+            Mã vai trò phân quyền nghiệp vụ (chọn từ danh mục Vai trò phân quyền).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.CreateCustomerRequest.Email">
+            <summary>
+            Email liên hệ (tùy chọn).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.CreateCustomerRequest.PhoneNumber">
+            <summary>
+            Số điện thoại liên hệ (tùy chọn).
+            </summary>
+        </member>
         <member name="T:SMU.Application.DTOs.UpdateCustomerRequest">
             <summary>
             Yêu cầu cập nhật thông tin Khách hàng / Đơn vị.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.UpdateCustomerRequest.Code">
+            <summary>
+            Mã khách hàng / đơn vị.
             </summary>
         </member>
         <member name="P:SMU.Application.DTOs.UpdateCustomerRequest.Name">
@@ -851,6 +1153,46 @@
         <member name="P:SMU.Application.DTOs.UpdateCustomerRequest.IsActive">
             <summary>
             Trạng thái kích hoạt.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.UpdateCustomerRequest.Role">
+            <summary>
+            Phân quyền vai trò tài khoản cần cập nhật: Admin (1), AdminCustomer (2), User (3), Trial (4).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.UpdateCustomerRequest.UserId">
+            <summary>
+            Mã GUID của cán bộ (UserId) hoặc tài khoản (AccountId) cần cập nhật vai trò (tùy chọn; nếu để trống sẽ tự động cập nhật tài khoản quản trị hoặc tài khoản đầu tiên của đơn vị).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.UpdateCustomerRequest.Username">
+            <summary>
+            Tên đăng nhập của tài khoản cần cập nhật vai trò hoặc tạo mới (tùy chọn).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.UpdateCustomerRequest.FullName">
+            <summary>
+            Họ và tên cán bộ cần cập nhật (tùy chọn).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.UpdateCustomerRequest.NewPassword">
+            <summary>
+            Đặt lại mật khẩu mới cho tài khoản (tùy chọn).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.UpdateCustomerRequest.CapBacId">
+            <summary>
+            Cập nhật Cấp bậc cán bộ (tùy chọn).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.UpdateCustomerRequest.ChucVu">
+            <summary>
+            Cập nhật Chức vụ cán bộ (tùy chọn).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.UpdateCustomerRequest.VaiTroPhanQuyenId">
+            <summary>
+            Cập nhật Vai trò phân quyền nghiệp vụ (tùy chọn).
             </summary>
         </member>
         <member name="T:SMU.Application.DTOs.AddUserToCustomerRequest">
@@ -903,6 +1245,11 @@
             Số điện thoại liên hệ (tùy chọn).
             </summary>
         </member>
+        <member name="P:SMU.Application.DTOs.AddUserToCustomerRequest.Role">
+            <summary>
+            Phân quyền vai trò tài khoản: Admin (1), AdminCustomer (2), User (3), Trial (4). Mặc định là User (3).
+            </summary>
+        </member>
         <member name="T:SMU.Application.DTOs.UpdateUserInCustomerRequest">
             <summary>
             Yêu cầu cập nhật thông tin cán bộ trong Đơn vị / Khách hàng.
@@ -948,6 +1295,11 @@
             Đặt lại mật khẩu mới (nếu cần thay đổi).
             </summary>
         </member>
+        <member name="P:SMU.Application.DTOs.UpdateUserInCustomerRequest.Role">
+            <summary>
+            Phân quyền vai trò tài khoản: Admin (1), AdminCustomer (2), User (3), Trial (4) (tùy chọn; giữ nguyên vai trò cũ nếu không truyền).
+            </summary>
+        </member>
         <member name="T:SMU.Application.DTOs.CustomerQuotaResponse">
             <summary>
             Thông tin định mức tài khoản cán bộ của đơn vị (Quota).
@@ -963,9 +1315,101 @@
             Thông tin chi tiết Khách hàng / Đơn vị kèm thông tin quota và danh sách cán bộ.
             </summary>
         </member>
+        <member name="P:SMU.Application.DTOs.CustomerResponse.PrimaryRole">
+            <summary>
+            Vai trò của tài khoản quản trị / cán bộ chính của đơn vị.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.CustomerResponse.PrimaryRoleName">
+            <summary>
+            Tên vai trò của tài khoản quản trị / cán bộ chính của đơn vị.
+            </summary>
+        </member>
         <member name="P:SMU.Application.DTOs.CustomerResponse.Members">
             <summary>
             Danh sách cán bộ trực thuộc đơn vị / khách hàng.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.GiaHanGoiThueBaoRequest">
+            <summary>
+            Yêu cầu gia hạn hoặc nâng cấp/đổi gói thuê bao cho Khách hàng / Đơn vị.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.GiaHanGoiThueBaoRequest.CustomerId">
+            <summary>
+            Mã GUID của Khách hàng / Đơn vị cần gia hạn (tùy chọn nếu gọi qua route /api/Customers/{id}/gia-han hoặc nếu user đang đăng nhập thuộc customer đó).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.GiaHanGoiThueBaoRequest.GoiThueBaoId">
+            <summary>
+            Mã GUID Gói thuê bao mới (để trống nếu giữ nguyên gói hiện tại của customer).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.GiaHanGoiThueBaoRequest.SoThang">
+            <summary>
+            Số tháng gia hạn (Ví dụ: 1, 3, 6, 12, 24, 36 tháng).
+            Mặc định 12 tháng nếu không truyền NgayKetThucMoi.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.GiaHanGoiThueBaoRequest.NgayBatDauMoi">
+            <summary>
+            Ngày bắt đầu của kỳ gia hạn mới (tùy chọn: dd/MM/yyyy hoặc yyyy-MM-dd).
+            Mặc định: nếu gói cũ chưa hết hạn thì nối tiếp từ ngày hết hạn cũ; nếu gói cũ đã hết hạn thì tính từ hôm nay.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.GiaHanGoiThueBaoRequest.NgayKetThucMoi">
+            <summary>
+            Ngày kết thúc mới được chọn trực tiếp (tùy chọn, ưu tiên nếu được chỉ định: dd/MM/yyyy hoặc yyyy-MM-dd).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.GiaHanGoiThueBaoRequest.GioiHanUser">
+            <summary>
+            Định mức số tài khoản cán bộ tùy chỉnh (tùy chọn, mặc định lấy theo định mức của gói thuê bao).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.GiaHanGoiThueBaoRequest.SoTien">
+            <summary>
+            Số tiền thanh toán / lệ phí gói thuê bao (VNĐ, tùy chọn).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.GiaHanGoiThueBaoRequest.SoHopDong">
+            <summary>
+            Số hợp đồng / Mã biên lai / Mã hóa đơn điện tử (tùy chọn).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.GiaHanGoiThueBaoRequest.GhiChu">
+            <summary>
+            Ghi chú / Lý do gia hạn.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.LichSuGoiThueBaoResponse">
+            <summary>
+            Thông tin một lần đăng ký hoặc gia hạn gói thuê bao trong lịch sử.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.ThongTinGoiThueBaoCustomerResponse">
+            <summary>
+            Tổng quan trạng thái gói thuê bao hiện tại và toàn bộ lịch sử đăng ký/gia hạn của đơn vị.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongTinGoiThueBaoCustomerResponse.SoNgayConLai">
+            <summary>
+            Số ngày còn lại đến khi hết hạn gói thuê bao (âm nếu đã quá hạn).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongTinGoiThueBaoCustomerResponse.TrangThaiGoi">
+            <summary>
+            Trạng thái gói: "ConHan", "SapHetHan" (còn &lt;= 30 ngày), "DaHetHan", "ChuaDangKy".
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongTinGoiThueBaoCustomerResponse.TrangThaiGoiHienThi">
+            <summary>
+            Nhãn hiển thị trạng thái gói: "Còn hạn (còn 45 ngày)", "Sắp hết hạn (còn 7 ngày)", "Đã hết hạn", "Chưa đăng ký gói".
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongTinGoiThueBaoCustomerResponse.LichSu">
+            <summary>
+            Danh sách lịch sử tất cả các lần đăng ký và gia hạn của đơn vị (sắp xếp mới nhất lên đầu).
             </summary>
         </member>
         <member name="T:SMU.Application.DTOs.PagedDanhMucRequest">
@@ -1262,6 +1706,31 @@
         <member name="P:SMU.Application.DTOs.FileUploadResponse.ContentType">
             <summary>
             Kiểu nội dung MIME của tệp (vd: image/png, application/pdf).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.FileUploadResponse.DownloadUrl">
+            <summary>
+            Đường dẫn API hỗ trợ tải tệp kèm query string filename và path đã mã hóa Base64.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.ResolvedDownloadFileResult">
+            <summary>
+            Kết quả phân giải thông tin tệp tin phục vụ API tải file.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ResolvedDownloadFileResult.PhysicalFilePath">
+            <summary>
+            Đường dẫn tệp tin vật lý tuyệt đối trên máy chủ.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ResolvedDownloadFileResult.ContentType">
+            <summary>
+            Kiểu MIME của tệp tin.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ResolvedDownloadFileResult.DownloadFileName">
+            <summary>
+            Tên tệp tin hiển thị khi tải về trình duyệt.
             </summary>
         </member>
         <member name="T:SMU.Application.DTOs.KhoiTaoKiemKeKhoRequest">
@@ -1740,6 +2209,207 @@
             Biển này đã tồn tại trong kho (true) hay là biển phát hiện thừa chưa có trong kho (false).
             </summary>
         </member>
+        <member name="T:SMU.Application.DTOs.PagedLogHoatDongRequest">
+            <summary>
+            Yêu cầu tìm kiếm và phân trang danh sách nhật ký hoạt động (POST /api/LogHoatDong/danhsach hoặc GET).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.PagedLogHoatDongRequest.LoaiNghiepVu">
+            <summary>
+            Lọc theo Phân hệ / Loại nghiệp vụ:
+            - "TatCa" hoặc null/rỗng: Tất cả phân hệ
+            - "NhapKho": Nhập kho biển số
+            - "XuatKho": Xuất kho &amp; Biên lai thu tiền
+            - "KiemKe": Kiểm kê kho biển số
+            - "CapLaiDangKy": Cấp lại đăng ký xe
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.PagedLogHoatDongRequest.HanhDong">
+            <summary>
+            Lọc theo Hành động thao tác:
+            - "TatCa" hoặc null/rỗng: Tất cả hành động
+            - "ThemMoi": Tạo mới
+            - "CapNhat": Cập nhật / Chỉnh sửa
+            - "XacNhan": Xác nhận / Hoàn tất / Phát hành
+            - "Huy": Hủy phiếu
+            - "Xoa": Xóa phiếu
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.PagedLogHoatDongRequest.Keyword">
+            <summary>
+            Từ khóa tìm kiếm: Mã chứng từ, số biên lai, biển kiểm soát, người thực hiện, nội dung.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.PagedLogHoatDongRequest.ChungTuId">
+            <summary>
+            Lọc theo ID chứng từ nghiệp vụ liên quan (Id của DotNhapKho, XuatKhoBienSo, KiemKeKho, CapLaiDangKyXe).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.PagedLogHoatDongRequest.BienKiemSoat">
+            <summary>
+            Lọc theo Biển kiểm soát cụ thể (Ví dụ: "30B-207.66").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.PagedLogHoatDongRequest.CustomerId">
+            <summary>
+            Lọc theo ID Khách hàng / Đơn vị. Nếu để trống sẽ tự động lấy theo đơn vị của người dùng hiện tại (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.PagedLogHoatDongRequest.TuNgay">
+            <summary>
+            Lọc từ ngày diễn ra hoạt động.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.PagedLogHoatDongRequest.DenNgay">
+            <summary>
+            Lọc đến ngày diễn ra hoạt động.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.FilterLogHoatDongRequest">
+            <summary>
+            Alias tương thích cho PagedLogHoatDongRequest.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.LogHoatDongResponse">
+            <summary>
+            Thông tin chi tiết một bản ghi nhật ký hoạt động / audit log trả về cho Client.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.LoaiNghiepVu">
+            <summary>
+            Mã phân hệ / loại nghiệp vụ ("NhapKho", "XuatKho", "KiemKe", "CapLaiDangKy").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.LoaiNghiepVuTen">
+            <summary>
+            Tên hiển thị loại nghiệp vụ ("Nhập kho", "Xuất kho", "Kiểm kê kho", "Cấp lại đăng ký xe").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.HanhDong">
+            <summary>
+            Mã hành động ("ThemMoi", "CapNhat", "XacNhan", "Huy", "Xoa").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.HanhDongTen">
+            <summary>
+            Tên hiển thị hành động ("Tạo mới đợt nhập", "Xác nhận nhập kho", "Lập phiếu xuất kho", "Hủy phiếu xuất kho", ...).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.ChungTuId">
+            <summary>
+            ID chứng từ liên kết (Id đợt nhập, Id phiếu xuất kho, Id kiểm kê, Id cấp lại).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.MaChungTu">
+            <summary>
+            Mã chứng từ / Số biên lai (Ví dụ: "NK-2026-08-01-DAU", "0000113", "KK-2026-10-10-921").
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.BienKiemSoat">
+            <summary>
+            Biển kiểm soát liên quan (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.NoiDung">
+            <summary>
+            Tóm tắt nội dung chi tiết thao tác nghiệp vụ.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.ChiTietThayDoi">
+            <summary>
+            Chi tiết thay đổi hoặc dữ liệu bổ sung.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.TrangThai">
+            <summary>
+            Trạng thái chứng từ tại thời điểm log.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.TrangThaiTen">
+            <summary>
+            Tên hiển thị trạng thái chứng từ.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.ThoiGian">
+            <summary>
+            Thời điểm diễn ra hoạt động.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.NguoiThucHienId">
+            <summary>
+            ID người dùng thực hiện.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.NguoiThucHien">
+            <summary>
+            Tên / Username người dùng thực hiện thao tác.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.CustomerId">
+            <summary>
+            Mã đơn vị / Khách hàng.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.CustomerName">
+            <summary>
+            Tên đơn vị / Khách hàng.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.IpAddress">
+            <summary>
+            Địa chỉ IP (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.LogHoatDongResponse.GhiChu">
+            <summary>
+            Ghi chú bổ sung.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.ThongKeLogHoatDongResponse">
+            <summary>
+            Thống kê tổng quan số lượng nhật ký hoạt động.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongKeLogHoatDongResponse.TongSoLog">
+            <summary>
+            Tổng số lượt thao tác đã ghi log.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongKeLogHoatDongResponse.SoLogNhapKho">
+            <summary>
+            Số lượng log phân hệ Nhập kho.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongKeLogHoatDongResponse.SoLogXuatKho">
+            <summary>
+            Số lượng log phân hệ Xuất kho.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongKeLogHoatDongResponse.SoLogKiemKe">
+            <summary>
+            Số lượng log phân hệ Kiểm kê kho.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongKeLogHoatDongResponse.SoLogCapLaiDangKy">
+            <summary>
+            Số lượng log phân hệ Cấp lại đăng ký xe.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongKeLogHoatDongResponse.SoLogHomNay">
+            <summary>
+            Số lượt thao tác hôm nay.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongKeLogHoatDongResponse.SoLogTrongTuan">
+            <summary>
+            Số lượt thao tác trong tuần qua.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ThongKeLogHoatDongResponse.SoLogTrongThang">
+            <summary>
+            Số lượt thao tác trong tháng này.
+            </summary>
+        </member>
         <member name="T:SMU.Application.DTOs.SetDotNhapKhoRequest">
             <summary>
             Yêu cầu Thêm mới và Update đợt nhập kho (POST).
@@ -1846,6 +2516,42 @@
             Đánh dấu biển số có đem đấu giá hay không (true: Đem đấu giá; false: Không đem đấu giá / Biển bấm ngẫu nhiên).
             </summary>
         </member>
+        <member name="T:SMU.Application.DTOs.ImportExcelBienSoRequest">
+            <summary>
+            Yêu cầu đọc danh sách biển số xe từ file Excel mẫu đã tải lên thư mục lưu trữ (StorageFolder).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportExcelBienSoRequest.FileName">
+            <summary>
+            Tên file đã lưu trong thư mục cấu hình StorageFolder của appsettings (Ví dụ: "NhapKhoBienSo.xlsx" hoặc mã file GUID upload).
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.ExportMauNhapKhoResponse">
+            <summary>
+            Kết quả trả về của API export file mẫu nhập kho biển số xe.
+            Chứa các tham số phục vụ gọi trực tiếp API tải file: /api/FileUpload/download?filename=...&amp;path=...
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ExportMauNhapKhoResponse.FileName">
+            <summary>
+            Tham số filename mã hóa Base64 cho API tải file: ?filename=...
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ExportMauNhapKhoResponse.Path">
+            <summary>
+            Tham số path mã hóa Base64 từ đường dẫn StorageFolder của appsettings: &amp;path=...
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ExportMauNhapKhoResponse.DownloadUrl">
+            <summary>
+            Đường dẫn API hoàn chỉnh kèm query string để client tải file trực tiếp.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ExportMauNhapKhoResponse.OriginalFileName">
+            <summary>
+            Tên file gốc trước khi mã hóa (vd: NhapKhoBienSo.xlsx).
+            </summary>
+        </member>
         <member name="T:SMU.Application.DTOs.PagedDotNhapKhoRequest">
             <summary>
             Yêu cầu lấy danh sách đợt nhập kho có phân trang và bộ lọc (POST).
@@ -1894,6 +2600,21 @@
         <member name="P:SMU.Application.DTOs.KhoBienSoItemResponse.LaBienDauGia">
             <summary>
             Đánh dấu biển số có đem đấu giá hay không (true: Đem đấu giá; false: Không đem đấu giá / Biển bấm ngẫu nhiên).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.KhoBienSoItemResponse.DaXuatKho">
+            <summary>
+            Đánh dấu biển số đã được xuất kho hay chưa.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.KhoBienSoItemResponse.NgayXuatKho">
+            <summary>
+            Ngày xuất kho (nếu đã xuất).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.KhoBienSoItemResponse.XuatKhoId">
+            <summary>
+            ID phiếu xuất kho tương ứng (nếu đã xuất).
             </summary>
         </member>
         <member name="T:SMU.Application.DTOs.FilterTonKhoRequest">
@@ -2466,6 +3187,16 @@
             Dữ liệu thông tin người dùng hiện tại đang gửi yêu cầu (Current User Identity).
             </summary>
         </member>
+        <member name="P:SMU.Application.DTOs.CurrentUserProfileResponse.Role">
+            <summary>
+            Phân quyền vai trò tài khoản trả về theo số nguyên: 1 = Admin, 2 = AdminCustomer, 3 = User, 4 = Trial.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.CurrentUserProfileResponse.RoleName">
+            <summary>
+            Tên vai trò tài khoản (Admin, AdminCustomer, User, Trial).
+            </summary>
+        </member>
         <member name="T:SMU.Application.DTOs.ChangePasswordRequest">
             <summary>
             Yêu cầu đổi mật khẩu cho chính người dùng đang đăng nhập.
@@ -2658,6 +3389,26 @@
             ID Biển số được chọn từ kho (KhoBienSo).
             </summary>
         </member>
+        <member name="P:SMU.Application.DTOs.SetXuatKhoRequest.BienKiemSoat">
+            <summary>
+            Biển kiểm soát hoàn chỉnh (Tùy chọn; nếu truyền khi cập nhật sẽ cập nhật đè vào cả XuatKhoBienSo và KhoBienSo).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.SetXuatKhoRequest.LoaiXeId">
+            <summary>
+            ID Loại xe (Tùy chọn; nếu truyền khi cập nhật sẽ cập nhật đè vào cả XuatKhoBienSo và KhoBienSo).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.SetXuatKhoRequest.MauBienSoId">
+            <summary>
+            ID Màu biển số (Tùy chọn; nếu truyền khi cập nhật sẽ cập nhật đè vào cả XuatKhoBienSo và KhoBienSo).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.SetXuatKhoRequest.DauBienSoId">
+            <summary>
+            ID Đầu biển số (Tùy chọn; nếu truyền khi cập nhật sẽ cập nhật đè vào cả XuatKhoBienSo và KhoBienSo).
+            </summary>
+        </member>
         <member name="P:SMU.Application.DTOs.SetXuatKhoRequest.MucThuLePhiId">
             <summary>
             ID Danh mục Mức thu lệ phí (MucThuLePhi).
@@ -2733,6 +3484,16 @@
             Trạng thái đã xuất kho hay chưa. Nếu DaXuatKho == true thì mới thay đổi dữ liệu của KhoBienSo.
             </summary>
         </member>
+        <member name="T:SMU.Application.DTOs.HuyPhieuXuatKhoRequest">
+            <summary>
+            Yêu cầu hủy phiếu xuất kho &amp; biên lai thu tiền.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.HuyPhieuXuatKhoRequest.LyDoHuy">
+            <summary>
+            Lý do hủy phiếu xuất kho (tùy chọn).
+            </summary>
+        </member>
         <member name="T:SMU.Application.DTOs.PagedXuatKhoRequest">
             <summary>
             Yêu cầu lấy danh sách phiếu xuất kho có phân trang và bộ lọc.
@@ -2743,9 +3504,135 @@
             Từ khóa tìm kiếm: Biển số, Họ tên người nộp, CCCD, Mã hồ sơ DVC, Số biên lai.
             </summary>
         </member>
+        <member name="P:SMU.Application.DTOs.PagedXuatKhoRequest.TrangThai">
+            <summary>
+            Lọc theo trạng thái phiếu xuất kho ("HoanTat", "LuuTam", "DaHuy"). Để trống lấy tất cả.
+            </summary>
+        </member>
         <member name="T:SMU.Application.DTOs.XuatKhoResponse">
             <summary>
             Thông tin chi tiết một phiếu xuất kho &amp; biên lai thu tiền.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.XuatKhoResponse.TrangThaiHienThi">
+            <summary>
+            Tên hiển thị trạng thái tiếng Việt ("Hoàn tất", "Lưu tạm", "Đã hủy").
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.ExportMauXuatKhoResponse">
+            <summary>
+            Kết quả trả về của API export file mẫu xuất kho biển số xe.
+            Chứa các tham số phục vụ gọi trực tiếp API tải file: /api/FileUpload/download?filename=...&amp;path=...
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ExportMauXuatKhoResponse.FileName">
+            <summary>
+            Tham số filename mã hóa Base64 cho API tải file: ?filename=...
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ExportMauXuatKhoResponse.Path">
+            <summary>
+            Tham số path mã hóa Base64 từ đường dẫn StorageFolder của appsettings: &amp;path=...
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ExportMauXuatKhoResponse.DownloadUrl">
+            <summary>
+            Đường dẫn API hoàn chỉnh kèm query string để client tải file trực tiếp.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ExportMauXuatKhoResponse.OriginalFileName">
+            <summary>
+            Tên tệp tin gốc hiển thị khi tải về (mặc định: XuatKhoBienSo.xlsx).
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.ImportXuatKhoExcelRequest">
+            <summary>
+            Yêu cầu nhập xuất kho biển số xe từ tệp Excel.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelRequest.LoaiXeId">
+            <summary>
+            ID Danh mục Loại xe cần xuất kho (bắt buộc).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelRequest.FileName">
+            <summary>
+            Tên tệp tin Excel mẫu đã lưu trong thư mục StorageFolder (appsettings.json).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelRequest.ChiKiemTra">
+            <summary>
+            Tùy chọn: Nếu đặt là true, hệ thống chỉ kiểm tra tính hợp lệ và thông báo danh sách biển số chưa có trong kho mà không thực hiện lưu xuất kho.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.ImportXuatKhoExcelResponse">
+            <summary>
+            Kết quả sau khi nhập xuất kho từ tệp Excel.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.ThongBao">
+            <summary>
+            Thông báo kết quả tổng hợp hoặc cảnh báo danh sách các biển số chưa có trong kho.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.TongSoDong">
+            <summary>
+            Tổng số dòng dữ liệu đọc được từ tệp Excel.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.SoLuongThanhCong">
+            <summary>
+            Số lượng phiếu xuất kho tạo thành công.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.SoLuongBoQua">
+            <summary>
+            Số lượng dòng bị bỏ qua (ví dụ: đã xuất kho trước đó, thiếu số biển...).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.SoLuongLoi">
+            <summary>
+            Số lượng dòng bị lỗi khi xử lý (ví dụ: chưa có trong kho, định dạng sai...).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.TongTienThu">
+            <summary>
+            Tổng số tiền lệ phí thu được từ các phiếu xuất kho thành công (VNĐ).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.DanhSachBienSoXuatThanhCong">
+            <summary>
+            Danh sách các biển kiểm soát đã xuất kho thành công.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.DanhSachBienSoChuaCoTrongKho">
+            <summary>
+            Danh sách các biển kiểm soát trong tệp tin Excel CHƯA CÓ TRONG KHO (chưa được nhập kho).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoExcelResponse.DanhSachLoi">
+            <summary>
+            Danh sách chi tiết các dòng bị lỗi hoặc bỏ qua.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.DTOs.ImportXuatKhoLoiItem">
+            <summary>
+            Chi tiết dòng bị lỗi hoặc bỏ qua trong quá trình import Excel.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoLoiItem.Dong">
+            <summary>
+            Số thứ tự dòng trong tệp Excel.
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoLoiItem.BienKiemSoat">
+            <summary>
+            Biển kiểm soát đọc được tại dòng đó (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Application.DTOs.ImportXuatKhoLoiItem.LyDoLoi">
+            <summary>
+            Lý do lỗi hoặc bỏ qua.
             </summary>
         </member>
         <member name="T:SMU.Application.Interfaces.IAiService">
@@ -2762,6 +3649,42 @@
             <summary>
             Gửi file binary trực tiếp dạng Multimodal (PDF, Audio, Image) tới AI model.
             </summary>
+        </member>
+        <member name="T:SMU.Application.Interfaces.IBackupService">
+            <summary>
+            Giao diện dịch vụ sao lưu toàn bộ dữ liệu cơ sở dữ liệu PostgreSQL vào thư mục cấu hình trong appsettings.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IBackupService.CreateBackupAsync(SMU.Application.DTOs.BackupRequest,System.Threading.CancellationToken)">
+            <summary>
+            Thực hiện sao lưu toàn bộ dữ liệu của tất cả các bảng trong database và lưu vào thư mục được cấu hình.
+            </summary>
+            <param name="request">Tùy chọn yêu cầu sao lưu (ghi chú, nén zip,...).</param>
+            <param name="cancellationToken">Token hủy thao tác.</param>
+            <returns>Thông tin chi tiết kết quả sao lưu.</returns>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IBackupService.GetBackupFilesAsync(System.Threading.CancellationToken)">
+            <summary>
+            Lấy danh sách toàn bộ các tệp sao lưu hiện có trong thư mục cấu hình.
+            </summary>
+            <param name="cancellationToken">Token hủy thao tác.</param>
+            <returns>Danh sách thông tin các tệp sao lưu.</returns>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IBackupService.DownloadBackupFileAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Đọc luồng dữ liệu của một tệp sao lưu để phục vụ tải về.
+            </summary>
+            <param name="fileName">Tên tệp tin cần tải về.</param>
+            <param name="cancellationToken">Token hủy thao tác.</param>
+            <returns>Luồng tệp (Stream), ContentType và tên tệp tin.</returns>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IBackupService.DeleteBackupFileAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Xóa một tệp sao lưu khỏi thư mục cấu hình.
+            </summary>
+            <param name="fileName">Tên tệp tin cần xóa.</param>
+            <param name="cancellationToken">Token hủy thao tác.</param>
+            <returns>True nếu xóa thành công, False nếu không tìm thấy tệp.</returns>
         </member>
         <member name="T:SMU.Application.Interfaces.IBaoCaoBienThienService">
             <summary>
@@ -3002,6 +3925,22 @@
             Xóa cán bộ khỏi đơn vị.
             </summary>
         </member>
+        <member name="M:SMU.Application.Interfaces.ICustomerService.GiaHanGoiThueBaoAsync(System.String,SMU.Application.DTOs.GiaHanGoiThueBaoRequest,System.Threading.CancellationToken)">
+            <summary>
+            Gia hạn gói thuê bao hoặc nâng cấp/đổi gói cho Khách hàng / Đơn vị.
+            Tự động cập nhật ngày hết hạn, hạn mức User (Quota), trạng thái và ghi vết lịch sử giao dịch.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.ICustomerService.LayThongTinVaLichSuGoiThueBaoAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Lấy thông tin tổng quan gói thuê bao hiện tại kèm toàn bộ lịch sử các lần đăng ký và gia hạn của Khách hàng / Đơn vị.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.ICustomerService.LayLichSuGoiThueBaoAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Lấy danh sách lịch sử đăng ký và gia hạn gói thuê bao của Khách hàng / Đơn vị.
+            </summary>
+        </member>
         <member name="T:SMU.Application.Interfaces.IBaseDanhMucService`2">
             <summary>
             Giao diện dịch vụ danh mục chuẩn hóa:
@@ -3082,6 +4021,23 @@
             <param name="cancellationToken">Token hủy tác vụ.</param>
             <returns>Thông tin tệp đã lưu kèm tên gốc và tên GUID 36 ký tự.</returns>
         </member>
+        <member name="M:SMU.Application.Interfaces.IFileStorageService.ResolveFileForDownload(System.String,System.String)">
+            <summary>
+            Phân giải tệp tin cần tải về từ tham số filename và path (hỗ trợ cả chuỗi mã hóa Base64 và chuỗi thường).
+            Đường dẫn path được phân giải linh hoạt dựa theo thư mục StorageFolder cấu hình trong appsettings.
+            </summary>
+            <param name="encodedFileName">Tên file tải về (mã hóa Base64 hoặc chuỗi thường).</param>
+            <param name="encodedPath">Đường dẫn tệp tin lưu trữ (mã hóa Base64 từ đường dẫn StorageFolder của appsettings hoặc đường dẫn đĩa).</param>
+            <returns>Thông tin tệp tin tìm thấy gồm đường dẫn vật lý, kiểu MIME và tên file tải về; hoặc null nếu không tìm thấy.</returns>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IFileStorageService.GenerateDownloadUrl(System.String,System.String)">
+            <summary>
+            Sinh URL tải file với filename và path được mã hóa Base64 theo đúng chuẩn yêu cầu.
+            </summary>
+            <param name="originalFileName">Tên file hiển thị.</param>
+            <param name="physicalOrRelativePath">Đường dẫn tệp tin vật lý hoặc tương đối.</param>
+            <returns>URL tải file dạng /api/FileUpload/download?filename=...&amp;path=...</returns>
+        </member>
         <member name="T:SMU.Application.Interfaces.IJwtService">
             <summary>
             Giao diện dịch vụ cấp phát token JWT xác thực người dùng.
@@ -3143,6 +4099,40 @@
             Tự động xác định dải đầu biển số từ biển kiểm soát (Ví dụ: "30B-207.66" -> "30B-207", "29E-794.02" -> "29E-794").
             </summary>
         </member>
+        <member name="T:SMU.Application.Interfaces.ILogHoatDongService">
+            <summary>
+            Giao diện dịch vụ quản lý Nhật ký hoạt động / Audit Log cho 4 phân hệ:
+            Nhập kho, Xuất kho, Kiểm kê kho và Cấp lại đăng ký xe.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.ILogHoatDongService.LayDanhSachLogAsync(SMU.Application.DTOs.PagedLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            Lấy danh sách nhật ký hoạt động có phân trang và bộ lọc linh hoạt.
+            Hỗ trợ lọc theo loại nghiệp vụ (NhapKho, XuatKho, KiemKe, CapLaiDangKy),
+            hành động (ThemMoi, CapNhat, XacNhan, Huy, Xoa), từ khóa, khoảng ngày.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.ILogHoatDongService.LayLogTheoChungTuAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Lấy toàn bộ lịch sử log thao tác của một chứng từ cụ thể (theo ChungTuId hoặc MaChungTu).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.ILogHoatDongService.LayThongKeLogAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Thống kê số lượng hoạt động theo từng phân hệ và mốc thời gian (hôm nay, tuần này, tháng này).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.ILogHoatDongService.GhiLogAsync(System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Ghi nhận một hành động nghiệp vụ vào nhật ký hoạt động.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.ILogHoatDongService.DongBoLogTuDuLieuCoSanAsync(System.Threading.CancellationToken)">
+            <summary>
+            Đồng bộ / nạp các giao dịch có sẵn từ 4 bảng nghiệp vụ (Nhập kho, Xuất kho, Kiểm kê, Cấp lại)
+            vào bảng LogHoatDong nếu chưa có log.
+            </summary>
+        </member>
         <member name="T:SMU.Application.Interfaces.INhapKhoService">
             <summary>
             Giao diện dịch vụ quản lý Đợt nhập kho và Kho biển số xe:
@@ -3163,6 +4153,18 @@
             Nếu update và DaNhapKho == true thì sẽ lưu danh sách biển số vào bảng KhoBienSo (bỏ qua biển số LaBienDauGia == true).
             </summary>
         </member>
+        <member name="M:SMU.Application.Interfaces.INhapKhoService.UpdateDotNhapKhoAsync(SMU.Application.DTOs.SetDotNhapKhoRequest,System.Threading.CancellationToken)">
+            <summary>
+            Cập nhật dữ liệu đợt nhập kho và đồng bộ toàn bộ bảng KhoBienSo theo dữ liệu mới.
+            Đối với các biển số đã xuất kho trước đó, giữ nguyên trạng thái xuất kho và đồng bộ dữ liệu sang phiếu xuất kho liên kết.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.INhapKhoService.XacNhanNhapKhoAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Xác nhận nhập kho theo Id đợt nhập kho.
+            Khóa phiếu (DaNhapKho = true, TrangThai = 'DaNhapKho') và chuyển toàn bộ biển số trong kho sang trạng thái 'DuocBam' (Biển được bấm / Tồn kho).
+            </summary>
+        </member>
         <member name="M:SMU.Application.Interfaces.INhapKhoService.LayChiTietDotNhapAsync(System.String,System.Threading.CancellationToken)">
             <summary>
             3. (GET) Lấy thông tin 1 đợt nhập kho theo Id.
@@ -3171,6 +4173,18 @@
         <member name="M:SMU.Application.Interfaces.INhapKhoService.XoaDotNhapKhoAsync(System.String,System.Threading.CancellationToken)">
             <summary>
             4. (GET) Xóa đợt nhập kho theo Id.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.INhapKhoService.ExportFileMauNhapKhoAsync(System.Threading.CancellationToken)">
+            <summary>
+            5. (GET) Lấy thông tin tệp tin Excel mẫu nhập kho biển số xe (MauBaoCao/NhapKhoBienSo.xlsx).
+            Output trả về thông tin (filename, path mã hóa Base64) làm input cho API tải file /api/FileUpload/download.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.INhapKhoService.ImportExcelBienSoAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            6. (POST) Đọc dữ liệu danh sách biển số xe từ file Excel mẫu theo FileName trong thư mục StorageFolder của appsettings.
+            Output trả về List&lt;BienSoChiTietItemRequest&gt;.
             </summary>
         </member>
         <member name="T:SMU.Application.Interfaces.ITonKhoService">
@@ -3282,6 +4296,18 @@
             Tự động cập nhật bản ghi trong KhoBienSo sang DaXuatKho = true, TrangThai = "DaBam" và cập nhật SoHienTai của quyển biên lai.
             </summary>
         </member>
+        <member name="M:SMU.Application.Interfaces.IXuatKhoService.UpdateXuatKhoAsync(SMU.Application.DTOs.SetXuatKhoRequest,System.Threading.CancellationToken)">
+            <summary>
+            Cập nhật phiếu Lập thủ tục &amp; Biên lai xuất kho và đồng bộ toàn bộ bảng KhoBienSo theo dữ liệu mới.
+            Đối với trường hợp đã xuất kho, cập nhật thông tin biển số trong KhoBienSo và xử lý hoàn tác/chuyển đổi biển số nếu thay đổi.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IXuatKhoService.XacNhanXuatKhoAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Xác nhận xuất kho theo Id phiếu xuất kho.
+            Khóa phiếu (DaXuatKho = true, TrangThai = 'HoanTat') và chuyển trạng thái biển số trong KhoBienSo sang 'DaBam' (Đã bấm / Đã cấp).
+            </summary>
+        </member>
         <member name="M:SMU.Application.Interfaces.IXuatKhoService.LayDanhSachXuatKhoAsync(SMU.Application.DTOs.PagedXuatKhoRequest,System.Threading.CancellationToken)">
             <summary>
             API 5: Lấy danh sách phiếu xuất kho có phân trang và bộ lọc.
@@ -3295,6 +4321,91 @@
         <member name="M:SMU.Application.Interfaces.IXuatKhoService.XoaXuatKhoAsync(System.String,System.Threading.CancellationToken)">
             <summary>
             API 7: Xóa phiếu xuất kho theo Id. Hoàn tác trạng thái biển số trong KhoBienSo về DaXuatKho = false, TrangThai = "DuocBam".
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IXuatKhoService.HuyPhieuXuatKhoAsync(System.String,SMU.Application.DTOs.HuyPhieuXuatKhoRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 8: Hủy phiếu xuất kho theo Id.
+            Cập nhật trạng thái phiếu xuất kho sang 'DaHuy', DaXuatKho = false và khôi phục trạng thái biển số trong KhoBienSo về DaXuatKho = false, TrangThai = 'DuocBam'.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IXuatKhoService.ImportXuatKhoTuExcelAsync(SMU.Application.DTOs.ImportXuatKhoExcelRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 9: Nhập xuất kho biển số xe tự động từ tệp tin Excel lưu trong thư mục StorageFolder.
+            Tự động tạo các phiếu xuất kho với DaXuatKho = true và đánh dấu biển số trong KhoBienSo là đã xuất kho.
+            Kiểm tra chặt chẽ các biển số đã có trong kho hay chưa, nếu chưa có thì báo danh sách chi tiết.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IXuatKhoService.ExportFileMauXuatKhoAsync(System.Threading.CancellationToken)">
+            <summary>
+            API 10: (GET) Lấy thông tin tệp tin Excel mẫu xuất kho biển số xe (MauBaoCao/XuatKhoBienSo.xlsx).
+            Output trả về các tham số filename và path (mã hóa Base64) là input cho API tải file /api/FileUpload/download.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Interfaces.IXuatKhoService.DownloadFileMauXuatKhoAsync(System.Threading.CancellationToken)">
+            <summary>
+            Lấy luồng dữ liệu byte[] của tệp tin mẫu xuất kho Excel để hỗ trợ tải file trực tiếp từ controller.
+            </summary>
+        </member>
+        <member name="T:SMU.Application.Services.BackupService">
+            <summary>
+            Dịch vụ sao lưu toàn bộ dữ liệu cơ sở dữ liệu PostgreSQL vào thư mục cấu hình trong appsettings.json.
+            Xuất toàn bộ cấu trúc và dữ liệu thành tệp SQL dump chuẩn hoặc tệp nén ZIP.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.CreateBackupAsync(SMU.Application.DTOs.BackupRequest,System.Threading.CancellationToken)">
+            <summary>
+            Thực hiện sao lưu toàn bộ dữ liệu của tất cả các bảng trong database và lưu vào thư mục được cấu hình.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.GetBackupFilesAsync(System.Threading.CancellationToken)">
+            <summary>
+            Lấy danh sách toàn bộ các tệp sao lưu hiện có trong thư mục cấu hình.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.DownloadBackupFileAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Đọc luồng dữ liệu của một tệp sao lưu để phục vụ tải về.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.DeleteBackupFileAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Xóa một tệp sao lưu khỏi thư mục cấu hình.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.GetBackupDirectory">
+            <summary>
+            Lấy đường dẫn thư mục lưu trữ backup (hỗ trợ cả đường dẫn tương đối và tuyệt đối).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.GetPublicTablesAsync(System.Data.Common.DbConnection,System.Threading.CancellationToken)">
+            <summary>
+            Lấy danh sách các bảng dữ liệu trong schema public.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.ExportTableDataAsync(System.Data.Common.DbConnection,System.IO.StreamWriter,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Đọc dữ liệu từ bảng và ghi ra tệp tin SQL dưới dạng các lệnh INSERT hàng loạt.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.WriteBatchInsertAsync(System.IO.StreamWriter,System.String,System.String,System.Collections.Generic.List{System.String})">
+            <summary>
+            Ghi 1 khối INSERT hàng loạt (multi-row VALUES) vào tệp SQL.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.FormatSqlLiteral(System.Object)">
+            <summary>
+            Định dạng giá trị C# thành chuỗi SQL Literal tương thích chuẩn PostgreSQL.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.FormatFileSize(System.Int64)">
+            <summary>
+            Định dạng kích thước dung lượng file (Bytes -> KB / MB / GB).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.BackupService.CleanOldBackupsAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Tự động dọn dẹp các tệp sao lưu cũ nhất khi vượt quá số lượng tối đa cấu hình.
             </summary>
         </member>
         <member name="T:SMU.Application.Services.BaoCaoBienThienService">
@@ -3523,14 +4634,50 @@
             Record nội bộ biểu diễn chi tiết đối chiếu 1 biển số trong phiếu kiểm kê.
             </summary>
         </member>
+        <member name="T:SMU.Application.Services.LogHoatDongService">
+            <summary>
+            Dịch vụ quản lý và truy vấn Nhật ký hoạt động / Audit Log cho 4 phân hệ:
+            1. Nhập kho biển số xe (DotNhapKho)
+            2. Xuất kho biển số xe &amp; Biên lai thu tiền (XuatKhoBienSo)
+            3. Kiểm kê kho biển số xe (KiemKeKho)
+            4. Cấp lại đăng ký xe (CapLaiDangKyXe)
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.LogHoatDongService.LayDanhSachLogAsync(SMU.Application.DTOs.PagedLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            Lấy danh sách nhật ký hoạt động có phân trang và bộ lọc linh hoạt.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.LogHoatDongService.LayLogTheoChungTuAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Lấy toàn bộ lịch sử log thao tác của một chứng từ cụ thể (theo ChungTuId hoặc MaChungTu).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.LogHoatDongService.LayThongKeLogAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Thống kê số lượng hoạt động theo từng phân hệ và mốc thời gian.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.LogHoatDongService.GhiLogAsync(System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.String,System.Threading.CancellationToken)">
+            <summary>
+            Ghi nhận một hành động nghiệp vụ vào nhật ký hoạt động.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.LogHoatDongService.DongBoLogTuDuLieuCoSanAsync(System.Threading.CancellationToken)">
+            <summary>
+            Đồng bộ / nạp các giao dịch có sẵn từ 4 bảng nghiệp vụ vào bảng LogHoatDong nếu chưa có.
+            </summary>
+        </member>
         <member name="T:SMU.Application.Services.NhapKhoService">
             <summary>
             Dịch vụ quản lý nghiệp vụ Đợt nhập kho và Kho biển số xe.
-            Cung cấp 4 chức năng cốt lõi:
+            Cung cấp 6 chức năng cốt lõi:
             1. (POST) Lấy danh sách đợt nhập kho có phân trang và bộ lọc.
             2. (POST) Thêm mới và update đợt nhập kho. Nếu update và DaNhapKho == true thì sẽ lưu kho (bỏ qua biển số LaBienDauGia == true).
             3. (GET) Lấy thông tin 1 đợt nhập kho theo Id.
             4. (GET) Xóa đợt nhập kho theo Id.
+            5. (GET) Xuất / Tải tệp tin Excel mẫu nhập kho biển số xe (MauBaoCao/NhapKhoBienSo.xlsx).
+            6. (POST) Đọc dữ liệu danh sách biển số xe từ file Excel mẫu theo FileName trong StorageFolder.
             </summary>
         </member>
         <member name="M:SMU.Application.Services.NhapKhoService.LayDanhSachDotNhapAsync(SMU.Application.DTOs.PagedDotNhapKhoRequest,System.Threading.CancellationToken)">
@@ -3542,6 +4689,18 @@
             <summary>
             2. (POST) Thêm mới và update đợt nhập kho.
             Nếu update và DaNhapKho == true thì sẽ lưu danh sách biển số vào bảng KhoBienSo (bỏ qua biển số LaBienDauGia == true).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.NhapKhoService.UpdateDotNhapKhoAsync(SMU.Application.DTOs.SetDotNhapKhoRequest,System.Threading.CancellationToken)">
+            <summary>
+            Cập nhật dữ liệu đợt nhập kho và đồng bộ toàn bộ bảng KhoBienSo theo dữ liệu mới.
+            Đối với các biển số đã xuất kho trước đó, giữ nguyên trạng thái xuất kho và đồng bộ dữ liệu sang phiếu xuất kho liên kết.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.NhapKhoService.XacNhanNhapKhoAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Xác nhận nhập kho theo Id đợt nhập kho.
+            Khóa phiếu (DaNhapKho = true, TrangThai = 'DaNhapKho') và chuyển toàn bộ biển số trong kho sang trạng thái 'DuocBam' (Biển được bấm / Tồn kho).
             </summary>
         </member>
         <member name="M:SMU.Application.Services.NhapKhoService.LayChiTietDotNhapAsync(System.String,System.Threading.CancellationToken)">
@@ -3559,6 +4718,18 @@
             Trích xuất đầu biển số từ biển kiểm soát theo quy tắc:
             Bỏ 2 số cuối đi, phần còn lại lưu vào danh mục DauBienSo.
             Ví dụ: "30H-123456" -> "30H-123", "30H-000.01" -> "30H-000", "30H-123.45" -> "30H-123".
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.NhapKhoService.ExportFileMauNhapKhoAsync(System.Threading.CancellationToken)">
+            <summary>
+            5. (GET) Lấy thông tin tệp tin Excel mẫu nhập kho biển số xe (MauBaoCao/NhapKhoBienSo.xlsx).
+            Output trả về các tham số filename và path (mã hóa Base64) là input cho API tải file /api/FileUpload/download.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.NhapKhoService.ImportExcelBienSoAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            6. (POST) Đọc dữ liệu danh sách biển số xe từ file Excel mẫu theo FileName trong thư mục StorageFolder của appsettings.
+            Output trả về List&lt;BienSoChiTietItemRequest&gt;.
             </summary>
         </member>
         <member name="T:SMU.Application.Services.TonKhoService">
@@ -3640,6 +4811,18 @@
             Tự động cập nhật bản ghi trong KhoBienSo sang DaXuatKho = true, TrangThai = "DaBam" và cập nhật SoHienTai của quyển biên lai.
             </summary>
         </member>
+        <member name="M:SMU.Application.Services.XuatKhoService.UpdateXuatKhoAsync(SMU.Application.DTOs.SetXuatKhoRequest,System.Threading.CancellationToken)">
+            <summary>
+            Cập nhật phiếu Lập thủ tục &amp; Biên lai xuất kho và đồng bộ toàn bộ bảng KhoBienSo theo dữ liệu mới.
+            Đối với trường hợp đã xuất kho, cập nhật thông tin biển số trong KhoBienSo và xử lý hoàn tác/chuyển đổi biển số nếu thay đổi.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.XuatKhoService.XacNhanXuatKhoAsync(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Xác nhận xuất kho theo Id phiếu xuất kho.
+            Khóa phiếu (DaXuatKho = true, TrangThai = 'HoanTat') và chuyển trạng thái biển số trong KhoBienSo sang 'DaBam' (Đã bấm / Đã cấp).
+            </summary>
+        </member>
         <member name="M:SMU.Application.Services.XuatKhoService.LayDanhSachXuatKhoAsync(SMU.Application.DTOs.PagedXuatKhoRequest,System.Threading.CancellationToken)">
             <summary>
             API 5: Lấy danh sách phiếu xuất kho có phân trang và bộ lọc.
@@ -3653,6 +4836,34 @@
         <member name="M:SMU.Application.Services.XuatKhoService.XoaXuatKhoAsync(System.String,System.Threading.CancellationToken)">
             <summary>
             API 7: Xóa phiếu xuất kho theo Id. Hoàn tác trạng thái biển số trong KhoBienSo về DaXuatKho = false, TrangThai = "DuocBam" nếu phiếu đã xuất kho.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.XuatKhoService.HuyPhieuXuatKhoAsync(System.String,SMU.Application.DTOs.HuyPhieuXuatKhoRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 8: Hủy phiếu xuất kho theo Id.
+            Cập nhật trạng thái phiếu xuất kho sang 'DaHuy', DaXuatKho = false và khôi phục trạng thái biển số trong KhoBienSo về DaXuatKho = false, TrangThai = 'DuocBam'.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.XuatKhoService.ImportXuatKhoTuExcelAsync(SMU.Application.DTOs.ImportXuatKhoExcelRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 9: Nhập xuất kho biển số xe tự động từ tệp tin Excel lưu trong thư mục StorageFolder (appsettings.json).
+            Tự động tạo các phiếu xuất kho với DaXuatKho = true và cập nhật bảng KhoBienSo.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.XuatKhoService.ExportFileMauXuatKhoAsync(System.Threading.CancellationToken)">
+            <summary>
+            API 10: (GET) Lấy thông tin tệp tin Excel mẫu xuất kho biển số xe (MauBaoCao/XuatKhoBienSo.xlsx).
+            Output trả về các tham số filename và path (mã hóa Base64) là input cho API tải file /api/FileUpload/download.
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.XuatKhoService.DownloadFileMauXuatKhoAsync(System.Threading.CancellationToken)">
+            <summary>
+            Lấy dữ liệu file mẫu xuất kho để tải trực tiếp từ Controller (FileResult).
+            </summary>
+        </member>
+        <member name="M:SMU.Application.Services.XuatKhoService.GenerateMauXuatKhoExcelBytes">
+            <summary>
+            Tạo cấu trúc và dữ liệu mẫu tệp Excel xuất kho biển số xe theo chuẩn EPPlus.
             </summary>
         </member>
         <member name="T:SMU.Core.Entities.Account">
@@ -4742,6 +5953,211 @@
             Navigation property tới phiếu kiểm kê cha.
             </summary>
         </member>
+        <member name="T:SMU.Core.Entities.LichSuGoiThueBao">
+            <summary>
+            Thực thể lưu trữ lịch sử các lần đăng ký mới, gia hạn, nâng cấp hoặc đổi gói thuê bao của Khách hàng / Đơn vị (Customer).
+            Bảng lưu trữ: LichSuGoiThueBao
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.CustomerId">
+            <summary>
+            Mã định danh Khách hàng / Đơn vị.
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.CustomerCode">
+            <summary>
+            Mã khách hàng tại thời điểm thực hiện (VD: CUS-001, CAP_TAYMO).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.CustomerName">
+            <summary>
+            Tên khách hàng tại thời điểm thực hiện (VD: Công an phường Tây Mỗ).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.GoiThueBaoId">
+            <summary>
+            Mã định danh Gói thuê bao được áp dụng.
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.GoiThueBaoMa">
+            <summary>
+            Mã gói thuê bao (VD: CO_BAN, NANG_CAO, DOANH_NGHIEP).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.GoiThueBaoTen">
+            <summary>
+            Tên gói thuê bao tại thời điểm thực hiện (VD: Gói Cơ bản, Gói Nâng cao).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.GioiHanUser">
+            <summary>
+            Định mức số tài khoản cán bộ tối đa được phép hoạt động theo gói (Quota).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.LoaiGiaoDich">
+            <summary>
+            Loại giao dịch: "DangKyMoi" (Đăng ký mới), "GiaHan" (Gia hạn), "NangCapGoi" (Nâng cấp gói), "HaCapGoi" (Hạ cấp gói), "DoiGoi" (Đổi gói).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.LoaiGiaoDichTen">
+            <summary>
+            Tên hiển thị của loại giao dịch: "Đăng ký mới", "Gia hạn gói thuê bao", "Nâng cấp gói"...
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.HinhThucGiaHan">
+            <summary>
+            Hình thức gia hạn: "Theo tháng", "Theo năm", "Tùy chọn".
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.SoThang">
+            <summary>
+            Số tháng đăng ký / gia hạn (VD: 1, 3, 6, 12, 24, 36).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.NgayBatDau">
+            <summary>
+            Ngày bắt đầu hiệu lực của kỳ này.
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.NgayKetThuc">
+            <summary>
+            Ngày hết hạn mới sau khi đăng ký / gia hạn.
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.NgayKetThucCu">
+            <summary>
+            Ngày hết hạn cũ trước khi thực hiện gia hạn (để đối chiếu).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.SoTien">
+            <summary>
+            Số tiền thanh toán / giá trị hợp đồng (VNĐ).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.SoHopDong">
+            <summary>
+            Số hợp đồng / Mã biên lai / Mã hóa đơn điện tử liên quan.
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.GhiChu">
+            <summary>
+            Ghi chú / Diễn giải lý do gia hạn hoặc điều chỉnh.
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.TrangThai">
+            <summary>
+            Trạng thái của lần đăng ký/gia hạn: "HieuLuc", "HetHan", "DaHuy".
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LichSuGoiThueBao.NguoiThucHien">
+            <summary>
+            Tên người thực hiện thao tác gia hạn / phê duyệt.
+            </summary>
+        </member>
+        <member name="T:SMU.Core.Entities.LogHoatDong">
+            <summary>
+            Thực thể lưu trữ Nhật ký hoạt động / Audit Log cho 4 phân hệ cốt lõi:
+            1. Nhập kho biển số xe (DotNhapKho)
+            2. Xuất kho biển số xe &amp; Biên lai thu tiền (XuatKhoBienSo)
+            3. Kiểm kê kho biển số xe (KiemKeKho)
+            4. Cấp lại đăng ký xe (CapLaiDangKyXe)
+            Bảng lưu trữ: LogHoatDong
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.CustomerId">
+            <summary>
+            Mã định danh Khách hàng / Đơn vị thực hiện thao tác.
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.CustomerName">
+            <summary>
+            Tên Khách hàng / Đơn vị tại thời điểm thực hiện thao tác.
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.LoaiNghiepVu">
+            <summary>
+            Phân hệ / Loại nghiệp vụ:
+            - "NhapKho" (Nhập kho biển số xe)
+            - "XuatKho" (Xuất kho &amp; Biên lai thu tiền)
+            - "KiemKe" (Kiểm kê kho biển số)
+            - "CapLaiDangKy" (Cấp lại đăng ký xe)
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.LoaiNghiepVuTen">
+            <summary>
+            Tên hiển thị loại nghiệp vụ: "Nhập kho", "Xuất kho", "Kiểm kê kho", "Cấp lại đăng ký xe".
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.HanhDong">
+            <summary>
+            Hành động thao tác: "ThemMoi", "CapNhat", "XacNhan", "Huy", "Xoa".
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.HanhDongTen">
+            <summary>
+            Tên hiển thị hành động: "Tạo mới đợt nhập", "Cập nhật phiếu xuất kho", "Xác nhận nhập kho", "Hủy phiếu xuất kho", "Xác nhận hoàn tất kiểm kê"...
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.ChungTuId">
+            <summary>
+            ID chứng từ liên quan (Id của DotNhapKho, XuatKhoBienSo, KiemKeKho, CapLaiDangKyXe).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.MaChungTu">
+            <summary>
+            Mã chứng từ / Số biên lai (Ví dụ: "NK-2026-08-01-DAU", "0000113", "KK-2026-10-10-921").
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.BienKiemSoat">
+            <summary>
+            Biển kiểm soát liên quan (Ví dụ: "30B-207.66", hoặc dải "30B-207.00 - 30B-207.99").
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.NoiDung">
+            <summary>
+            Tóm tắt nội dung chi tiết của hoạt động nghiệp vụ.
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.ChiTietThayDoi">
+            <summary>
+            Chi tiết thay đổi hoặc dữ liệu bổ sung (JSON hoặc text mô tả).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.TrangThai">
+            <summary>
+            Trạng thái chứng từ tại thời điểm ghi log (Ví dụ: "LuuTam", "DaNhapKho", "HoanTat", "DaHuy", "LuuNhap", "DaXacNhan", "DaXoa").
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.TrangThaiTen">
+            <summary>
+            Tên hiển thị trạng thái chứng từ (Ví dụ: "Bản nháp", "Đã nhập kho", "Hoàn tất", "Đã hủy", "Đã xác nhận", "Đã xóa").
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.ThoiGian">
+            <summary>
+            Thời điểm diễn ra hoạt động (UTC).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.NguoiThucHienId">
+            <summary>
+            Mã định danh người thực hiện thao tác.
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.NguoiThucHien">
+            <summary>
+            Tên hoặc Username người dùng thực hiện thao tác.
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.IpAddress">
+            <summary>
+            Địa chỉ IP của máy khách khi thực hiện thao tác (nếu có).
+            </summary>
+        </member>
+        <member name="P:SMU.Core.Entities.LogHoatDong.GhiChu">
+            <summary>
+            Ghi chú nghiệp vụ thêm.
+            </summary>
+        </member>
         <member name="T:SMU.Core.Entities.User">
             <summary>
             Thực thể thông tin người dùng / cán bộ trong hệ thống và đơn vị (Customer).
@@ -5076,6 +6492,30 @@
             Các DTO đặc thù giao tiếp nội bộ với Google Gemini REST API.
             </summary>
         </member>
+        <member name="T:SMU.Infrastructure.Data.Configuration.BackupSettings">
+            <summary>
+            Cấu hình thư mục lưu trữ và chính sách sao lưu dữ liệu đọc từ mục 'Backup' trong appsettings.json.
+            </summary>
+        </member>
+        <member name="P:SMU.Infrastructure.Data.Configuration.BackupSettings.BackupFolder">
+            <summary>
+            Thư mục lưu trữ các bản sao lưu (đường dẫn tương đối theo ContentRoot hoặc đường dẫn tuyệt đối).
+            Mặc định: "Backups".
+            </summary>
+        </member>
+        <member name="P:SMU.Infrastructure.Data.Configuration.BackupSettings.CompressToZip">
+            <summary>
+            Tự động nén tệp sao lưu thành định dạng .zip để tiết kiệm dung lượng lưu trữ máy chủ.
+            Mặc định: false (lưu tệp .sql trực tiếp).
+            </summary>
+        </member>
+        <member name="P:SMU.Infrastructure.Data.Configuration.BackupSettings.MaxBackupFilesToKeep">
+            <summary>
+            Số lượng bản sao lưu tối đa được giữ lại trong thư mục (0: không giới hạn).
+            Khi vượt quá số lượng này, hệ thống sẽ tự động dọn dẹp các bản sao lưu cũ nhất.
+            Mặc định: 30 bản.
+            </summary>
+        </member>
         <member name="T:SMU.Infrastructure.Data.DbInitializer">
             <summary>
             Quản lý kiểm tra cấu trúc cơ sở dữ liệu khi ứng dụng khởi động.
@@ -5150,6 +6590,11 @@
             Bảng chi tiết từng biển số thừa / thiếu trong phiếu kiểm kê kho.
             </summary>
         </member>
+        <member name="P:SMU.Infrastructure.Data.PostgresDbContext.LogHoatDongs">
+            <summary>
+            Bảng lưu trữ nhật ký hoạt động / audit log cho các phân hệ: Nhập kho, Xuất kho, Kiểm kê, Cấp lại đăng ký.
+            </summary>
+        </member>
         <member name="P:SMU.Infrastructure.Data.PostgresDbContext.CapBacs">
             <summary>
             Bảng danh mục Cấp bậc (CapBac).
@@ -5213,6 +6658,11 @@
         <member name="P:SMU.Infrastructure.Data.PostgresDbContext.MucThuLePhiKhuVucs">
             <summary>
             Bảng chi tiết mức thu lệ phí theo từng khu vực (muc_thu_le_phi_khu_vuc).
+            </summary>
+        </member>
+        <member name="P:SMU.Infrastructure.Data.PostgresDbContext.LichSuGoiThueBaos">
+            <summary>
+            Bảng lưu vết lịch sử các lần đăng ký mới, gia hạn, nâng cấp gói thuê bao của khách hàng / đơn vị.
             </summary>
         </member>
         <member name="M:SMU.Infrastructure.Data.PostgresDbContext.SaveChanges">
@@ -5398,6 +6848,22 @@
             Hiện thực hóa dịch vụ lưu trữ tệp tin trên hệ thống tệp cục bộ (Local Storage).
             </summary>
         </member>
+        <member name="M:SMU.Infrastructure.Storage.LocalFileStorageService.ResolveFileForDownload(System.String,System.String)">
+            <summary>
+            Phân giải tệp tin cần tải về từ tham số filename và path (hỗ trợ cả chuỗi mã hóa Base64 và chuỗi thường).
+            Đường dẫn path được phân giải linh hoạt dựa theo thư mục StorageFolder cấu hình trong appsettings.
+            </summary>
+        </member>
+        <member name="M:SMU.Infrastructure.Storage.LocalFileStorageService.GenerateDownloadUrl(System.String,System.String)">
+            <summary>
+            Sinh URL tải file với filename và path được mã hóa Base64 theo đúng chuẩn yêu cầu.
+            </summary>
+        </member>
+        <member name="M:SMU.Infrastructure.Storage.LocalFileStorageService.DecodeBase64OrRaw(System.String)">
+            <summary>
+            Hàm hỗ trợ giải mã Base64 an toàn, tự động xử lý dấu '+' bị biến đổi thành khoảng trắng ' ' trong URL query string.
+            </summary>
+        </member>
         <member name="T:SMU.Migrations.Postgres.InitialCreate">
             <inheritdoc />
         </member>
@@ -5506,6 +6972,56 @@
         <member name="M:SMU.Migrations.Postgres.AddDaXuatKhoVaXacNhanHoanTat.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
             <inheritdoc />
         </member>
+        <member name="T:SMU.Migrations.Postgres.AddLogHoatDong">
+            <inheritdoc />
+        </member>
+        <member name="M:SMU.Migrations.Postgres.AddLogHoatDong.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:SMU.Migrations.Postgres.AddLogHoatDong.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:SMU.Migrations.Postgres.AddLogHoatDong.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="T:SMU.Presentation.Controllers.BackupController">
+            <summary>
+            Controller cung cấp API sao lưu toàn bộ dữ liệu cơ sở dữ liệu PostgreSQL vào thư mục cấu hình trong appsettings.json.
+            Yêu cầu xác thực JWT Authorization.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.BackupController.CreateBackup(SMU.Application.DTOs.BackupRequest,System.Threading.CancellationToken)">
+            <summary>
+            Thực hiện sao lưu toàn bộ dữ liệu cơ sở dữ liệu PostgreSQL và lưu tệp vào thư mục được cấu hình trong appsettings.
+            Tệp được lưu dưới định dạng SQL dump (.sql) hoặc nén ZIP (.zip).
+            </summary>
+            <param name="request">Tùy chọn sao lưu (ghi chú, chỉ định nén zip).</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+            <returns>Thông tin chi tiết kết quả sao lưu gồm tên file, đường dẫn lưu, kích thước và thống kê các bảng.</returns>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.BackupController.GetBackupFiles(System.Threading.CancellationToken)">
+            <summary>
+            Lấy danh sách toàn bộ các tệp sao lưu hiện có trong thư mục cấu hình trên máy chủ.
+            </summary>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+            <returns>Danh sách các tệp sao lưu kèm dung lượng và thời gian tạo.</returns>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.BackupController.DownloadBackupFile(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Tải về tệp tin sao lưu cơ sở dữ liệu từ thư mục cấu hình.
+            </summary>
+            <param name="fileName">Tên tệp tin cần tải về (ví dụ: SMU_Backup_20261018_142500.sql hoặc .zip).</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+            <returns>Tệp tin dạng FileResult hỗ trợ resume download.</returns>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.BackupController.DeleteBackupFile(System.String,System.Threading.CancellationToken)">
+            <summary>
+            Xóa một tệp sao lưu khỏi thư mục cấu hình trên máy chủ.
+            </summary>
+            <param name="fileName">Tên tệp tin cần xóa.</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+            <returns>Thông báo trạng thái xóa tệp tin.</returns>
+        </member>
         <member name="T:SMU.Presentation.Controllers.BaoCaoBienThienController">
             <summary>
             Controller Báo cáo: Biểu đồ phân tích biến thiên Nhập - Xuất - Chi phí lệ phí:
@@ -5564,6 +7080,12 @@
             <summary>
             Controller Báo cáo: Báo cáo Nhập - Xuất - Tồn Biển số xe.
             Đồng bộ tuyệt đối giữa màn hình hiển thị và bản in A4.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.BaoCaoNhapXuatTonController.LayThongTinBoLoc(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API Lấy dữ liệu cấu hình cho các dropdown bộ lọc tìm kiếm (đồng bộ 100% với bộ lọc /TonKho/boloc).
+            Trả về danh sách đầu biển kèm số lượng tồn kho (Ví dụ: "Tất cả đầu biển (34)"), Loại phương tiện, Màu biển, Trạng thái.
             </summary>
         </member>
         <member name="M:SMU.Presentation.Controllers.BaoCaoNhapXuatTonController.LayBaoCaoNhapXuatTon(SMU.Application.DTOs.FilterBaoCaoNhapXuatTonRequest,System.Threading.CancellationToken)">
@@ -5657,6 +7179,16 @@
             API 6: Lấy thông tin quyển biên lai và gợi ý số biên lai tiếp theo theo ký hiệu quyển.
             </summary>
         </member>
+        <member name="M:SMU.Presentation.Controllers.CapLaiDangKyXeController.LayLogCapLai(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 7: (GET/POST) Lấy nhật ký hoạt động của phân hệ Cấp lại đăng ký xe.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.CapLaiDangKyXeController.LayLogTheoBienLai(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API 8: (GET) Lấy lịch sử log của 1 biên lai cấp lại đăng ký xe cụ thể theo Id hoặc Số biên lai.
+            </summary>
+        </member>
         <member name="T:SMU.Presentation.Controllers.CustomersController">
             <summary>
             Controller quản lý danh sách Khách hàng / Đơn vị (Customer) và cán bộ (User và Account) trực thuộc từng đơn vị.
@@ -5680,15 +7212,16 @@
         </member>
         <member name="M:SMU.Presentation.Controllers.CustomersController.CreateCustomer(SMU.Application.DTOs.CreateCustomerRequest,System.Threading.CancellationToken)">
             <summary>
-            Tạo mới một khách hàng / đơn vị (có thể truyền kèm danh sách cán bộ ban đầu).
+            Tạo mới một khách hàng / đơn vị (có thể truyền kèm tài khoản đăng nhập hoặc danh sách cán bộ ban đầu với phân quyền Role).
             </summary>
         </member>
         <member name="M:SMU.Presentation.Controllers.CustomersController.UpdateCustomer(System.String,SMU.Application.DTOs.UpdateCustomerRequest,System.Threading.CancellationToken)">
             <summary>
-            Cập nhật thông tin khách hàng / đơn vị.
+            Cập nhật thông tin khách hàng / đơn vị (hỗ trợ cả cập nhật vai trò Role, mật khẩu, thông tin tài khoản cán bộ trực thuộc).
+            Hỗ trợ cả hai phương thức HTTP PUT và POST.
             </summary>
             <param name="id">Mã GUID của khách hàng / đơn vị.</param>
-            <param name="request">Thông tin cần cập nhật.</param>
+            <param name="request">Thông tin cần cập nhật (Tên, mã, gói, quota, vai trò Role của tài khoản...).</param>
             <param name="cancellationToken">Token hủy yêu cầu.</param>
         </member>
         <member name="M:SMU.Presentation.Controllers.CustomersController.DeleteCustomer(System.String,System.Threading.CancellationToken)">
@@ -5716,15 +7249,15 @@
         </member>
         <member name="M:SMU.Presentation.Controllers.CustomersController.AddUserToCustomer(System.String,SMU.Application.DTOs.AddUserToCustomerRequest,System.Threading.CancellationToken)">
             <summary>
-            Thêm tài khoản cán bộ mới vào đơn vị (kiểm tra hạn mức Quota, tạo User và Account theo đơn vị như trong Modal UI).
+            Thêm tài khoản cán bộ mới vào đơn vị (kiểm tra hạn mức Quota, tạo User và Account theo đơn vị với tùy chọn phân quyền Role).
             </summary>
             <param name="id">Mã GUID của đơn vị.</param>
-            <param name="request">Thông tin cán bộ mới (Username, Password, FullName, CapBacId, SoHieuCAND, ChucVu, VaiTroPhanQuyenId).</param>
+            <param name="request">Thông tin cán bộ mới (Username, Password, FullName, Role, CapBacId, SoHieuCAND, ChucVu, VaiTroPhanQuyenId).</param>
             <param name="cancellationToken">Token hủy yêu cầu.</param>
         </member>
         <member name="M:SMU.Presentation.Controllers.CustomersController.UpdateUserInCustomer(System.String,System.String,SMU.Application.DTOs.UpdateUserInCustomerRequest,System.Threading.CancellationToken)">
             <summary>
-            Cập nhật thông tin cán bộ trong đơn vị.
+            Cập nhật thông tin cán bộ trong đơn vị (họ tên, cấp bậc, chức vụ, vai trò phân quyền, mật khẩu mới và phân quyền vai trò tài khoản Role).
             </summary>
             <param name="id">Mã GUID của đơn vị.</param>
             <param name="userId">Mã GUID của cán bộ.</param>
@@ -5745,6 +7278,43 @@
             </summary>
             <param name="id">Mã GUID của đơn vị.</param>
             <param name="userId">Mã GUID của cán bộ cần xóa.</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.CustomersController.GiaHanGoiThueBaoTheoId(System.String,SMU.Application.DTOs.GiaHanGoiThueBaoRequest,System.Threading.CancellationToken)">
+            <summary>
+            API Gia hạn hoặc nâng cấp/đổi gói thuê bao cho Khách hàng / Đơn vị theo ID.
+            Tự động cập nhật ngày hết hạn, hạn mức User (Quota), trạng thái và ghi vết lịch sử giao dịch.
+            </summary>
+            <param name="id">Mã GUID của khách hàng.</param>
+            <param name="request">Thông tin gia hạn: số tháng, ngày bắt đầu/kết thúc mới, gói thuê bao mới, số tiền, ghi chú...</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.CustomersController.GiaHanGoiThueBao(SMU.Application.DTOs.GiaHanGoiThueBaoRequest,System.Threading.CancellationToken)">
+            <summary>
+            API Gia hạn hoặc nâng cấp/đổi gói thuê bao cho chính Khách hàng / Đơn vị của user đang đăng nhập (hoặc truyền CustomerId trong body).
+            </summary>
+            <param name="request">Thông tin gia hạn: CustomerId (tùy chọn), số tháng, ngày bắt đầu/kết thúc mới, gói mới, số tiền...</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.CustomersController.LayThongTinVaLichSuGoiThueBaoTheoId(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API Xem thông tin trạng thái gói thuê bao hiện tại và toàn bộ lịch sử các lần đăng ký, gia hạn của một Khách hàng / Đơn vị theo Id.
+            </summary>
+            <param name="id">Mã GUID của khách hàng / đơn vị.</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.CustomersController.LayThongTinVaLichSuGoiThueBao(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API Xem thông tin trạng thái gói thuê bao hiện tại và toàn bộ lịch sử các lần đăng ký, gia hạn của chính đơn vị user đang đăng nhập (hoặc theo CustomerId query).
+            </summary>
+            <param name="customerId">Mã GUID của khách hàng (tùy chọn, mặc định lấy theo tài khoản đăng nhập).</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.CustomersController.LayDanhSachLichSuGoiThueBao(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API Lấy danh sách lịch sử đăng ký và gia hạn gói thuê bao của Khách hàng / Đơn vị (dạng mảng danh sách).
+            </summary>
+            <param name="id">Mã GUID của khách hàng / đơn vị.</param>
             <param name="cancellationToken">Token hủy yêu cầu.</param>
         </member>
         <member name="T:SMU.Presentation.Controllers.BaseDanhMucController`3">
@@ -5925,6 +7495,18 @@
             <param name="cancellationToken">Token hủy yêu cầu.</param>
             <returns>Tên file gốc và tên file GUID 36 ký tự đã lưu trong thư mục cấu hình.</returns>
         </member>
+        <member name="M:SMU.Presentation.Controllers.FileUploadController.DownloadFile(System.String,System.String)">
+            <summary>
+            API hỗ trợ tải tệp tin từ máy chủ với Input theo dạng query string: ?filename=...&amp;path=...
+            Trong đó:
+            - filename: Tên tệp tin tải về (mã hóa Base64 hoặc chuỗi thuần, ví dụ: QmFvQ2FvLnhsc3g= -> BaoCao.xlsx).
+            - path: Đường dẫn tệp tin lưu trữ (được mã hóa Base64 từ đường dẫn StorageFolder của appsettings hoặc đường dẫn tuyệt đối/tương đối).
+            Hỗ trợ [AllowAnonymous] để trình duyệt tải trực tiếp qua thẻ &lt;a href&gt; hoặc window.open mà không bị chặn token.
+            </summary>
+            <param name="filename">Tên tệp tin hiển thị khi tải về (mã hóa Base64).</param>
+            <param name="path">Đường dẫn tệp tin trên máy chủ (mã hóa Base64).</param>
+            <returns>Tệp tin dạng FileResult với Content-Type phù hợp và hỗ trợ resume download (Range processing).</returns>
+        </member>
         <member name="T:SMU.Presentation.Controllers.KiemKeKhoController">
             <summary>
             Controller Quản lý Kiểm kê kho biển số xe:
@@ -6021,6 +7603,77 @@
             API 7b: (GET) Tự động xác định dải đầu biển số từ biển số kiểm soát qua query string.
             </summary>
         </member>
+        <member name="M:SMU.Presentation.Controllers.KiemKeKhoController.LayLogKiemKeKho(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 8: (GET/POST) Lấy nhật ký hoạt động của phân hệ Kiểm kê kho biển số xe.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.KiemKeKhoController.LayLogTheoPhieuKiemKe(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API 9: (GET) Lấy lịch sử log của 1 phiếu kiểm kê kho cụ thể theo Id hoặc MaPhieuKiemKe.
+            </summary>
+        </member>
+        <member name="T:SMU.Presentation.Controllers.LogHoatDongController">
+            <summary>
+            Controller Quản lý Nhật ký hoạt động (Audit Log / Log hệ thống):
+            Theo dõi và hiển thị toàn bộ lịch sử thao tác của 4 phân hệ cốt lõi:
+            1. Nhập kho biển số xe (DotNhapKho)
+            2. Xuất kho biển số xe &amp; Biên lai thu tiền (XuatKhoBienSo)
+            3. Kiểm kê kho biển số xe (KiemKeKho)
+            4. Cấp lại đăng ký xe (CapLaiDangKyXe)
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.LayDanhSach(SMU.Application.DTOs.PagedLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 1: (POST) Lấy danh sách nhật ký hoạt động có phân trang và bộ lọc toàn diện.
+            Hỗ trợ lọc theo:
+            - Phân hệ (LoaiNghiepVu: "TatCa", "NhapKho", "XuatKho", "KiemKe", "CapLaiDangKy")
+            - Hành động (HanhDong: "ThemMoi", "CapNhat", "XacNhan", "Huy", "Xoa")
+            - Từ khóa (Keyword: tìm theo Mã chứng từ, Số biên lai, Biển số, Người thực hiện, Nội dung)
+            - Biển kiểm soát cụ thể (BienKiemSoat)
+            - Khoảng ngày (TuNgay, DenNgay)
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.LayDanhSachGet(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 1b: (GET) Lấy danh sách nhật ký hoạt động qua Query params (thuận tiện cho GET request).
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.LayLogNhapKho(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 2: (GET) Lấy danh sách nhật ký riêng cho phân hệ Nhập kho biển số xe.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.LayLogXuatKho(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 3: (GET) Lấy danh sách nhật ký riêng cho phân hệ Xuất kho biển số xe &amp; Biên lai thu tiền.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.LayLogKiemKe(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 4: (GET) Lấy danh sách nhật ký riêng cho phân hệ Kiểm kê kho biển số xe.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.LayLogCapLaiDangKy(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 5: (GET) Lấy danh sách nhật ký riêng cho phân hệ Cấp lại đăng ký xe.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.LayLogTheoChungTu(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API 6: (GET) Lấy toàn bộ lịch sử các thao tác/thay đổi của một chứng từ cụ thể theo ChungTuId hoặc MaChungTu.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.LayThongKeLog(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API 7: (GET) Thống kê tổng số lượng nhật ký hoạt động theo từng phân hệ và mốc thời gian.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.LogHoatDongController.DongBoLog(System.Threading.CancellationToken)">
+            <summary>
+            API 8: (POST) Đồng bộ nạp lại nhật ký hoạt động từ dữ liệu có sẵn của 4 phân hệ (nếu chưa có).
+            </summary>
+        </member>
         <member name="T:SMU.Presentation.Controllers.NhapKhoController">
             <summary>
             Controller quản lý Đợt nhập kho và Kho biển số xe:
@@ -6038,7 +7691,25 @@
         <member name="M:SMU.Presentation.Controllers.NhapKhoController.Set(SMU.Application.DTOs.SetDotNhapKhoRequest,System.Threading.CancellationToken)">
             <summary>
             API 2: (POST) Thêm mới và update đợt nhập kho.
-            Nếu update và DaNhapKho == true thì sẽ lưu danh sách biển số vào bảng KhoBienSo (bỏ qua biển số đấu giá LaBienDauGia == true).
+            Nếu update và DaNhapKho == true thì sẽ lưu/đồng bộ danh sách biển số vào bảng KhoBienSo (bỏ qua biển số đấu giá LaBienDauGia == true).
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.NhapKhoController.Update(SMU.Application.DTOs.SetDotNhapKhoRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 2.1: (POST) Cập nhật dữ liệu đợt nhập kho và đồng bộ toàn bộ bảng KhoBienSo theo dữ liệu mới.
+            Đối với trường hợp đã nhập kho: Toàn bộ thông tin (Mã, Ngày nhập, Loại xe, Màu biển, Đầu biển, Danh sách biển số) sẽ được cập nhật đồng bộ vào KhoBienSo.
+            Các biển số đã xuất kho trước đó sẽ được giữ nguyên trạng thái xuất kho và cập nhật đồng bộ sang phiếu xuất kho liên kết.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.NhapKhoController.UpdateById(System.String,SMU.Application.DTOs.SetDotNhapKhoRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 2.2: (PUT) Cập nhật dữ liệu đợt nhập kho theo Id và đồng bộ toàn bộ bảng KhoBienSo theo dữ liệu mới.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.NhapKhoController.XacNhanNhapKho(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API 2.3: (POST) Xác nhận nhập kho theo Id đợt nhập kho.
+            Khóa phiếu (DaNhapKho = true, TrangThai = 'DaNhapKho') và chuyển toàn bộ biển số trong kho sang trạng thái 'DuocBam' (Biển được bấm / Tồn kho).
             </summary>
         </member>
         <member name="M:SMU.Presentation.Controllers.NhapKhoController.GetById(System.String,System.Threading.CancellationToken)">
@@ -6049,6 +7720,32 @@
         <member name="M:SMU.Presentation.Controllers.NhapKhoController.Xoa(System.String,System.Threading.CancellationToken)">
             <summary>
             API 4: (GET) Xóa đợt nhập kho theo Id.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.NhapKhoController.ExportFileMau(System.Threading.CancellationToken)">
+            <summary>
+            API 5: (GET) Lấy thông tin tệp tin Excel mẫu nhập kho biển số xe (MauBaoCao/NhapKhoBienSo.xlsx).
+            Output trả về object chứa filename và path (mã hóa Base64 theo cấu hình StorageFolder của appsettings)
+            đóng vai trò là input cho API tải file /api/FileUpload/download?filename=...&amp;path=...
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.NhapKhoController.ImportExcel(SMU.Application.DTOs.ImportExcelBienSoRequest,System.String,System.Threading.CancellationToken)">
+            <summary>
+            API 6: (POST) Đọc dữ liệu danh sách biển số xe từ file Excel theo file mẫu với input là FileName (đường dẫn lấy file theo StorageFolder của appsettings).
+            Output trả về List&lt;BienSoChiTietItemRequest&gt;.
+            </summary>
+            <param name="request">Yêu cầu chứa FileName đã upload lên thư mục StorageFolder.</param>
+            <param name="fileName">Tùy chọn truyền tên file qua query string.</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.NhapKhoController.LayLogNhapKho(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 7: (GET/POST) Lấy nhật ký hoạt động của phân hệ Nhập kho.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.NhapKhoController.LayLogTheoDotNhap(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API 8: (GET) Lấy lịch sử log của 1 đợt nhập kho cụ thể theo Id hoặc MaDotNhap.
             </summary>
         </member>
         <member name="T:SMU.Presentation.Controllers.TonKhoController">
@@ -6243,6 +7940,7 @@
             5. POST /api/XuatKho/danhsach : Lấy danh sách phiếu xuất kho có phân trang và bộ lọc.
             6. GET /api/XuatKho/{id} : Lấy chi tiết phiếu xuất kho theo Id.
             7. GET /api/XuatKho/delete/{id} : Xóa phiếu xuất kho theo Id và khôi phục biển số về kho.
+            8. GET /api/XuatKho/huy/{id} : Hủy phiếu xuất kho và cập nhật lại trạng thái biển số trong KhoBienSo.
             </summary>
         </member>
         <member name="M:SMU.Presentation.Controllers.XuatKhoController.LayDanhSachBienSoKhaDung(SMU.Application.DTOs.FilterBienSoKhaDungRequest,System.Threading.CancellationToken)">
@@ -6268,6 +7966,24 @@
             - Nếu DaXuatKho = false: Lưu phiếu dạng lưu tạm / dự thảo, KHÔNG thay đổi dữ liệu trong KhoBienSo.
             </summary>
         </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.Update(SMU.Application.DTOs.SetXuatKhoRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 4.1: (POST) Cập nhật phiếu Lập thủ tục &amp; Biên lai xuất kho và đồng bộ toàn bộ bảng KhoBienSo theo dữ liệu mới.
+            Đối với trường hợp đã xuất kho: Toàn bộ dữ liệu mới (thông tin người nộp, lệ phí, số biên lai, và thông tin phương tiện/biển số nếu có) sẽ được cập nhật đồng bộ vào KhoBienSo.
+            Nếu đổi biển số khác: Biển số cũ sẽ tự động được hoàn tác về kho (DaXuatKho = false, TrangThai = 'DuocBam') và biển số mới chuyển sang đã xuất kho.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.UpdateById(System.String,SMU.Application.DTOs.SetXuatKhoRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 4.2: (PUT) Cập nhật phiếu Lập thủ tục &amp; Biên lai xuất kho theo Id và đồng bộ toàn bộ bảng KhoBienSo theo dữ liệu mới.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.XacNhanXuatKho(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API 4.3: (POST) Xác nhận xuất kho theo Id phiếu xuất kho.
+            Khóa phiếu (DaXuatKho = true, TrangThai = 'HoanTat') và chuyển trạng thái biển số trong KhoBienSo sang 'DaBam' (Đã bấm / Đã cấp).
+            </summary>
+        </member>
         <member name="M:SMU.Presentation.Controllers.XuatKhoController.LayDanhSach(SMU.Application.DTOs.PagedXuatKhoRequest,System.Threading.CancellationToken)">
             <summary>
             API 5: (POST) Lấy danh sách phiếu xuất kho có phân trang và bộ lọc.
@@ -6282,6 +7998,54 @@
             <summary>
             API 7: (GET) Xóa phiếu xuất kho theo Id. Hoàn tác trạng thái biển số trong KhoBienSo về DaXuatKho = false, TrangThai = 'DuocBam'.
             </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.HuyPhieuXuatKho(System.String,System.String,System.Threading.CancellationToken)">
+            <summary>
+            API 8: (GET) Hủy phiếu xuất kho theo Id.
+            Cập nhật trạng thái phiếu xuất kho sang 'DaHuy', DaXuatKho = false và khôi phục trạng thái biển số trong KhoBienSo về khả dụng (DaXuatKho = false, TrangThai = 'DuocBam').
+            </summary>
+            <param name="id">Mã GUID của phiếu xuất kho cần hủy.</param>
+            <param name="lyDoHuy">Lý do hủy phiếu (tùy chọn query param: ?lyDoHuy=...).</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.LayLogXuatKho(SMU.Application.DTOs.FilterLogHoatDongRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 9: (GET/POST) Lấy nhật ký hoạt động của phân hệ Xuất kho &amp; Biên lai thu tiền.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.LayLogTheoPhieuXuat(System.String,System.Threading.CancellationToken)">
+            <summary>
+            API 10: (GET) Lấy lịch sử log của 1 phiếu xuất kho cụ thể theo Id hoặc Số biên lai.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.ExportFileMau(System.Threading.CancellationToken)">
+            <summary>
+            API 11: (GET) Lấy thông tin tệp tin Excel mẫu xuất kho biển số xe (MauBaoCao/XuatKhoBienSo.xlsx).
+            Output trả về object chứa filename và path (mã hóa Base64 theo cấu hình StorageFolder của appsettings)
+            đóng vai trò là input cho API tải file /api/FileUpload/download?filename=...&amp;path=...
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.DownloadFileMau(System.Threading.CancellationToken)">
+            <summary>
+            API 12: (GET) Tải trực tiếp tệp tin Excel mẫu xuất kho biển số xe (XuatKhoBienSo.xlsx).
+            Hỗ trợ người dùng tải file trực tiếp trên trình duyệt hoặc qua nút Download mà không cần qua bước mã hóa Base64.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.CheckImportExcel(SMU.Application.DTOs.ImportXuatKhoExcelRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 13: (POST) Kiểm tra trước tệp tin Excel xuất kho (Dry-run / Check):
+            Kiểm tra xem các biển số trong tệp Excel đã có trong kho hay chưa, báo chi tiết danh sách biển số chưa có trong kho
+            và số lượng biển số hợp lệ sẵn sàng xuất kho mà không lưu dữ liệu vào cơ sở dữ liệu.
+            </summary>
+        </member>
+        <member name="M:SMU.Presentation.Controllers.XuatKhoController.ImportXuatKhoExcel(SMU.Application.DTOs.ImportXuatKhoExcelRequest,System.Threading.CancellationToken)">
+            <summary>
+            API 14: (POST) Nhập xuất kho biển số xe theo tệp tin Excel lưu trong thư mục StorageFolder (appsettings.json).
+            Kiểm tra chặt chẽ các biển số đã có trong kho hay chưa. Nếu biển số chưa có trong kho, hệ thống sẽ bỏ qua và liệt kê danh sách biển số chưa có trong kho trong kết quả trả về.
+            </summary>
+            <param name="request">Input gồm LoaiXeId và tên file (FileName).</param>
+            <param name="cancellationToken">Token hủy yêu cầu.</param>
+            <returns>Kết quả tổng hợp số lượng xuất kho thành công, bỏ qua, lỗi, tổng tiền thu, danh sách biển số chưa có trong kho và chi tiết từng dòng lỗi.</returns>
         </member>
         <member name="T:SMU.Presentation.Middlewares.GlobalExceptionHandler">
             <summary>

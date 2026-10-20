@@ -18,10 +18,14 @@ namespace SMU.Presentation.Controllers;
 public class NhapKhoController : ControllerBase
 {
     private readonly INhapKhoService _nhapKhoService;
+    private readonly ILogHoatDongService _logHoatDongService;
 
-    public NhapKhoController(INhapKhoService nhapKhoService)
+    public NhapKhoController(
+        INhapKhoService nhapKhoService,
+        ILogHoatDongService logHoatDongService)
     {
         _nhapKhoService = nhapKhoService;
+        _logHoatDongService = logHoatDongService;
     }
 
     /// <summary>
@@ -37,11 +41,12 @@ public class NhapKhoController : ControllerBase
 
     /// <summary>
     /// API 2: (POST) Thêm mới và update đợt nhập kho.
-    /// Nếu update và DaNhapKho == true thì sẽ lưu danh sách biển số vào bảng KhoBienSo (bỏ qua biển số đấu giá LaBienDauGia == true).
+    /// Nếu update và DaNhapKho == true thì sẽ lưu/đồng bộ danh sách biển số vào bảng KhoBienSo (bỏ qua biển số đấu giá LaBienDauGia == true).
     /// </summary>
     [HttpPost("set")]
     [ProducesResponseType(typeof(DotNhapKhoResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> Set([FromBody] SetDotNhapKhoRequest request, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
@@ -49,19 +54,63 @@ public class NhapKhoController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        try
+        var result = await _nhapKhoService.SetDotNhapKhoAsync(request, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 2.1: (POST) Cập nhật dữ liệu đợt nhập kho và đồng bộ toàn bộ bảng KhoBienSo theo dữ liệu mới.
+    /// Đối với trường hợp đã nhập kho: Toàn bộ thông tin (Mã, Ngày nhập, Loại xe, Màu biển, Đầu biển, Danh sách biển số) sẽ được cập nhật đồng bộ vào KhoBienSo.
+    /// Các biển số đã xuất kho trước đó sẽ được giữ nguyên trạng thái xuất kho và cập nhật đồng bộ sang phiếu xuất kho liên kết.
+    /// </summary>
+    [HttpPost("update")]
+    [ProducesResponseType(typeof(DotNhapKhoResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> Update([FromBody] SetDotNhapKhoRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
         {
-            var result = await _nhapKhoService.SetDotNhapKhoAsync(request, cancellationToken);
-            return Ok(result);
+            return BadRequest(ModelState);
         }
-        catch (ArgumentException ex)
+
+        var result = await _nhapKhoService.UpdateDotNhapKhoAsync(request, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 2.2: (PUT) Cập nhật dữ liệu đợt nhập kho theo Id và đồng bộ toàn bộ bảng KhoBienSo theo dữ liệu mới.
+    /// </summary>
+    [HttpPut("{id}")]
+    [ProducesResponseType(typeof(DotNhapKhoResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> UpdateById([FromRoute] string id, [FromBody] SetDotNhapKhoRequest request, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(ModelState);
         }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+
+        request.Id = id;
+        var result = await _nhapKhoService.UpdateDotNhapKhoAsync(request, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 2.3: (POST) Xác nhận nhập kho theo Id đợt nhập kho.
+    /// Khóa phiếu (DaNhapKho = true, TrangThai = 'DaNhapKho') và chuyển toàn bộ biển số trong kho sang trạng thái 'DuocBam' (Biển được bấm / Tồn kho).
+    /// </summary>
+    [HttpPost("{id}/xac-nhan")]
+    [HttpPost("xacnhan/{id}")]
+    [HttpPost("xac-nhan/{id}")]
+    [ProducesResponseType(typeof(DotNhapKhoResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> XacNhanNhapKho([FromRoute] string id, CancellationToken cancellationToken)
+    {
+        var result = await _nhapKhoService.XacNhanNhapKhoAsync(id, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -96,5 +145,70 @@ public class NhapKhoController : ControllerBase
         }
 
         return Ok(new { success = true, message = $"Đã xóa đợt nhập kho với Id '{id}' thành công." });
+    }
+
+    /// <summary>
+    /// API 5: (GET) Lấy thông tin tệp tin Excel mẫu nhập kho biển số xe (MauBaoCao/NhapKhoBienSo.xlsx).
+    /// Output trả về object chứa filename và path (mã hóa Base64 theo cấu hình StorageFolder của appsettings)
+    /// đóng vai trò là input cho API tải file /api/FileUpload/download?filename=...&amp;path=...
+    /// </summary>
+    [HttpGet("export-mau")]
+    [HttpGet("mau-excel")]
+    [ProducesResponseType(typeof(ExportMauNhapKhoResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ExportMauNhapKhoResponse>> ExportFileMau(CancellationToken cancellationToken)
+    {
+        var result = await _nhapKhoService.ExportFileMauNhapKhoAsync(cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 6: (POST) Đọc dữ liệu danh sách biển số xe từ file Excel theo file mẫu với input là FileName (đường dẫn lấy file theo StorageFolder của appsettings).
+    /// Output trả về List&lt;BienSoChiTietItemRequest&gt;.
+    /// </summary>
+    /// <param name="request">Yêu cầu chứa FileName đã upload lên thư mục StorageFolder.</param>
+    /// <param name="fileName">Tùy chọn truyền tên file qua query string.</param>
+    /// <param name="cancellationToken">Token hủy yêu cầu.</param>
+    [HttpPost("import-excel")]
+    [ProducesResponseType(typeof(List<BienSoChiTietItemRequest>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<List<BienSoChiTietItemRequest>>> ImportExcel(
+        [FromBody] ImportExcelBienSoRequest? request,
+        [FromQuery] string? fileName,
+        CancellationToken cancellationToken)
+    {
+        var targetFile = !string.IsNullOrWhiteSpace(request?.FileName) ? request.FileName : fileName;
+        if (string.IsNullOrWhiteSpace(targetFile))
+        {
+            return BadRequest(new { message = "Vui lòng truyền tên file (FileName) cần import." });
+        }
+
+        var result = await _nhapKhoService.ImportExcelBienSoAsync(targetFile, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 7: (GET/POST) Lấy nhật ký hoạt động của phân hệ Nhập kho.
+    /// </summary>
+    [HttpGet("log")]
+    [HttpPost("log")]
+    [ProducesResponseType(typeof(PagedResult<LogHoatDongResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LayLogNhapKho([FromQuery] FilterLogHoatDongRequest? request, CancellationToken cancellationToken)
+    {
+        request ??= new FilterLogHoatDongRequest();
+        request.LoaiNghiepVu = "NhapKho";
+        var result = await _logHoatDongService.LayDanhSachLogAsync(request, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 8: (GET) Lấy lịch sử log của 1 đợt nhập kho cụ thể theo Id hoặc MaDotNhap.
+    /// </summary>
+    [HttpGet("{id}/log")]
+    [ProducesResponseType(typeof(IReadOnlyList<LogHoatDongResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LayLogTheoDotNhap([FromRoute] string id, CancellationToken cancellationToken)
+    {
+        var result = await _logHoatDongService.LayLogTheoChungTuAsync(id, cancellationToken);
+        return Ok(result);
     }
 }

@@ -19,15 +19,18 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
     private readonly PostgresDbContext _dbContext;
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<CapLaiDangKyXeService> _logger;
+    private readonly ILogHoatDongService _logHoatDongService;
 
     public CapLaiDangKyXeService(
         PostgresDbContext dbContext,
         ICurrentUserService currentUserService,
-        ILogger<CapLaiDangKyXeService> logger)
+        ILogger<CapLaiDangKyXeService> logger,
+        ILogHoatDongService logHoatDongService)
     {
         _dbContext = dbContext;
         _currentUserService = currentUserService;
         _logger = logger;
+        _logHoatDongService = logHoatDongService;
     }
 
     /// <summary>
@@ -69,29 +72,10 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
 
         if (quyen == null)
         {
-            throw new ArgumentException($"Không tìm thấy Ký hiệu quyển biên lai với Id '{request.KyHieuQuyenBienLaiId}'.");
+            quyen = new KyHieuQuyenBienLai();
         }
 
-        // 3. Kiểm tra chặn trùng số biên lai trong cùng một quyển (kiểm tra cả trong bảng CapLaiDangKyXe và XuatKhoBienSo)
-        var soBienLaiTrim = request.SoBienLai.Trim();
-        var checkTrungCapLai = await _dbContext.CapLaiDangKyXes
-            .AnyAsync(x => x.KyHieuQuyenBienLaiId == request.KyHieuQuyenBienLaiId 
-                        && x.SoBienLai == soBienLaiTrim 
-                        && x.Id != request.Id, cancellationToken);
-
-        if (checkTrungCapLai)
-        {
-            throw new InvalidOperationException($"Số biên lai '{request.SoBienLai}' trong quyển '{quyen.Ma}' đã được sử dụng trong hệ thống cấp lại đăng ký xe.");
-        }
-
-        var checkTrungXuatKho = await _dbContext.XuatKhoBienSos
-            .AnyAsync(x => x.KyHieuQuyenBienLaiId == request.KyHieuQuyenBienLaiId 
-                        && x.SoBienLai == soBienLaiTrim, cancellationToken);
-
-        if (checkTrungXuatKho)
-        {
-            throw new InvalidOperationException($"Số biên lai '{request.SoBienLai}' trong quyển '{quyen.Ma}' đã được sử dụng trong phiếu xuất kho biển số.");
-        }
+       
 
         // 4. Lấy thông tin snapshot loại xe nếu có
         string loaiPhuongTien = request.LoaiPhuongTien.Trim();
@@ -117,7 +101,7 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
                 CustomerId = customerId,
                 KyHieuQuyenBienLaiId = request.KyHieuQuyenBienLaiId,
                 KyHieuQuyen = quyen.Ma ?? string.Empty,
-                SoBienLai = soBienLaiTrim,
+                SoBienLai = request.SoBienLai,
                 NgayBienLai = request.NgayBienLai,
 
                 BienKiemSoat = request.BienKiemSoat.Trim().ToUpperInvariant(),
@@ -147,7 +131,7 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
             entity = existing!;
             entity.KyHieuQuyenBienLaiId = request.KyHieuQuyenBienLaiId;
             entity.KyHieuQuyen = quyen.Ma ?? entity.KyHieuQuyen;
-            entity.SoBienLai = soBienLaiTrim;
+            entity.SoBienLai = request.SoBienLai;
             entity.NgayBienLai = request.NgayBienLai;
 
             entity.BienKiemSoat = request.BienKiemSoat.Trim().ToUpperInvariant();
@@ -173,19 +157,28 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
             }
         }
 
-        // 5. Cập nhật Số hiện tại của Quyển biên lai nếu số mới lớn hơn
-        if (long.TryParse(soBienLaiTrim, out var soMoi))
-        {
-            if (!quyen.SoHienTai.HasValue || soMoi > quyen.SoHienTai.Value)
-            {
-                quyen.SoHienTai = soMoi;
-            }
-        }
+     
 
         // LƯU Ý QUAN TRỌNG: TUYỆT ĐỐI KHÔNG THAY ĐỔI DỮ LIỆU BẢNG KhoBienSo
         // (Không xuất kho, không giảm tồn kho, không đổi trạng thái của biển số)
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _logHoatDongService.GhiLogAsync(
+            "CapLaiDangKy",
+            isAdd ? (entity.DaXacNhan ? "XacNhan" : "ThemMoi") : "CapNhat",
+            entity.SoBienLai,
+            isAdd
+                ? $"Lập biên lai cấp lại đăng ký xe '{entity.KyHieuQuyen}-{entity.SoBienLai}' cho biển {entity.BienKiemSoat} ({entity.HoTenChuXe}), thu {entity.SoTienThu:N0}đ."
+                : $"Cập nhật biên lai cấp lại đăng ký xe '{entity.KyHieuQuyen}-{entity.SoBienLai}' cho biển {entity.BienKiemSoat}.",
+            entity.Id,
+            entity.BienKiemSoat,
+            entity.TrangThai,
+            entity.DaXacNhan ? "Đã xác nhận (Đã phát hành)" : "Bản nháp",
+            null,
+            entity.CustomerId,
+            entity.LyDoCapLai,
+            cancellationToken);
 
         _logger.LogInformation("Đã lưu biên lai cấp lại đăng ký xe '{Id}' cho biển số '{BienKiemSoat}', số biên lai '{SoBienLai}', trạng thái '{TrangThai}'",
             entity.Id, entity.BienKiemSoat, entity.SoBienLai, entity.TrangThai);
@@ -236,6 +229,20 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _logHoatDongService.GhiLogAsync(
+            "CapLaiDangKy",
+            "XacNhan",
+            entity.SoBienLai,
+            $"Xác nhận phát hành biên lai cấp lại đăng ký xe '{entity.KyHieuQuyen}-{entity.SoBienLai}' cho biển {entity.BienKiemSoat} ({entity.HoTenChuXe}). Khóa biên lai hoàn tất.",
+            entity.Id,
+            entity.BienKiemSoat,
+            entity.TrangThai,
+            "Đã xác nhận (Đã phát hành)",
+            null,
+            entity.CustomerId,
+            entity.LyDoCapLai,
+            cancellationToken);
 
         _logger.LogInformation("Người dùng '{User}' đã xác nhận hoàn tất biên lai cấp lại đăng ký xe '{Id}' (Biển số: {BienKiemSoat})",
             entity.NguoiXacNhan, entity.Id, entity.BienKiemSoat);
@@ -361,6 +368,20 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
 
         _dbContext.CapLaiDangKyXes.Remove(entity);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        await _logHoatDongService.GhiLogAsync(
+            "CapLaiDangKy",
+            "Xoa",
+            entity.SoBienLai,
+            $"Xóa bản nháp biên lai cấp lại đăng ký xe '{entity.KyHieuQuyen}-{entity.SoBienLai}' cho biển {entity.BienKiemSoat}.",
+            entity.Id,
+            entity.BienKiemSoat,
+            "DaXoa",
+            "Đã xóa",
+            null,
+            entity.CustomerId,
+            entity.LyDoCapLai,
+            cancellationToken);
 
         _logger.LogInformation("Đã xóa bản nháp biên lai cấp lại đăng ký xe '{Id}'", id);
         return true;

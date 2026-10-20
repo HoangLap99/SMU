@@ -39,4 +39,30 @@ public class FileUploadResponse
     /// Kiểu nội dung MIME của tệp (vd: image/png, application/pdf).
     /// </summary>
     public string ContentType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Đường dẫn API hỗ trợ tải tệp kèm query string filename và path đã mã hóa Base64.
+    /// </summary>
+    public string? DownloadUrl { get; set; }
+}
+
+/// <summary>
+/// Kết quả phân giải thông tin tệp tin phục vụ API tải file.
+/// </summary>
+public class ResolvedDownloadFileResult
+{
+    /// <summary>
+    /// Đường dẫn tệp tin vật lý tuyệt đối trên máy chủ.
+    /// </summary>
+    public string PhysicalFilePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Kiểu MIME của tệp tin.
+    /// </summary>
+    public string ContentType { get; set; } = "application/octet-stream";
+
+    /// <summary>
+    /// Tên tệp tin hiển thị khi tải về trình duyệt.
+    /// </summary>
+    public string DownloadFileName { get; set; } = string.Empty;
 }

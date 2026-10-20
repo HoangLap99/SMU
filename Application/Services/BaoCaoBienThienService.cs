@@ -386,13 +386,16 @@ public class BaoCaoBienThienService : IBaoCaoBienThienService
         var coCau = await LayCoCauBienXuatAsync(request, cancellationToken);
         var bangChiTiet = await LayBangSoLieuChiTietAsync(request, cancellationToken);
 
+        var danhSachThoiGian = bieuDo1.Items.Select(x => x.ThoiGian).Distinct().ToList();
+
         return new BaoCaoBienThienDashboardResponse
         {
             KpiTongQuan = kpi,
             BieuDoNhapXuat = bieuDo1,
             BieuDoLePhi = bieuDo2,
             CoCauBienXuat = coCau,
-            BangChiTiet = bangChiTiet
+            BangChiTiet = bangChiTiet,
+            DanhSachThoiGian = danhSachThoiGian
         };
     }
 
@@ -612,8 +615,35 @@ public class BaoCaoBienThienService : IBaoCaoBienThienService
         DateTime fromDate;
         DateTime toDate;
 
-        // Xử lý mốc thời gian nhanh
-        if (!string.IsNullOrWhiteSpace(request.MocThoiGianNhanh))
+        // 1. ƯU TIÊN SỐ 1: Người dùng truyền khoảng thời gian cụ thể {TuNgay, DenNgay} từ DatePicker
+        // Bỏ qua hoàn toàn MocThoiGianNhanh (kể cả khi FE vẫn gửi kèm "ToanBo" hay mốc cũ)
+        if (request.TuNgay.HasValue && request.DenNgay.HasValue)
+        {
+            var d1 = request.TuNgay.Value.Date;
+            var d2 = request.DenNgay.Value.Date;
+            if (d1 > d2)
+            {
+                (d1, d2) = (d2, d1);
+            }
+            fromDate = DateTime.SpecifyKind(d1, DateTimeKind.Utc);
+            toDate = DateTime.SpecifyKind(d2.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
+            return (fromDate, toDate, gomTheo);
+        }
+        else if (request.TuNgay.HasValue && (string.IsNullOrWhiteSpace(request.MocThoiGianNhanh) || request.MocThoiGianNhanh.Equals("custom", StringComparison.OrdinalIgnoreCase)))
+        {
+            fromDate = DateTime.SpecifyKind(request.TuNgay.Value.Date, DateTimeKind.Utc);
+            toDate = DateTime.SpecifyKind(fromDate.AddMonths(1).AddTicks(-1), DateTimeKind.Utc);
+            return (fromDate, toDate, gomTheo);
+        }
+        else if (request.DenNgay.HasValue && (string.IsNullOrWhiteSpace(request.MocThoiGianNhanh) || request.MocThoiGianNhanh.Equals("custom", StringComparison.OrdinalIgnoreCase)))
+        {
+            toDate = DateTime.SpecifyKind(request.DenNgay.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
+            fromDate = DateTime.SpecifyKind(toDate.AddMonths(-1).Date, DateTimeKind.Utc);
+            return (fromDate, toDate, gomTheo);
+        }
+
+        // 2. ƯU TIÊN SỐ 2: Xử lý mốc thời gian nhanh khi KHÔNG truyền cặp {TuNgay, DenNgay}
+        if (!string.IsNullOrWhiteSpace(request.MocThoiGianNhanh) && !request.MocThoiGianNhanh.Equals("custom", StringComparison.OrdinalIgnoreCase))
         {
             var moc = request.MocThoiGianNhanh.Trim().ToLowerInvariant();
 
@@ -668,27 +698,9 @@ public class BaoCaoBienThienService : IBaoCaoBienThienService
             }
         }
 
-        if (request.TuNgay.HasValue && request.DenNgay.HasValue)
-        {
-            fromDate = DateTime.SpecifyKind(request.TuNgay.Value.Date, DateTimeKind.Utc);
-            toDate = DateTime.SpecifyKind(request.DenNgay.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
-        }
-        else if (request.TuNgay.HasValue)
-        {
-            fromDate = DateTime.SpecifyKind(request.TuNgay.Value.Date, DateTimeKind.Utc);
-            toDate = DateTime.SpecifyKind(fromDate.AddMonths(3).AddTicks(-1), DateTimeKind.Utc);
-        }
-        else if (request.DenNgay.HasValue)
-        {
-            toDate = DateTime.SpecifyKind(request.DenNgay.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
-            fromDate = DateTime.SpecifyKind(toDate.AddMonths(-3).Date, DateTimeKind.Utc);
-        }
-        else
-        {
-            // Mặc định kỳ báo cáo 3 tháng trọng điểm: Từ 01/08/2026 đến 31/10/2026 như giao diện mẫu
-            fromDate = new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc);
-            toDate = new DateTime(2026, 10, 31, 23, 59, 59, 999, DateTimeKind.Utc);
-        }
+        // 3. Fallback mặc định khi không truyền mốc nào: Từ 01/08/2026 đến 31/10/2026
+        fromDate = new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc);
+        toDate = new DateTime(2026, 10, 31, 23, 59, 59, 999, DateTimeKind.Utc);
 
         return (fromDate, toDate, gomTheo);
     }

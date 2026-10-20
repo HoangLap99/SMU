@@ -17,10 +17,14 @@ namespace SMU.Presentation.Controllers;
 public class CapLaiDangKyXeController : ControllerBase
 {
     private readonly ICapLaiDangKyXeService _capLaiDangKyXeService;
+    private readonly ILogHoatDongService _logHoatDongService;
 
-    public CapLaiDangKyXeController(ICapLaiDangKyXeService capLaiDangKyXeService)
+    public CapLaiDangKyXeController(
+        ICapLaiDangKyXeService capLaiDangKyXeService,
+        ILogHoatDongService logHoatDongService)
     {
         _capLaiDangKyXeService = capLaiDangKyXeService;
+        _logHoatDongService = logHoatDongService;
     }
 
     /// <summary>
@@ -32,33 +36,13 @@ public class CapLaiDangKyXeController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(CapLaiDangKyXeResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<CapLaiDangKyXeResponse>> SetCapLaiDangKyXe(
         [FromBody] SetCapLaiDangKyXeRequest request,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await _capLaiDangKyXeService.SetCapLaiDangKyXeAsync(request, cancellationToken);
-            return Ok(result);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Dữ liệu không hợp lệ",
-                Detail = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Thao tác không được phép",
-                Detail = ex.Message
-            });
-        }
+        var result = await _capLaiDangKyXeService.SetCapLaiDangKyXeAsync(request, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -68,35 +52,14 @@ public class CapLaiDangKyXeController : ControllerBase
     /// </summary>
     [HttpPost("{id}/xac-nhan")]
     [ProducesResponseType(typeof(CapLaiDangKyXeResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<CapLaiDangKyXeResponse>> XacNhan(
         string id,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await _capLaiDangKyXeService.XacNhanAsync(id, cancellationToken);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new ProblemDetails
-            {
-                Status = StatusCodes.Status404NotFound,
-                Title = "Không tìm thấy dữ liệu",
-                Detail = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Thao tác không được phép",
-                Detail = ex.Message
-            });
-        }
+        var result = await _capLaiDangKyXeService.XacNhanAsync(id, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -143,35 +106,14 @@ public class CapLaiDangKyXeController : ControllerBase
     /// </summary>
     [HttpDelete("{id}")]
     [ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<bool>> Xoa(
         string id,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            var result = await _capLaiDangKyXeService.XoaAsync(id, cancellationToken);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new ProblemDetails
-            {
-                Status = StatusCodes.Status404NotFound,
-                Title = "Không tìm thấy",
-                Detail = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new ProblemDetails
-            {
-                Status = StatusCodes.Status400BadRequest,
-                Title = "Không thể xóa",
-                Detail = ex.Message
-            });
-        }
+        var result = await _capLaiDangKyXeService.XoaAsync(id, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>
@@ -195,6 +137,31 @@ public class CapLaiDangKyXeController : ControllerBase
             });
         }
 
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 7: (GET/POST) Lấy nhật ký hoạt động của phân hệ Cấp lại đăng ký xe.
+    /// </summary>
+    [HttpGet("log")]
+    [HttpPost("log")]
+    [ProducesResponseType(typeof(PagedResult<LogHoatDongResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LayLogCapLai([FromQuery] FilterLogHoatDongRequest? request, CancellationToken cancellationToken)
+    {
+        request ??= new FilterLogHoatDongRequest();
+        request.LoaiNghiepVu = "CapLaiDangKy";
+        var result = await _logHoatDongService.LayDanhSachLogAsync(request, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// API 8: (GET) Lấy lịch sử log của 1 biên lai cấp lại đăng ký xe cụ thể theo Id hoặc Số biên lai.
+    /// </summary>
+    [HttpGet("{id}/log")]
+    [ProducesResponseType(typeof(IReadOnlyList<LogHoatDongResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LayLogTheoBienLai([FromRoute] string id, CancellationToken cancellationToken)
+    {
+        var result = await _logHoatDongService.LayLogTheoChungTuAsync(id, cancellationToken);
         return Ok(result);
     }
 }

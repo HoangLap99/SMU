@@ -11,6 +11,7 @@ using SMU.Application.Services;
 using SMU.Infrastructure.Ai;
 using SMU.Infrastructure.Ai.Configuration;
 using SMU.Infrastructure.Data;
+using SMU.Infrastructure.Data.Configuration;
 using SMU.Infrastructure.Extractors;
 using SMU.Infrastructure.Extractors.Abstractions;
 using SMU.Infrastructure.Extractors.Implementations;
@@ -71,6 +72,12 @@ public static class ServiceCollectionExtensions
         // Đăng ký dịch vụ Báo cáo Nhập - Xuất - Tồn Biển số xe
         services.AddScoped<IBaoCaoNhapXuatTonService, BaoCaoNhapXuatTonService>();
 
+        // Đăng ký dịch vụ Nhật ký hoạt động / Audit Log (Nhập kho, Xuất kho, Kiểm kê, Cấp lại)
+        services.AddScoped<ILogHoatDongService, LogHoatDongService>();
+
+        // Đăng ký dịch vụ Sao lưu dữ liệu toàn bộ cơ sở dữ liệu
+        services.AddScoped<IBackupService, BackupService>();
+
         return services;
     }
 
@@ -107,6 +114,11 @@ public static class ServiceCollectionExtensions
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddOptions<BackupSettings>()
+            .Bind(configuration.GetSection(BackupSettings.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         // 3. Cấu hình HttpContext và CurrentUserService (truy xuất user hiện tại ở bất kỳ function nào)
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
@@ -125,6 +137,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDocumentExtractorStrategy, WordExtractorStrategy>();
         services.AddScoped<IDocumentExtractorStrategy, PdfExtractorStrategy>();
         services.AddScoped<IDocumentExtractorStrategy, PlainTextExtractorStrategy>();
+        services.AddScoped<IDocumentExtractorStrategy, ImageExtractorStrategy>();
 
         // 7. Đăng ký Strategy Resolver / Facade
         services.AddScoped<IDocumentExtractionService, DocumentExtractionService>();

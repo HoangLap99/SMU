@@ -2,42 +2,124 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SMU.Application.DTOs;
 
+#region 0. BỘ LỌC DÙNG CHUNG CHUẨN HÓA THEO API /TonKho/tonghop
+
 /// <summary>
-/// Yêu cầu lọc Báo cáo Nhập - Xuất - Tồn Biển số xe.
+/// Bộ lọc dùng chung cho tất cả các báo cáo Nhập - Xuất - Tồn.
+/// Bổ sung đầy đủ 100% các tiêu chí lọc tương đồng với API /TonKho/tonghop (FilterTonKhoRequest).
 /// </summary>
-public class FilterBaoCaoNhapXuatTonRequest
+public class FilterBaoCaoCommonRequest
 {
     /// <summary>
-    /// Ngày bắt đầu kỳ báo cáo (Ví dụ: 01/08/2026).
-    /// Mặc định: 01/08/2026.
+    /// Từ khóa tìm kiếm số biển (Ví dụ: "29E-895.05", "30B-532...").
     /// </summary>
-    public DateTime? TuNgay { get; set; }
+    public string? TimSoBien { get; set; }
 
     /// <summary>
-    /// Ngày kết thúc kỳ báo cáo (Ví dụ: 31/10/2026).
-    /// Mặc định: 31/10/2026.
+    /// Từ khóa tìm kiếm chung (Keyword).
     /// </summary>
-    public DateTime? DenNgay { get; set; }
+    public string? Keyword { get; set; }
 
     /// <summary>
-    /// Lọc theo ID Loại xe (chọn từ danh mục LoaiXe: Ô tô, Xe máy...). Để trống lấy tất cả.
+    /// Từ khóa tìm kiếm (TimKiem tương thích ngược).
     /// </summary>
-    public string? LoaiXeId { get; set; }
+    public string? TimKiem { get; set; }
 
     /// <summary>
-    /// Lọc theo ID Màu biển số (Trắng, Vàng, Xanh...). Để trống lấy tất cả.
+    /// Đầu biển cần lọc (Ví dụ: "29AH-316", "30B-532", "29E-895" hoặc "30B").
     /// </summary>
-    public string? MauBienSoId { get; set; }
+    public string? DauBien { get; set; }
 
     /// <summary>
-    /// Từ khóa tìm kiếm Đầu biển (Ví dụ: "29A", "29AC", "30B"...).
+    /// Từ khóa tìm kiếm Đầu biển (TimDauBien tương thích ngược).
     /// </summary>
     public string? TimDauBien { get; set; }
 
     /// <summary>
-    /// ID Khách hàng / Đơn vị sở hữu kho. Tự động lấy theo User đăng nhập nếu không truyền.
+    /// ID Danh mục Loại phương tiện / Loại xe (LoaiXe).
+    /// </summary>
+    public string? LoaiXeId { get; set; }
+
+    /// <summary>
+    /// ID Danh mục Màu biển số (MauBienSo).
+    /// </summary>
+    public string? MauBienSoId { get; set; }
+
+    /// <summary>
+    /// Trạng thái biển số ("DuocBam", "DaBam", "ChoDauGia", "ThuHoi" hoặc null là tất cả).
+    /// </summary>
+    public string? TrangThai { get; set; }
+
+    /// <summary>
+    /// Loại thời gian ("TatCa", "HomNay", "TuanNay", "ThangNay", "TuyChon").
+    /// </summary>
+    public string? LoaiThoiGian { get; set; }
+
+    /// <summary>
+    /// Từ ngày nhập kho / ngày báo cáo (dd/MM/yyyy) theo chuẩn TonKho.
+    /// </summary>
+    public DateTime? FromDate { get; set; }
+
+    /// <summary>
+    /// Đến ngày nhập kho / ngày báo cáo (dd/MM/yyyy) theo chuẩn TonKho.
+    /// </summary>
+    public DateTime? ToDate { get; set; }
+
+    /// <summary>
+    /// Ngày bắt đầu kỳ báo cáo (tương thích ngược cho TuNgay).
+    /// </summary>
+    public DateTime? TuNgay { get; set; }
+
+    /// <summary>
+    /// Ngày kết thúc kỳ báo cáo (tương thích ngược cho DenNgay).
+    /// </summary>
+    public DateTime? DenNgay { get; set; }
+
+    /// <summary>
+    /// ID Khách hàng / Đơn vị sở hữu kho (nếu null sẽ lấy tự động từ tài khoản hiện tại).
     /// </summary>
     public string? CustomerId { get; set; }
+
+    /// <summary>
+    /// Helper: Lấy từ ngày thực tế (ưu tiên TuNgay nếu có, hoặc FromDate).
+    /// </summary>
+    public DateTime? GetTuNgay() => TuNgay ?? FromDate;
+
+    /// <summary>
+    /// Helper: Lấy đến ngày thực tế (ưu tiên DenNgay nếu có, hoặc ToDate).
+    /// </summary>
+    public DateTime? GetDenNgay() => DenNgay ?? ToDate;
+
+    /// <summary>
+    /// Helper: Lấy từ khóa tìm kiếm biển số / từ khóa chung.
+    /// </summary>
+    public string? GetSearchKeyword()
+    {
+        if (!string.IsNullOrWhiteSpace(TimSoBien)) return TimSoBien.Trim();
+        if (!string.IsNullOrWhiteSpace(Keyword)) return Keyword.Trim();
+        if (!string.IsNullOrWhiteSpace(TimKiem)) return TimKiem.Trim();
+        return null;
+    }
+
+    /// <summary>
+    /// Helper: Lấy thông tin lọc đầu biển.
+    /// </summary>
+    public string? GetDauBienFilter()
+    {
+        if (!string.IsNullOrWhiteSpace(DauBien)) return DauBien.Trim();
+        if (!string.IsNullOrWhiteSpace(TimDauBien)) return TimDauBien.Trim();
+        return null;
+    }
+}
+
+#endregion
+
+/// <summary>
+/// Yêu cầu lọc Báo cáo Nhập - Xuất - Tồn Biển số xe.
+/// Tương thích hoàn toàn với bộ lọc của API /TonKho/tonghop.
+/// </summary>
+public class FilterBaoCaoNhapXuatTonRequest : FilterBaoCaoCommonRequest
+{
 }
 
 /// <summary>
@@ -206,18 +288,20 @@ public class BaoCaoNhapXuatTonPrintDataDto
 
 /// <summary>
 /// Yêu cầu lọc Báo cáo Biển số tồn kho tại thời điểm.
+/// Kế thừa và đồng bộ 100% bộ lọc của API /TonKho/tonghop.
 /// </summary>
-public class FilterBaoCaoTonTaiThoiDiemRequest
+public class FilterBaoCaoTonTaiThoiDiemRequest : FilterBaoCaoCommonRequest
 {
     /// <summary>
     /// Mốc ngày chốt tồn kho (Ví dụ: 31/08/2026).
+    /// Nếu không truyền, hệ thống sẽ tự động dùng DenNgay hoặc ToDate.
     /// </summary>
     public DateTime? ChotTonTaiNgay { get; set; }
 
-    public string? LoaiXeId { get; set; }
-    public string? MauBienSoId { get; set; }
-    public string? TimKiem { get; set; }
-    public string? CustomerId { get; set; }
+    /// <summary>
+    /// Helper: Lấy ngày chốt tồn kho thực tế.
+    /// </summary>
+    public DateTime? GetChotNgay() => ChotTonTaiNgay ?? GetDenNgay();
 }
 
 public class BaoCaoTonTaiThoiDiemResponse
@@ -248,13 +332,16 @@ public class BaoCaoTonTaiThoiDiemItemDto
 
 #region 3. BÁO CÁO TIỀN THU THEO BIÊN LAI VÀ THỦ TỤC (Tab 4)
 
-public class FilterBaoCaoTienThuBienLaiRequest
+/// <summary>
+/// Yêu cầu lọc Báo cáo Tiền thu theo biên lai và thủ tục.
+/// Kế thừa và đồng bộ 100% bộ lọc của API /TonKho/tonghop.
+/// </summary>
+public class FilterBaoCaoTienThuBienLaiRequest : FilterBaoCaoCommonRequest
 {
-    public DateTime? TuNgay { get; set; }
-    public DateTime? DenNgay { get; set; }
+    /// <summary>
+    /// ID Danh mục Loại thủ tục (LoaiThuTuc). Để trống lấy tất cả.
+    /// </summary>
     public string? LoaiThuTucId { get; set; }
-    public string? TimKiem { get; set; }
-    public string? CustomerId { get; set; }
 }
 
 public class BaoCaoTienThuBienLaiResponse
@@ -287,11 +374,16 @@ public class BaoCaoTienThuBienLaiItemDto
 
 #region 4. BẢNG THỐNG KÊ THỦ TỤC VÀ TIỀN THU (Tab 5)
 
-public class FilterBangThongKeThuTucRequest
+/// <summary>
+/// Yêu cầu lọc Bảng thống kê thủ tục và tiền thu.
+/// Kế thừa và đồng bộ 100% bộ lọc của API /TonKho/tonghop.
+/// </summary>
+public class FilterBangThongKeThuTucRequest : FilterBaoCaoCommonRequest
 {
-    public DateTime? TuNgay { get; set; }
-    public DateTime? DenNgay { get; set; }
-    public string? CustomerId { get; set; }
+    /// <summary>
+    /// ID Danh mục Loại thủ tục (LoaiThuTuc). Để trống lấy tất cả.
+    /// </summary>
+    public string? LoaiThuTucId { get; set; }
 }
 
 public class BangThongKeThuTucResponse
@@ -324,13 +416,12 @@ public class BangThongKeThuTucItemDto
 
 #region 5. BẢNG KÊ CHI TIẾT ĐỢT NHẬP BIẾN SỐ XE (Tab 6)
 
-public class FilterBangKeChiTietDotNhapRequest
+/// <summary>
+/// Yêu cầu lọc Bảng kê chi tiết đợt nhập biển số xe.
+/// Kế thừa và đồng bộ 100% bộ lọc của API /TonKho/tonghop.
+/// </summary>
+public class FilterBangKeChiTietDotNhapRequest : FilterBaoCaoCommonRequest
 {
-    public DateTime? TuNgay { get; set; }
-    public DateTime? DenNgay { get; set; }
-    public string? LoaiXeId { get; set; }
-    public string? TimKiem { get; set; }
-    public string? CustomerId { get; set; }
 }
 
 public class BangKeChiTietDotNhapResponse
@@ -363,12 +454,12 @@ public class BangKeChiTietDotNhapItemDto
 
 #region 6. BẢNG KÊ CHI TIẾT BIẾN SỐ ĐÃ XUẤT KHO (Tab 7)
 
-public class FilterBangKeChiTietXuatKhoRequest
+/// <summary>
+/// Yêu cầu lọc Bảng kê chi tiết biển số đã xuất kho.
+/// Kế thừa và đồng bộ 100% bộ lọc của API /TonKho/tonghop.
+/// </summary>
+public class FilterBangKeChiTietXuatKhoRequest : FilterBaoCaoCommonRequest
 {
-    public DateTime? TuNgay { get; set; }
-    public DateTime? DenNgay { get; set; }
-    public string? TimKiem { get; set; }
-    public string? CustomerId { get; set; }
 }
 
 public class BangKeChiTietXuatKhoResponse

@@ -17,10 +17,26 @@ namespace SMU.Presentation.Controllers;
 public class BaoCaoNhapXuatTonController : ControllerBase
 {
     private readonly IBaoCaoNhapXuatTonService _baoCaoNhapXuatTonService;
+    private readonly ITonKhoService _tonKhoService;
 
-    public BaoCaoNhapXuatTonController(IBaoCaoNhapXuatTonService baoCaoNhapXuatTonService)
+    public BaoCaoNhapXuatTonController(
+        IBaoCaoNhapXuatTonService baoCaoNhapXuatTonService,
+        ITonKhoService tonKhoService)
     {
         _baoCaoNhapXuatTonService = baoCaoNhapXuatTonService;
+        _tonKhoService = tonKhoService;
+    }
+
+    /// <summary>
+    /// API Lấy dữ liệu cấu hình cho các dropdown bộ lọc tìm kiếm (đồng bộ 100% với bộ lọc /TonKho/boloc).
+    /// Trả về danh sách đầu biển kèm số lượng tồn kho (Ví dụ: "Tất cả đầu biển (34)"), Loại phương tiện, Màu biển, Trạng thái.
+    /// </summary>
+    [HttpGet("boloc")]
+    [ProducesResponseType(typeof(BoLocTonKhoResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LayThongTinBoLoc([FromQuery] string? customerId, CancellationToken cancellationToken)
+    {
+        var result = await _tonKhoService.LayThongTinBoLocAsync(customerId, cancellationToken);
+        return Ok(result);
     }
 
     /// <summary>

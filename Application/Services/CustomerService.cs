@@ -199,13 +199,63 @@ public class CustomerService : ICustomerService
         _dbContext.Customers.Add(customer);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        // 4. Bổ sung các cán bộ ban đầu nếu có chỉ định
+        // 4. Bổ sung tài khoản ban đầu nếu có chỉ định trực tiếp qua CreateCustomerRequest
+        if (!string.IsNullOrWhiteSpace(request.Username))
+        {
+            var directMember = new AddUserToCustomerRequest
+            {
+                Username = request.Username,
+                Password = request.Password,
+                FullName = !string.IsNullOrWhiteSpace(request.FullName) ? request.FullName.Trim() : customer.Name,
+                CapBacId = request.CapBacId,
+                SoHieuCAND = request.SoHieuCAND,
+                ChucVu = request.ChucVu,
+                VaiTroPhanQuyenId = request.VaiTroPhanQuyenId,
+                Email = request.Email,
+                PhoneNumber = request.PhoneNumber,
+                Role = request.Role ?? UserRole.AdminCustomer
+            };
+            await AddUserToCustomerAsync(customer.Id!, directMember, cancellationToken);
+        }
+
+        // 4.1. Bổ sung các cán bộ ban đầu nếu có chỉ định trong InitialMembers
         if (request.InitialMembers != null && request.InitialMembers.Count > 0)
         {
             foreach (var memberReq in request.InitialMembers)
             {
+                // Tránh tạo trùng nếu username đã được tạo trực tiếp ở trên
+                if (!string.IsNullOrWhiteSpace(request.Username) && 
+                    string.Equals(memberReq.Username.Trim(), request.Username.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
                 await AddUserToCustomerAsync(customer.Id!, memberReq, cancellationToken);
             }
+        }
+
+        // 5. Tự động ghi nhận lịch sử đăng ký gói thuê bao ban đầu nếu có chọn gói
+        if (!string.IsNullOrWhiteSpace(customer.GoiThueBaoId))
+        {
+            var gtb = await _dbContext.GoiThueBaos.AsNoTracking().FirstOrDefaultAsync(g => g.Id == customer.GoiThueBaoId, cancellationToken);
+            var initialHistory = new LichSuGoiThueBao
+            {
+                CustomerId = customer.Id!,
+                CustomerCode = customer.Code,
+                CustomerName = customer.Name,
+                GoiThueBaoId = customer.GoiThueBaoId,
+                GoiThueBaoMa = gtb?.Ma,
+                GoiThueBaoTen = gtb?.Ten ?? "Gói thuê bao khởi tạo",
+                GioiHanUser = customer.GioiHanUser,
+                LoaiGiaoDich = "DangKyMoi",
+                LoaiGiaoDichTen = "Đăng ký mới",
+                HinhThucGiaHan = "Đăng ký khởi tạo",
+                NgayBatDau = customer.StartDate ?? DateTime.UtcNow,
+                NgayKetThuc = customer.EndDate ?? (customer.StartDate ?? DateTime.UtcNow).AddYears(1),
+                TrangThai = "HieuLuc",
+                NguoiThucHien = _currentUserService.FullName ?? _currentUserService.Username ?? "System"
+            };
+            _dbContext.LichSuGoiThueBaos.Add(initialHistory);
+            await _dbContext.SaveChangesAsync(cancellationToken);
         }
 
         _logger.LogInformation("Người dùng '{UserName}' ({UserId}) đã khởi tạo thành công khách hàng '{CustomerName}' (Code: {Code}, Quota: {Quota})",
@@ -220,6 +270,11 @@ public class CustomerService : ICustomerService
         if (customer == null)
         {
             throw new KeyNotFoundException($"Không tìm thấy khách hàng có Id: '{id}'.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Code))
+        {
+            customer.Code = request.Code.Trim();
         }
 
         customer.Name = request.Name.Trim();
@@ -239,6 +294,85 @@ public class CustomerService : ICustomerService
         customer.EndDate = request.EndDate;
         customer.Status = request.Status;
         customer.IsActive = request.IsActive;
+
+        // Cập nhật vai trò / thông tin tài khoản thuộc đơn vị nếu có yêu cầu
+        if (request.Role.HasValue || !string.IsNullOrWhiteSpace(request.NewPassword) || !string.IsNullOrWhiteSpace(request.Username))
+        {
+            Account? targetAccount = null;
+            User? targetUser = null;
+
+            if (!string.IsNullOrWhiteSpace(request.UserId))
+            {
+                targetAccount = await _dbContext.Accounts.FirstOrDefaultAsync(a => 
+                    a.CustomerId == id && (a.UserId == request.UserId || a.Id == request.UserId), cancellationToken);
+                targetUser = await _dbContext.Users.FirstOrDefaultAsync(u => 
+                    u.CustomerId == id && u.Id == request.UserId, cancellationToken);
+            }
+            else if (!string.IsNullOrWhiteSpace(request.Username))
+            {
+                var normalizedUser = request.Username.Trim().ToLowerInvariant();
+                targetAccount = await _dbContext.Accounts.FirstOrDefaultAsync(a => 
+                    a.CustomerId == id && a.Username.ToLower() == normalizedUser, cancellationToken);
+                if (targetAccount?.UserId != null)
+                {
+                    targetUser = await _dbContext.Users.FirstOrDefaultAsync(u => 
+                        u.CustomerId == id && u.Id == targetAccount.UserId, cancellationToken);
+                }
+            }
+            else
+            {
+                // Ưu tiên tìm tài khoản AdminCustomer hoặc Admin, hoặc tài khoản đầu tiên thuộc đơn vị này
+                targetAccount = await _dbContext.Accounts.FirstOrDefaultAsync(a => 
+                    a.CustomerId == id && (a.Role == UserRole.AdminCustomer || a.Role == UserRole.Admin), cancellationToken)
+                    ?? await _dbContext.Accounts.FirstOrDefaultAsync(a => a.CustomerId == id, cancellationToken);
+                if (targetAccount?.UserId != null)
+                {
+                    targetUser = await _dbContext.Users.FirstOrDefaultAsync(u => 
+                        u.CustomerId == id && u.Id == targetAccount.UserId, cancellationToken);
+                }
+            }
+
+            if (targetAccount != null)
+            {
+                if (request.Role.HasValue)
+                {
+                    targetAccount.Role = request.Role.Value;
+                    if (request.Role.Value == UserRole.Trial && !targetAccount.TrialEndDate.HasValue)
+                    {
+                        targetAccount.TrialStartDate = DateTime.UtcNow;
+                        targetAccount.TrialEndDate = DateTime.UtcNow.AddDays(14);
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(request.NewPassword))
+                {
+                    targetAccount.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+                }
+
+                if (targetUser != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(request.FullName)) targetUser.FullName = request.FullName.Trim();
+                    if (!string.IsNullOrWhiteSpace(request.CapBacId)) targetUser.CapBacId = request.CapBacId;
+                    if (!string.IsNullOrWhiteSpace(request.ChucVu)) targetUser.ChucVu = request.ChucVu.Trim();
+                    if (!string.IsNullOrWhiteSpace(request.VaiTroPhanQuyenId)) targetUser.VaiTroPhanQuyenId = request.VaiTroPhanQuyenId;
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(request.Username))
+            {
+                // Nếu đơn vị chưa có tài khoản và caller muốn tạo mới tài khoản với Role được chọn
+                var addReq = new AddUserToCustomerRequest
+                {
+                    Username = request.Username,
+                    Password = request.NewPassword,
+                    FullName = !string.IsNullOrWhiteSpace(request.FullName) ? request.FullName.Trim() : customer.Name,
+                    CapBacId = request.CapBacId,
+                    ChucVu = request.ChucVu,
+                    VaiTroPhanQuyenId = request.VaiTroPhanQuyenId,
+                    Role = request.Role ?? UserRole.AdminCustomer
+                };
+                await AddUserToCustomerAsync(id, addReq, cancellationToken);
+            }
+        }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -402,13 +536,16 @@ public class CustomerService : ICustomerService
 
         // 5. Tạo tài khoản đăng nhập (Account) gắn theo User và Customer
         var rawPassword = string.IsNullOrWhiteSpace(request.Password) ? "MatKhau123@" : request.Password;
+        var role = request.Role;
         var account = new Account
         {
             CustomerId = customerId,
             UserId = user.Id,
             Username = request.Username.Trim(),
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(rawPassword),
-            Role = UserRole.User,
+            Role = role,
+            TrialStartDate = role == UserRole.Trial ? DateTime.UtcNow : null,
+            TrialEndDate = role == UserRole.Trial ? DateTime.UtcNow.AddDays(14) : null,
             IsLocked = false
         };
 
@@ -459,6 +596,16 @@ public class CustomerService : ICustomerService
         if (!string.IsNullOrWhiteSpace(request.NewPassword) && account != null)
         {
             account.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        }
+
+        if (request.Role.HasValue && account != null)
+        {
+            account.Role = request.Role.Value;
+            if (request.Role.Value == UserRole.Trial && !account.TrialEndDate.HasValue)
+            {
+                account.TrialStartDate = DateTime.UtcNow;
+                account.TrialEndDate = DateTime.UtcNow.AddDays(14);
+            }
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -577,6 +724,7 @@ public class CustomerService : ICustomerService
             AccountId = account?.Id,
             CustomerId = user.CustomerId ?? string.Empty,
             Username = account?.Username ?? string.Empty,
+            Role = account?.Role ?? UserRole.User,
             FullName = user.FullName,
             CapBacId = user.CapBacId,
             CapBacTen = capBacTen,
@@ -593,4 +741,259 @@ public class CustomerService : ICustomerService
             ModifiedByName = user.ModifiedByName
         };
     }
+
+    #region Nghiệp vụ Gia hạn & Xem Lịch sử Gói thuê bao (Subscription Renewal & History)
+
+    public async Task<LichSuGoiThueBaoResponse> GiaHanGoiThueBaoAsync(
+        string? customerId, 
+        GiaHanGoiThueBaoRequest request, 
+        CancellationToken cancellationToken = default)
+    {
+        var targetCustomerId = customerId ?? request.CustomerId ?? _currentUserService.CustomerId;
+        if (string.IsNullOrWhiteSpace(targetCustomerId))
+        {
+            throw new ArgumentException("Vui lòng cung cấp mã khách hàng / đơn vị cần gia hạn gói thuê bao.");
+        }
+
+        var customer = await _dbContext.Customers.FirstOrDefaultAsync(c => c.Id == targetCustomerId, cancellationToken);
+        if (customer == null)
+        {
+            throw new KeyNotFoundException($"Không tìm thấy khách hàng / đơn vị có Id: '{targetCustomerId}'.");
+        }
+
+        // Xác định Gói thuê bao áp dụng (dùng gói mới nếu có, hoặc giữ nguyên gói hiện tại của customer)
+        var targetGoiThueBaoId = request.GoiThueBaoId ?? customer.GoiThueBaoId;
+        if (string.IsNullOrWhiteSpace(targetGoiThueBaoId))
+        {
+            throw new ArgumentException("Khách hàng chưa có gói thuê bao và yêu cầu không chỉ định gói thuê bao cần đăng ký.");
+        }
+
+        var package = await _dbContext.GoiThueBaos.FirstOrDefaultAsync(g => g.Id == targetGoiThueBaoId, cancellationToken);
+        if (package == null)
+        {
+            throw new KeyNotFoundException($"Không tìm thấy gói thuê bao có Id: '{targetGoiThueBaoId}'.");
+        }
+
+        // Xác định loại giao dịch (Đăng ký mới, Gia hạn, Nâng cấp, Hạ cấp, Đổi gói)
+        string loaiGiaoDich;
+        string loaiGiaoDichTen;
+
+        if (string.IsNullOrWhiteSpace(customer.GoiThueBaoId))
+        {
+            loaiGiaoDich = "DangKyMoi";
+            loaiGiaoDichTen = "Đăng ký mới";
+        }
+        else if (!string.IsNullOrWhiteSpace(request.GoiThueBaoId) && request.GoiThueBaoId != customer.GoiThueBaoId)
+        {
+            if (package.GioiHanUser > customer.GioiHanUser)
+            {
+                loaiGiaoDich = "NangCapGoi";
+                loaiGiaoDichTen = "Nâng cấp gói thuê bao";
+            }
+            else if (package.GioiHanUser < customer.GioiHanUser)
+            {
+                loaiGiaoDich = "HaCapGoi";
+                loaiGiaoDichTen = "Hạ cấp gói thuê bao";
+            }
+            else
+            {
+                loaiGiaoDich = "DoiGoi";
+                loaiGiaoDichTen = "Đổi gói thuê bao";
+            }
+        }
+        else
+        {
+            loaiGiaoDich = "GiaHan";
+            loaiGiaoDichTen = "Gia hạn gói thuê bao";
+        }
+
+        // Tính toán thời gian bắt đầu và kết thúc kỳ gia hạn
+        var now = DateTime.UtcNow;
+        var oldEndDate = customer.EndDate;
+
+        DateTime startDate;
+        if (request.NgayBatDauMoi.HasValue)
+        {
+            startDate = request.NgayBatDauMoi.Value;
+        }
+        else if (oldEndDate.HasValue && oldEndDate.Value > now)
+        {
+            // Nếu gói cũ vẫn còn hạn: nối tiếp từ ngày hết hạn cũ
+            startDate = oldEndDate.Value;
+        }
+        else
+        {
+            // Nếu đã hết hạn hoặc chưa có: bắt đầu từ thời điểm hiện tại
+            startDate = now;
+        }
+
+        DateTime newEndDate;
+        if (request.NgayKetThucMoi.HasValue)
+        {
+            newEndDate = request.NgayKetThucMoi.Value;
+        }
+        else
+        {
+            int months = request.SoThang ?? 12;
+            newEndDate = startDate.AddMonths(months);
+        }
+
+        if (newEndDate <= startDate)
+        {
+            throw new ArgumentException("Ngày kết thúc gia hạn phải lớn hơn ngày bắt đầu.");
+        }
+
+        // Xác định định mức tài khoản cán bộ mới
+        int newGioiHanUser = request.GioiHanUser ?? package.GioiHanUser;
+        if (newGioiHanUser <= 0) newGioiHanUser = 10;
+
+        // Cập nhật thông tin Customer
+        customer.GoiThueBaoId = package.Id;
+        customer.GioiHanUser = newGioiHanUser;
+        customer.StartDate ??= startDate;
+        customer.EndDate = newEndDate;
+        customer.Status = CustomerStatus.InProgress;
+        customer.IsActive = true;
+
+        // Tạo bản ghi lưu vết lịch sử gia hạn
+        var history = new LichSuGoiThueBao
+        {
+            CustomerId = customer.Id!,
+            CustomerCode = customer.Code,
+            CustomerName = customer.Name,
+            GoiThueBaoId = package.Id!,
+            GoiThueBaoMa = package.Ma,
+            GoiThueBaoTen = package.Ten,
+            GioiHanUser = newGioiHanUser,
+            LoaiGiaoDich = loaiGiaoDich,
+            LoaiGiaoDichTen = loaiGiaoDichTen,
+            HinhThucGiaHan = request.SoThang.HasValue ? $"Theo {request.SoThang} tháng" : "Tùy chọn",
+            SoThang = request.SoThang,
+            NgayBatDau = startDate,
+            NgayKetThuc = newEndDate,
+            NgayKetThucCu = oldEndDate,
+            SoTien = request.SoTien,
+            SoHopDong = request.SoHopDong?.Trim(),
+            GhiChu = request.GhiChu?.Trim(),
+            TrangThai = "HieuLuc",
+            NguoiThucHien = _currentUserService.FullName ?? _currentUserService.Username ?? "System"
+        };
+
+        _dbContext.LichSuGoiThueBaos.Add(history);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Đã thực hiện '{LoaiGiaoDichTen}' cho khách hàng '{CustomerName}' ({CustomerId}): Hạn mới đến {NewEndDate}, Quota: {Quota}",
+            loaiGiaoDichTen, customer.Name, customer.Id, newEndDate.ToString("dd/MM/yyyy"), newGioiHanUser);
+
+        return MapToLichSuResponse(history);
+    }
+
+    public async Task<ThongTinGoiThueBaoCustomerResponse> LayThongTinVaLichSuGoiThueBaoAsync(
+        string? customerId, 
+        CancellationToken cancellationToken = default)
+    {
+        var targetCustomerId = customerId ?? _currentUserService.CustomerId;
+        if (string.IsNullOrWhiteSpace(targetCustomerId))
+        {
+            throw new ArgumentException("Vui lòng cung cấp mã khách hàng / đơn vị cần xem thông tin gói thuê bao.");
+        }
+
+        var customer = await _dbContext.Customers.FirstOrDefaultAsync(c => c.Id == targetCustomerId, cancellationToken);
+        if (customer == null)
+        {
+            throw new KeyNotFoundException($"Không tìm thấy khách hàng / đơn vị có Id: '{targetCustomerId}'.");
+        }
+
+        var package = customer.GoiThueBaoId != null 
+            ? await _dbContext.GoiThueBaos.AsNoTracking().FirstOrDefaultAsync(g => g.Id == customer.GoiThueBaoId, cancellationToken) 
+            : null;
+
+        int dangHoatDong = await _dbContext.Users.AsNoTracking()
+            .CountAsync(u => u.CustomerId == customer.Id && u.IsActive, cancellationToken);
+
+        var historyList = await _dbContext.LichSuGoiThueBaos.AsNoTracking()
+            .Where(h => h.CustomerId == customer.Id)
+            .OrderByDescending(h => h.Created)
+            .ToListAsync(cancellationToken);
+
+        // Hỗ trợ dữ liệu lịch sử cho các khách hàng đã có gói trước khi bảng LichSuGoiThueBao được tạo
+        if (historyList.Count == 0 && !string.IsNullOrWhiteSpace(customer.GoiThueBaoId))
+        {
+            var initialHistory = new LichSuGoiThueBao
+            {
+                CustomerId = customer.Id!,
+                CustomerCode = customer.Code,
+                CustomerName = customer.Name,
+                GoiThueBaoId = customer.GoiThueBaoId,
+                GoiThueBaoMa = package?.Ma,
+                GoiThueBaoTen = package?.Ten ?? "Gói thuê bao khởi tạo",
+                GioiHanUser = customer.GioiHanUser,
+                LoaiGiaoDich = "DangKyMoi",
+                LoaiGiaoDichTen = "Đăng ký mới",
+                HinhThucGiaHan = "Đăng ký ban đầu",
+                NgayBatDau = customer.StartDate ?? customer.Created,
+                NgayKetThuc = customer.EndDate ?? (customer.StartDate ?? customer.Created).AddYears(1),
+                TrangThai = "HieuLuc",
+                NguoiThucHien = customer.CreatedByName ?? "System"
+            };
+
+            _dbContext.LichSuGoiThueBaos.Add(initialHistory);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            historyList.Add(initialHistory);
+        }
+
+        return new ThongTinGoiThueBaoCustomerResponse
+        {
+            CustomerId = customer.Id!,
+            CustomerCode = customer.Code,
+            CustomerName = customer.Name,
+            GoiThueBaoId = customer.GoiThueBaoId,
+            GoiThueBaoMa = package?.Ma,
+            GoiThueBaoTen = package?.Ten,
+            GioiHanUser = customer.GioiHanUser,
+            DangHoatDong = dangHoatDong,
+            StartDate = customer.StartDate,
+            EndDate = customer.EndDate,
+            LichSu = historyList.Select(MapToLichSuResponse).ToList()
+        };
+    }
+
+    public async Task<IReadOnlyList<LichSuGoiThueBaoResponse>> LayLichSuGoiThueBaoAsync(
+        string? customerId, 
+        CancellationToken cancellationToken = default)
+    {
+        var response = await LayThongTinVaLichSuGoiThueBaoAsync(customerId, cancellationToken);
+        return response.LichSu;
+    }
+
+    private static LichSuGoiThueBaoResponse MapToLichSuResponse(LichSuGoiThueBao item)
+    {
+        return new LichSuGoiThueBaoResponse
+        {
+            Id = item.Id ?? string.Empty,
+            CustomerId = item.CustomerId,
+            CustomerCode = item.CustomerCode,
+            CustomerName = item.CustomerName,
+            GoiThueBaoId = item.GoiThueBaoId,
+            GoiThueBaoMa = item.GoiThueBaoMa,
+            GoiThueBaoTen = item.GoiThueBaoTen,
+            GioiHanUser = item.GioiHanUser,
+            LoaiGiaoDich = item.LoaiGiaoDich,
+            LoaiGiaoDichTen = item.LoaiGiaoDichTen ?? item.LoaiGiaoDich,
+            HinhThucGiaHan = item.HinhThucGiaHan,
+            SoThang = item.SoThang,
+            NgayBatDau = item.NgayBatDau,
+            NgayKetThuc = item.NgayKetThuc,
+            NgayKetThucCu = item.NgayKetThucCu,
+            SoTien = item.SoTien,
+            SoHopDong = item.SoHopDong,
+            GhiChu = item.GhiChu,
+            TrangThai = item.TrangThai,
+            NguoiThucHien = item.NguoiThucHien,
+            Created = item.Created,
+            CreatedByName = item.CreatedByName
+        };
+    }
+
+    #endregion
 }

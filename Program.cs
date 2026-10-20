@@ -1,6 +1,8 @@
 using SMU.Extensions;
 using SMU.Infrastructure.Data;
 
+using SMU.Application.Common.Converters;
+
 // Cho phép xử lý linh hoạt timestamp DateTime trong PostgreSQL Npgsql
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -11,7 +13,12 @@ builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 builder.Services.AddPresentationServices(builder.Configuration);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new FlexibleDateTimeConverter());
+        options.JsonSerializerOptions.Converters.Add(new FlexibleNullableDateTimeConverter());
+    });
 
 var app = builder.Build();
 
@@ -26,6 +33,8 @@ app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("./v1/swagger.json", "SMU v1");
     c.RoutePrefix = "swagger";
     c.DocumentTitle = "SMU - Document AI API (Clean Architecture & JWT Auth)";
+    // Mặc định đóng tất cả các controller, chỉ mở ra khi người dùng click vào
+    c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
 });
 
 app.UseCors("AllowAll");

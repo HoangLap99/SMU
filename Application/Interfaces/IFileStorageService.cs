@@ -25,4 +25,21 @@ public interface IFileStorageService
     /// <param name="cancellationToken">Token hủy tác vụ.</param>
     /// <returns>Thông tin tệp đã lưu kèm tên gốc và tên GUID 36 ký tự.</returns>
     Task<FileUploadResponse> SaveFileAsync(Stream stream, string originalFileName, string? contentType = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Phân giải tệp tin cần tải về từ tham số filename và path (hỗ trợ cả chuỗi mã hóa Base64 và chuỗi thường).
+    /// Đường dẫn path được phân giải linh hoạt dựa theo thư mục StorageFolder cấu hình trong appsettings.
+    /// </summary>
+    /// <param name="encodedFileName">Tên file tải về (mã hóa Base64 hoặc chuỗi thường).</param>
+    /// <param name="encodedPath">Đường dẫn tệp tin lưu trữ (mã hóa Base64 từ đường dẫn StorageFolder của appsettings hoặc đường dẫn đĩa).</param>
+    /// <returns>Thông tin tệp tin tìm thấy gồm đường dẫn vật lý, kiểu MIME và tên file tải về; hoặc null nếu không tìm thấy.</returns>
+    ResolvedDownloadFileResult? ResolveFileForDownload(string? encodedFileName, string? encodedPath);
+
+    /// <summary>
+    /// Sinh URL tải file với filename và path được mã hóa Base64 theo đúng chuẩn yêu cầu.
+    /// </summary>
+    /// <param name="originalFileName">Tên file hiển thị.</param>
+    /// <param name="physicalOrRelativePath">Đường dẫn tệp tin vật lý hoặc tương đối.</param>
+    /// <returns>URL tải file dạng /api/FileUpload/download?filename=...&amp;path=...</returns>
+    string GenerateDownloadUrl(string originalFileName, string physicalOrRelativePath);
 }

@@ -9,13 +9,13 @@ public abstract class AppException : Exception
 {
     public HttpStatusCode StatusCode { get; }
 
-    protected AppException(string message, HttpStatusCode statusCode = HttpStatusCode.BadRequest) 
+    protected AppException(string message, HttpStatusCode statusCode = HttpStatusCode.InternalServerError) 
         : base(message)
     {
         StatusCode = statusCode;
     }
 
-    protected AppException(string message, Exception innerException, HttpStatusCode statusCode = HttpStatusCode.BadRequest) 
+    protected AppException(string message, Exception innerException, HttpStatusCode statusCode = HttpStatusCode.InternalServerError) 
         : base(message, innerException)
     {
         StatusCode = statusCode;

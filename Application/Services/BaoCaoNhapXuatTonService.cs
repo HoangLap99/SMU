@@ -35,7 +35,7 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
         CancellationToken cancellationToken = default)
     {
         request ??= new FilterBaoCaoNhapXuatTonRequest();
-        var (fromDate, toDate) = ResolveDateRange(request.TuNgay, request.DenNgay);
+        var (fromDate, toDate) = ResolveDateRange(request.GetTuNgay(), request.GetDenNgay(), request.LoaiThoiGian);
         var customerId = request.CustomerId ?? _currentUserService.CustomerId;
 
         // 1. Lọc bảng KhoBienSo
@@ -44,6 +44,14 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
         if (!string.IsNullOrWhiteSpace(customerId))
         {
             query = query.Where(x => x.CustomerId == customerId || x.CustomerId == null);
+        }
+
+        // Lọc theo từ khóa tìm số biển / keyword
+        var searchKw = request.GetSearchKeyword();
+        if (!string.IsNullOrWhiteSpace(searchKw))
+        {
+            var kwLower = searchKw.ToLower();
+            query = query.Where(x => x.BienKiemSoat.ToLower().Contains(kwLower));
         }
 
         if (!string.IsNullOrWhiteSpace(request.LoaiXeId))
@@ -56,8 +64,34 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
             query = query.Where(x => x.MauBienSoId == request.MauBienSoId);
         }
 
+        // Lọc theo trạng thái
+        if (!string.IsNullOrWhiteSpace(request.TrangThai))
+        {
+            if (request.TrangThai == "DuocBam")
+            {
+                query = query.Where(x => !x.DaXuatKho && x.TrangThai == "DuocBam" && !x.LaBienDauGia);
+            }
+            else if (request.TrangThai == "DaBam")
+            {
+                query = query.Where(x => x.DaXuatKho || x.TrangThai == "DaBam");
+            }
+            else if (request.TrangThai == "ChoDauGia")
+            {
+                query = query.Where(x => x.LaBienDauGia || x.TrangThai == "ChoDauGia");
+            }
+            else
+            {
+                query = query.Where(x => x.TrangThai == request.TrangThai);
+            }
+        }
+
+        // Tải thông tin ngày nhập kho từ Đợt nhập kho để đảm bảo chuẩn xác tuyệt đối với ngày nghiệp vụ
+        var dotNhapMap = await _dbContext.DotNhapKhos.AsNoTracking()
+            .Where(d => d.Id != null)
+            .ToDictionaryAsync(d => d.Id!, d => d.NgayNhapKho, cancellationToken);
+
         // Lấy danh sách biển số
-        var plates = await query
+        var rawPlates = await query
             .Select(x => new
             {
                 x.BienKiemSoat,
@@ -70,6 +104,18 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
                 x.NgayXuatKho
             })
             .ToListAsync(cancellationToken);
+
+        var plates = rawPlates.Select(x => new
+        {
+            x.BienKiemSoat,
+            x.LoaiXeId,
+            x.MauBienSoId,
+            x.DauBienSoId,
+            x.DotNhapKhoId,
+            NgayNhapKho = (x.DotNhapKhoId != null && dotNhapMap.TryGetValue(x.DotNhapKhoId, out var dnDate)) ? dnDate : x.NgayNhapKho,
+            x.DaXuatKho,
+            x.NgayXuatKho
+        }).ToList();
 
         // 2. Tải danh mục tra cứu
         var loaiXeMap = await _dbContext.LoaiXes.AsNoTracking()
@@ -114,11 +160,16 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
             })
             .Select(g =>
             {
-                // Tồn đầu kỳ: Nhập trước TuNgay (hoặc thuộc đợt tồn đầu ban đầu) và chưa xuất trước TuNgay
-                int tonDauKy = g.Count(x =>
-                    (x.NgayNhapKho < fromDate || (tonDauSet.Contains(x.DotNhapKhoId) && x.NgayNhapKho <= fromDate))
-                    && (!x.DaXuatKho || x.NgayXuatKho == null || x.NgayXuatKho >= fromDate)
+                // Tồn đầu kỳ: Tổng số biển đã nhập trừ đi tổng số biển đã xuất trước TuNgay (theo đúng yêu cầu người dùng)
+                int tongNhapTruocKy = g.Count(x =>
+                    x.NgayNhapKho < fromDate || (tonDauSet.Contains(x.DotNhapKhoId) && x.NgayNhapKho <= fromDate)
                 );
+
+                int tongXuatTruocKy = g.Count(x =>
+                    x.DaXuatKho && x.NgayXuatKho != null && x.NgayXuatKho < fromDate
+                );
+
+                int tonDauKy = Math.Max(0, tongNhapTruocKy - tongXuatTruocKy);
 
                 // Nhập trong kỳ: Nhập từ TuNgay đến DenNgay (không tính đợt tồn đầu đã vào Tồn đầu kỳ)
                 int nhapTrongKy = g.Count(x =>
@@ -155,10 +206,14 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
                 };
             });
 
+        // Chỉ hiển thị các đầu biển có tồn đầu kỳ > 0 hoặc có biến động nhập/xuất trong kỳ
+        groups = groups.Where(x => x.TonDauKy > 0 || x.NhapTrongKy > 0 || x.XuatTrongKy > 0 || x.TonCuoiKy > 0);
+
         // 4. Lọc theo từ khóa tìm kiếm Đầu biển nếu có
-        if (!string.IsNullOrWhiteSpace(request.TimDauBien))
+        var dauBienFilter = request.GetDauBienFilter();
+        if (!string.IsNullOrWhiteSpace(dauBienFilter))
         {
-            var filter = request.TimDauBien.Trim().ToUpperInvariant();
+            var filter = dauBienFilter.ToUpperInvariant();
             groups = groups.Where(x => x.DauBien.ToUpperInvariant().Contains(filter));
         }
 
@@ -182,10 +237,13 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
             TongXuatTrongKy = sortedList.Sum(x => x.XuatTrongKy)
         };
 
+        var displayFrom = fromDate.TimeOfDay.Hours >= 16 ? fromDate.AddHours(7) : fromDate;
+        var displayTo = toDate.TimeOfDay.Hours >= 16 ? toDate.AddHours(7) : toDate;
+
         return new BaoCaoNhapXuatTonResponse
         {
             TieuDe = "BÁO CÁO NHẬP - XUẤT - TỒN BIỂN SỐ XE",
-            KyBaoCaoHienThi = $"Kỳ báo cáo từ ngày {fromDate:dd/MM/yyyy} đến ngày {toDate:dd/MM/yyyy}",
+            KyBaoCaoHienThi = $"Kỳ báo cáo từ ngày {displayFrom:dd/MM/yyyy} đến ngày {displayTo:dd/MM/yyyy}",
             GhiChuInA4 = "Dữ liệu màn hình và bản in A4 được đồng bộ tuyệt đối theo các bộ lọc hiện tại.",
             TuNgay = fromDate,
             DenNgay = toDate,
@@ -226,9 +284,11 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
         CancellationToken cancellationToken = default)
     {
         request ??= new FilterBaoCaoTonTaiThoiDiemRequest();
-        var chotNgay = request.ChotTonTaiNgay.HasValue
-            ? DateTime.SpecifyKind(request.ChotTonTaiNgay.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc)
-            : new DateTime(2026, 8, 31, 23, 59, 59, 999, DateTimeKind.Utc);
+        var (fromDate, toDate) = ResolveDateRange(request.GetTuNgay(), request.GetDenNgay(), request.LoaiThoiGian);
+        var chotNgayInput = request.GetChotNgay();
+        var chotNgay = chotNgayInput.HasValue
+            ? DateTime.SpecifyKind(chotNgayInput.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc)
+            : (toDate != DateTime.MaxValue && toDate > fromDate ? toDate : new DateTime(2026, 8, 31, 23, 59, 59, 999, DateTimeKind.Utc));
 
         var customerId = request.CustomerId ?? _currentUserService.CustomerId;
 
@@ -238,6 +298,11 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
         if (!string.IsNullOrWhiteSpace(customerId))
         {
             query = query.Where(x => x.CustomerId == customerId || x.CustomerId == null);
+        }
+
+        if (request.GetTuNgay().HasValue || !string.IsNullOrWhiteSpace(request.LoaiThoiGian))
+        {
+            query = query.Where(x => x.NgayNhapKho >= fromDate);
         }
 
         if (!string.IsNullOrWhiteSpace(request.LoaiXeId))
@@ -250,9 +315,31 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
             query = query.Where(x => x.MauBienSoId == request.MauBienSoId);
         }
 
-        if (!string.IsNullOrWhiteSpace(request.TimKiem))
+        // Lọc theo trạng thái biển số
+        if (!string.IsNullOrWhiteSpace(request.TrangThai))
         {
-            var filter = request.TimKiem.Trim().ToUpperInvariant();
+            if (request.TrangThai == "DuocBam")
+            {
+                query = query.Where(x => !x.DaXuatKho && x.TrangThai == "DuocBam" && !x.LaBienDauGia);
+            }
+            else if (request.TrangThai == "DaBam")
+            {
+                query = query.Where(x => x.DaXuatKho || x.TrangThai == "DaBam");
+            }
+            else if (request.TrangThai == "ChoDauGia")
+            {
+                query = query.Where(x => x.LaBienDauGia || x.TrangThai == "ChoDauGia");
+            }
+            else
+            {
+                query = query.Where(x => x.TrangThai == request.TrangThai);
+            }
+        }
+
+        var searchKw = request.GetSearchKeyword();
+        if (!string.IsNullOrWhiteSpace(searchKw))
+        {
+            var filter = searchKw.ToUpperInvariant();
             query = query.Where(x => x.BienKiemSoat.ToUpper().Contains(filter));
         }
 
@@ -304,6 +391,16 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
             };
         }).ToList();
 
+        // Lọc theo đầu biển nếu có
+        var dauBienFilter = request.GetDauBienFilter();
+        if (!string.IsNullOrWhiteSpace(dauBienFilter))
+        {
+            var filter = dauBienFilter.ToUpperInvariant();
+            items = items.Where(x => x.DauBien.ToUpperInvariant().Contains(filter)).ToList();
+            int reStt = 1;
+            foreach (var item in items) item.Stt = reStt++;
+        }
+
         return new BaoCaoTonTaiThoiDiemResponse
         {
             TieuDe = "BÁO CÁO BIẾN SỐ TỒN KHO TẠI THỜI ĐIỂM",
@@ -323,7 +420,7 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
         CancellationToken cancellationToken = default)
     {
         request ??= new FilterBaoCaoTienThuBienLaiRequest();
-        var (fromDate, toDate) = ResolveDateRange(request.TuNgay, request.DenNgay);
+        var (fromDate, toDate) = ResolveDateRange(request.GetTuNgay(), request.GetDenNgay(), request.LoaiThoiGian);
         var customerId = request.CustomerId ?? _currentUserService.CustomerId;
 
         // 1. Biên lai từ Xuất kho biển số
@@ -338,6 +435,28 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
         {
             xuatKhoQuery = xuatKhoQuery.Where(x => x.CustomerId == customerId || x.CustomerId == null);
             capLaiQuery = capLaiQuery.Where(x => x.CustomerId == customerId || x.CustomerId == null);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.LoaiThuTucId))
+        {
+            xuatKhoQuery = xuatKhoQuery.Where(x => x.LoaiThuTucId == request.LoaiThuTucId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.LoaiXeId))
+        {
+            xuatKhoQuery = xuatKhoQuery.Where(x => x.LoaiXeId == request.LoaiXeId);
+            capLaiQuery = capLaiQuery.Where(x => x.LoaiXeId == request.LoaiXeId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.MauBienSoId))
+        {
+            xuatKhoQuery = xuatKhoQuery.Where(x => x.MauBienSoId == request.MauBienSoId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.TrangThai))
+        {
+            xuatKhoQuery = xuatKhoQuery.Where(x => x.TrangThai == request.TrangThai);
+            capLaiQuery = capLaiQuery.Where(x => x.TrangThai == request.TrangThai);
         }
 
         var xuatKhos = await xuatKhoQuery.ToListAsync(cancellationToken);
@@ -397,15 +516,26 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
             });
         }
 
-        // Lọc tìm kiếm
-        if (!string.IsNullOrWhiteSpace(request.TimKiem))
+        // Lọc tìm kiếm số biển / keyword
+        var searchKw = request.GetSearchKeyword();
+        if (!string.IsNullOrWhiteSpace(searchKw))
         {
-            var filter = request.TimKiem.Trim().ToUpperInvariant();
+            var filter = searchKw.ToUpperInvariant();
             combinedItems = combinedItems.Where(x =>
                 x.KyHieuSoBienLai.ToUpperInvariant().Contains(filter) ||
                 x.BienSo.ToUpperInvariant().Contains(filter) ||
                 x.NguoiNopTien.ToUpperInvariant().Contains(filter) ||
                 x.ThuTuc.ToUpperInvariant().Contains(filter)
+            ).ToList();
+        }
+
+        // Lọc theo đầu biển nếu có
+        var dauBienFilter = request.GetDauBienFilter();
+        if (!string.IsNullOrWhiteSpace(dauBienFilter))
+        {
+            var dbFilter = dauBienFilter.ToUpperInvariant();
+            combinedItems = combinedItems.Where(x =>
+                ExtractDauBien(x.BienSo, null).ToUpperInvariant().Contains(dbFilter)
             ).ToList();
         }
 
@@ -444,14 +574,26 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
         CancellationToken cancellationToken = default)
     {
         request ??= new FilterBangThongKeThuTucRequest();
-        var (fromDate, toDate) = ResolveDateRange(request.TuNgay, request.DenNgay);
+        var (fromDate, toDate) = ResolveDateRange(request.GetTuNgay(), request.GetDenNgay(), request.LoaiThoiGian);
         var customerId = request.CustomerId ?? _currentUserService.CustomerId;
 
-        // Tái sử dụng logic lấy toàn bộ biên lai trong kỳ
+        // Tái sử dụng logic lấy toàn bộ biên lai trong kỳ với đầy đủ bộ lọc
         var reportBienLai = await LayBaoCaoTienThuBienLaiAsync(new FilterBaoCaoTienThuBienLaiRequest
         {
-            TuNgay = fromDate,
-            DenNgay = toDate,
+            TuNgay = request.TuNgay,
+            DenNgay = request.DenNgay,
+            FromDate = request.FromDate,
+            ToDate = request.ToDate,
+            LoaiThoiGian = request.LoaiThoiGian,
+            LoaiThuTucId = request.LoaiThuTucId,
+            LoaiXeId = request.LoaiXeId,
+            MauBienSoId = request.MauBienSoId,
+            TrangThai = request.TrangThai,
+            DauBien = request.DauBien,
+            TimDauBien = request.TimDauBien,
+            TimSoBien = request.TimSoBien,
+            Keyword = request.Keyword,
+            TimKiem = request.TimKiem,
             CustomerId = customerId
         }, cancellationToken);
 
@@ -524,7 +666,7 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
         CancellationToken cancellationToken = default)
     {
         request ??= new FilterBangKeChiTietDotNhapRequest();
-        var (fromDate, toDate) = ResolveDateRange(request.TuNgay, request.DenNgay);
+        var (fromDate, toDate) = ResolveDateRange(request.GetTuNgay(), request.GetDenNgay(), request.LoaiThoiGian);
         var customerId = request.CustomerId ?? _currentUserService.CustomerId;
 
         var query = _dbContext.DotNhapKhos.AsNoTracking()
@@ -538,6 +680,16 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
         if (!string.IsNullOrWhiteSpace(request.LoaiXeId))
         {
             query = query.Where(x => x.LoaiXeId == request.LoaiXeId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.MauBienSoId))
+        {
+            query = query.Where(x => x.MauBienSoId == request.MauBienSoId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.TrangThai))
+        {
+            query = query.Where(x => x.TrangThai == request.TrangThai);
         }
 
         var loaiXeMap = await _dbContext.LoaiXes.AsNoTracking()
@@ -571,19 +723,29 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
             });
         }
 
-        if (!string.IsNullOrWhiteSpace(request.TimKiem))
+        // Lọc tìm kiếm số biển / keyword
+        var searchKw = request.GetSearchKeyword();
+        if (!string.IsNullOrWhiteSpace(searchKw))
         {
-            var filter = request.TimKiem.Trim().ToUpperInvariant();
+            var filter = searchKw.ToUpperInvariant();
             items = items.Where(x =>
                 x.MaDotNhap.ToUpperInvariant().Contains(filter) ||
                 x.DauBien.ToUpperInvariant().Contains(filter) ||
                 x.CanBoTiepNhan.ToUpperInvariant().Contains(filter)
             ).ToList();
-
-            // Re-index STT
-            stt = 1;
-            foreach (var item in items) item.Stt = stt++;
         }
+
+        // Lọc theo đầu biển nếu có
+        var dauBienFilter = request.GetDauBienFilter();
+        if (!string.IsNullOrWhiteSpace(dauBienFilter))
+        {
+            var dbFilter = dauBienFilter.ToUpperInvariant();
+            items = items.Where(x => x.DauBien.ToUpperInvariant().Contains(dbFilter)).ToList();
+        }
+
+        // Re-index STT
+        stt = 1;
+        foreach (var item in items) item.Stt = stt++;
 
         int tongBien = items.Sum(x => x.SoLuongNhap);
 
@@ -608,15 +770,34 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
         CancellationToken cancellationToken = default)
     {
         request ??= new FilterBangKeChiTietXuatKhoRequest();
-        var (fromDate, toDate) = ResolveDateRange(request.TuNgay, request.DenNgay);
+        var (fromDate, toDate) = ResolveDateRange(request.GetTuNgay(), request.GetDenNgay(), request.LoaiThoiGian);
         var customerId = request.CustomerId ?? _currentUserService.CustomerId;
 
         var query = _dbContext.XuatKhoBienSos.AsNoTracking()
-            .Where(x => x.NgayThucHien >= fromDate && x.NgayThucHien <= toDate && x.TrangThai != "DaHuy" && !string.IsNullOrEmpty(x.BienKiemSoat));
+            .Where(x => x.NgayThucHien >= fromDate && 
+                        x.NgayThucHien <= toDate && 
+                        x.DaXuatKho && 
+                        x.TrangThai != "DaHuy" && 
+                        !string.IsNullOrEmpty(x.BienKiemSoat));
 
         if (!string.IsNullOrWhiteSpace(customerId))
         {
             query = query.Where(x => x.CustomerId == customerId || x.CustomerId == null);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.LoaiXeId))
+        {
+            query = query.Where(x => x.LoaiXeId == request.LoaiXeId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.MauBienSoId))
+        {
+            query = query.Where(x => x.MauBienSoId == request.MauBienSoId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.TrangThai))
+        {
+            query = query.Where(x => x.TrangThai == request.TrangThai);
         }
 
         var dauBienMap = await _dbContext.DauBienSos.AsNoTracking()
@@ -651,9 +832,11 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
             });
         }
 
-        if (!string.IsNullOrWhiteSpace(request.TimKiem))
+        // Lọc tìm kiếm số biển / keyword
+        var searchKw = request.GetSearchKeyword();
+        if (!string.IsNullOrWhiteSpace(searchKw))
         {
-            var filter = request.TimKiem.Trim().ToUpperInvariant();
+            var filter = searchKw.ToUpperInvariant();
             items = items.Where(x =>
                 x.BienSoDaCap.ToUpperInvariant().Contains(filter) ||
                 x.DauBien.ToUpperInvariant().Contains(filter) ||
@@ -661,10 +844,18 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
                 x.NguoiNhanBien.ToUpperInvariant().Contains(filter) ||
                 x.CanBoCap.ToUpperInvariant().Contains(filter)
             ).ToList();
-
-            stt = 1;
-            foreach (var item in items) item.Stt = stt++;
         }
+
+        // Lọc theo đầu biển nếu có
+        var dauBienFilter = request.GetDauBienFilter();
+        if (!string.IsNullOrWhiteSpace(dauBienFilter))
+        {
+            var dbFilter = dauBienFilter.ToUpperInvariant();
+            items = items.Where(x => x.DauBien.ToUpperInvariant().Contains(dbFilter)).ToList();
+        }
+
+        stt = 1;
+        foreach (var item in items) item.Stt = stt++;
 
         return new BangKeChiTietXuatKhoResponse
         {
@@ -681,24 +872,66 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
 
     #region Helper Methods
 
-    private static (DateTime FromDate, DateTime ToDate) ResolveDateRange(DateTime? tuNgay, DateTime? denNgay)
+    private static (DateTime FromDate, DateTime ToDate) ResolveDateRange(DateTime? tuNgay, DateTime? denNgay, string? loaiThoiGian = null)
     {
+        var now = DateTime.UtcNow;
+        var vnNow = now.AddHours(7);
+        var todayVn = vnNow.Date;
+
+        if (!string.IsNullOrWhiteSpace(loaiThoiGian))
+        {
+            var ltg = loaiThoiGian.Trim().ToLowerInvariant();
+            if (ltg == "homnay" || ltg == "hôm nay")
+            {
+                var start = DateTime.SpecifyKind(todayVn.AddHours(-7), DateTimeKind.Utc);
+                var end = DateTime.SpecifyKind(todayVn.AddDays(1).AddTicks(-1).AddHours(-7), DateTimeKind.Utc);
+                return (start, end);
+            }
+            if (ltg == "tuannay" || ltg == "tuần này")
+            {
+                int diff = (7 + (int)todayVn.DayOfWeek - (int)DayOfWeek.Monday) % 7;
+                var monday = todayVn.AddDays(-diff);
+                var sunday = monday.AddDays(6);
+                var start = DateTime.SpecifyKind(monday.AddHours(-7), DateTimeKind.Utc);
+                var end = DateTime.SpecifyKind(sunday.AddDays(1).AddTicks(-1).AddHours(-7), DateTimeKind.Utc);
+                return (start, end);
+            }
+            if (ltg == "thangnay" || ltg == "tháng này")
+            {
+                var firstDay = new DateTime(todayVn.Year, todayVn.Month, 1);
+                var lastDay = firstDay.AddMonths(1).AddTicks(-1);
+                var start = DateTime.SpecifyKind(firstDay.AddHours(-7), DateTimeKind.Utc);
+                var end = DateTime.SpecifyKind(lastDay.AddHours(-7), DateTimeKind.Utc);
+                return (start, end);
+            }
+            if (ltg == "tatca" || ltg == "tất cả")
+            {
+                var start = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                var end = new DateTime(2099, 12, 31, 23, 59, 59, 999, DateTimeKind.Utc);
+                return (start, end);
+            }
+        }
+
         DateTime fromDate;
         DateTime toDate;
 
         if (tuNgay.HasValue && denNgay.HasValue)
         {
-            fromDate = DateTime.SpecifyKind(tuNgay.Value.Date, DateTimeKind.Utc);
-            toDate = DateTime.SpecifyKind(denNgay.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
+            var d1 = tuNgay.Value;
+            var d2 = denNgay.Value;
+            if (d1 > d2) (d1, d2) = (d2, d1);
+
+            fromDate = NormalizeStartDate(d1);
+            toDate = NormalizeEndDate(d2);
         }
         else if (tuNgay.HasValue)
         {
-            fromDate = DateTime.SpecifyKind(tuNgay.Value.Date, DateTimeKind.Utc);
+            fromDate = NormalizeStartDate(tuNgay.Value);
             toDate = DateTime.SpecifyKind(fromDate.AddMonths(3).AddTicks(-1), DateTimeKind.Utc);
         }
         else if (denNgay.HasValue)
         {
-            toDate = DateTime.SpecifyKind(denNgay.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
+            toDate = NormalizeEndDate(denNgay.Value);
             fromDate = DateTime.SpecifyKind(toDate.AddMonths(-3).Date, DateTimeKind.Utc);
         }
         else
@@ -709,6 +942,27 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
         }
 
         return (fromDate, toDate);
+    }
+
+    private static DateTime NormalizeStartDate(DateTime dt)
+    {
+        // Nếu client gửi 17:00:00 UTC (tương đương 00:00:00 ngày hôm sau theo giờ VN GMT+7)
+        if (dt.Kind == DateTimeKind.Utc && dt.TimeOfDay.Hours >= 16 && dt.TimeOfDay.Hours <= 18)
+        {
+            return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+        }
+
+        return DateTime.SpecifyKind(dt.Date, DateTimeKind.Utc);
+    }
+
+    private static DateTime NormalizeEndDate(DateTime dt)
+    {
+        if (dt.Kind == DateTimeKind.Utc && dt.TimeOfDay.Hours >= 16 && dt.TimeOfDay.Hours <= 18)
+        {
+            return DateTime.SpecifyKind(dt.AddTicks(-1), DateTimeKind.Utc);
+        }
+
+        return DateTime.SpecifyKind(dt.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
     }
 
     private static string FormatDauBienStr(string? raw)
