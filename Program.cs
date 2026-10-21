@@ -6,6 +6,9 @@ using SMU.Application.Common.Converters;
 // Cho phép xử lý linh hoạt timestamp DateTime trong PostgreSQL Npgsql
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
+// Cấu hình bản quyền phi thương mại cho thư viện EPPlus trên toàn hệ thống
+OfficeOpenXml.ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. Đăng ký các dịch vụ theo từng Layer (Dependency Injection)

@@ -1,7 +1,3 @@
-using System.Globalization;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -13,6 +9,10 @@ using SMU.Core.Entities;
 using SMU.Infrastructure.Data;
 using SMU.Infrastructure.Extractors.Abstractions;
 using SMU.Infrastructure.Storage.Configuration;
+using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace SMU.Application.Services;
 
@@ -1265,32 +1265,34 @@ public class XuatKhoService : IXuatKhoService
             return new ImportXuatKhoExcelResponse { TongSoDong = 0, ThongBao = "Tệp Excel không chứa dữ liệu hoặc không có trang tính hợp lệ." };
         }
 
-        // 4. Cấu hình vị trí cột theo mẫu chuẩn MauBaoCao/XuatKhoBienSo.xlsx (Dòng 3 - 14 cột A -> N)
-        // A: STT, B: Ngày thực hiện, C: Thủ tục, D: Biển số xe, E: Xuất kho, F: Ký hiệu quyển, G: Số biên lai,
-        // H: Ngày biên lai, I: Số tiền thu (VNĐ), J: Người nộp tiền, K: Số CCCD, L: Mã hồ sơ DVC, M: Cán bộ lập, N: Trạng thái
+        // 4. Cấu hình vị trí cột theo mẫu chuẩn MauBaoCao/XuatKhoBienSo.xlsx (Dòng 3 - 15 cột A -> O)
+        // A: STT, B: Ngày thực hiện, C: Loại thủ tục(*), D: Biển số xe(*), E: Mức thu lệ phí(*),
+        // F: Khu vực áp dụng(*), G: Ký hiệu quyển biên lai, H: Cán bộ lập, I: Số biên lai, J: Ngày biên lai,
+        // K: Số tiền thu(VNĐ), L: Họ tên người nộp tiền(*), M: Số CCCD, N: Mã hồ sơ dịch vụ công, O: Ghi chú nghiệp vụ
         int headerRow = 3;
         int colStt = 1;
         int colNgayThucHien = 2;
         int colLoaiThuTuc = 3;
         int colBienSo = 4;
-        int colTinhChat = 5;
-        int colKyHieuQuyen = 6;
-        int colSoBienLai = 7;
-        int colNgayBienLai = 8;
-        int colSoTienThu = 9;
-        int colHoTenNguoiNop = 10;
-        int colSoCccd = 11;
-        int colMaHoSoDvc = 12;
-        int colCanBoLap = 13;
-        int colTrangThai = 14;
+        int colMucThuLePhi = 5;
+        int colKhuVuc = 6;
+        int colKyHieuQuyen = 7;
+        int colCanBoLap = 8;
+        int colSoBienLai = 9;
+        int colNgayBienLai = 10;
+        int colSoTienThu = 11;
+        int colHoTenNguoiNop = 12;
+        int colSoCccd = 13;
+        int colMaHoSoDvc = 14;
+        int colGhiChu = 15;
 
         // Các cột hỗ trợ tương thích ngược (nếu file cũ có chứa)
-        int colKhuVuc = -1;
+        int colTinhChat = -1;
+        int colTrangThai = -1;
         int colNhanHieu = -1;
         int colSoKhung = -1;
         int colSoMay = -1;
         int colCanCuPhapLy = -1;
-        int colGhiChu = -1;
 
         // Quét thông minh nhận diện dòng header thực tế (tránh nhầm dòng 1 tiêu đề lớn hoặc dòng 2 phụ đề)
         int maxScanRow = Math.Min(10, ws.Dimension.End.Row);
@@ -1306,11 +1308,12 @@ public class XuatKhoService : IXuatKhoService
 
                 if (text == "stt" || text.Contains("thứ tự") ||
                     text.Contains("biển số") || text.Contains("biển kiểm soát") || text == "bks" ||
-                    text.Contains("thủ tục") || text.Contains("xuất kho") ||
+                    text.Contains("thủ tục") || text.Contains("mức thu") || text.Contains("khu vực") ||
                     text.Contains("quyển") || text.Contains("số biên lai") || text.Contains("ngày biên lai") ||
                     text.Contains("ngày thực hiện") || text.Contains("người nộp") ||
                     text.Contains("cccd") || text.Contains("mã hồ sơ") || text.Contains("dvc") ||
-                    text.Contains("cán bộ") || text.Contains("lệ phí") || text.Contains("tiền thu"))
+                    text.Contains("cán bộ") || text.Contains("lệ phí") || text.Contains("tiền thu") ||
+                    text.Contains("ghi chú"))
                 {
                     matchedHeaderCells++;
                 }
@@ -1330,29 +1333,32 @@ public class XuatKhoService : IXuatKhoService
         {
             for (int c = 1; c <= ws.Dimension.End.Column; c++)
             {
-                var text = ws.Cells[headerRow, c].Text?.Trim().ToLowerInvariant();
-                if (string.IsNullOrWhiteSpace(text)) continue;
+                var rawText = ws.Cells[headerRow, c].Text?.Trim().ToLowerInvariant() ?? "";
+                if (string.IsNullOrWhiteSpace(rawText)) continue;
+
+                var text = Regex.Replace(rawText, @"[\(\)\*\:]", "").Trim();
 
                 if (text == "stt" || text.Contains("thứ tự")) colStt = c;
-                else if (text.Contains("ngày thực hiện") || text.Contains("ngày xuất") || text.Contains("thời gian")) colNgayThucHien = c;
+                else if (text.Contains("ngày thực hiện") || text.Contains("ngày xuất") || text.Contains("thời gian thực hiện")) colNgayThucHien = c;
                 else if (text.Contains("ngày biên lai") || text.Contains("ngày bl")) colNgayBienLai = c;
-                else if (text.Contains("thủ tục")) colLoaiThuTuc = c;
-                else if (text.Contains("biển") || text.Contains("bks")) colBienSo = c;
-                else if (text.Contains("xuất kho") || text.Contains("tính chất") || text.Contains("hình thức")) colTinhChat = c;
-                else if (text.Contains("quyển") || text.Contains("quyen")) colKyHieuQuyen = c;
-                else if (text.Contains("số biên lai") || text.Contains("số bl") || text.Contains("so bl")) colSoBienLai = c;
-                else if (text.Contains("tiền") || text.Contains("lệ phí") || text.Contains("mức thu")) colSoTienThu = c;
+                else if (text.Contains("loại thủ tục") || text.Contains("thủ tục")) colLoaiThuTuc = c;
+                else if (text.Contains("biển số") || text.Contains("biển kiểm soát") || text == "bks" || text.StartsWith("biển")) colBienSo = c;
+                else if (text.Contains("mức thu") || (text.Contains("lệ phí") && !text.Contains("tiền"))) colMucThuLePhi = c;
+                else if (text.Contains("khu vực")) colKhuVuc = c;
+                else if (text.Contains("ký hiệu quyển") || text.Contains("quyển biên lai") || text.Contains("quyển") || text.Contains("quyen")) colKyHieuQuyen = c;
+                else if (text.Contains("cán bộ") || text.Contains("người lập")) colCanBoLap = c;
+                else if (text.Contains("số biên lai") || text.Contains("số bl") || text == "so bl") colSoBienLai = c;
+                else if (text.Contains("số tiền") || text.Contains("tiền thu") || text.Contains("tiền")) colSoTienThu = c;
                 else if (text.Contains("người nộp") || text.Contains("họ tên") || text.Contains("chủ phương tiện")) colHoTenNguoiNop = c;
                 else if (text.Contains("cccd") || text.Contains("cmnd") || text.Contains("định danh")) colSoCccd = c;
                 else if (text.Contains("hồ sơ") || text.Contains("dvc") || text.Contains("mã hs")) colMaHoSoDvc = c;
-                else if (text.Contains("cán bộ") || text.Contains("người lập")) colCanBoLap = c;
+                else if (text.Contains("ghi chú")) colGhiChu = c;
+                else if (text.Contains("xuất kho") || text.Contains("tính chất") || text.Contains("hình thức")) colTinhChat = c;
                 else if (text.Contains("trạng thái")) colTrangThai = c;
-                else if (text.Contains("khu vực")) colKhuVuc = c;
                 else if (text.Contains("nhãn hiệu") || text.Contains("hiệu xe")) colNhanHieu = c;
                 else if (text.Contains("khung")) colSoKhung = c;
                 else if (text.Contains("máy") || text.Contains("so may")) colSoMay = c;
                 else if (text.Contains("căn cứ") || text.Contains("pháp lý")) colCanCuPhapLy = c;
-                else if (text.Contains("ghi chú")) colGhiChu = c;
             }
         }
 
@@ -1365,18 +1371,34 @@ public class XuatKhoService : IXuatKhoService
             };
         }
 
-        // 5. Nạp danh mục cần thiết để liên kết và tra cứu
+        // 5. Nạp danh mục cần thiết để liên kết và tra cứu (các ô khoanh đỏ)
         var customerId = _currentUserService.CustomerId;
 
         var statusDaBam = await _dbContext.TrangThaiBienSos.AsNoTracking()
             .FirstOrDefaultAsync(x => x.Ma == "DA_BAM" || x.Ten.ToLower().Contains("đã bấm") || x.Ten.ToLower().Contains("đã cấp"), cancellationToken);
 
+        // Danh mục Loại thủ tục
         var listLoaiThuTuc = await _dbContext.LoaiThuTucs.AsNoTracking().ToListAsync(cancellationToken);
+
+        // Danh mục Khu vực áp dụng
         var listKhuVuc = await _dbContext.KhuVucApDungs.AsNoTracking().ToListAsync(cancellationToken);
+
+        // Danh mục Quyển biên lai
         var listQuyen = await _dbContext.KyHieuQuyenBienLais.ToListAsync(cancellationToken);
+
+        // Danh mục Mức thu lệ phí
         var listMucThu = await _dbContext.MucThuLePhis.AsNoTracking()
             .Where(x => x.LoaiXeId == null || x.LoaiXeId == loaiXe.Id)
             .ToListAsync(cancellationToken);
+
+        // Danh mục Chi tiết mức thu theo khu vực (bảng MucThuLePhiKhuVuc)
+        var listMucThuKhuVuc = await _dbContext.MucThuLePhiKhuVucs.AsNoTracking().ToListAsync(cancellationToken);
+
+        // Danh mục Cán bộ lập (lấy từ bảng Users)
+        var listUsers = await _dbContext.Users.AsNoTracking()
+            .Where(u => string.IsNullOrEmpty(customerId) || u.CustomerId == customerId || u.CustomerId == null)
+            .ToListAsync(cancellationToken);
+
         var listDauBien = await _dbContext.DauBienSos.AsNoTracking().ToListAsync(cancellationToken);
         var defaultMauBien = await _dbContext.MauBienSos.AsNoTracking()
             .FirstOrDefaultAsync(x => x.Ten.ToLower().Contains("trắng") || x.Ma == "TRANG", cancellationToken);
@@ -1423,16 +1445,19 @@ public class XuatKhoService : IXuatKhoService
 
             try
             {
-                // Đọc các trường thông tin theo mẫu 14 cột
+                // Đọc các giá trị từ ô Excel
                 var loaiThuTucRaw = colLoaiThuTuc > 0 ? ws.Cells[row, colLoaiThuTuc].Text?.Trim() : null;
-                var rawXuatKho = colTinhChat > 0 ? ws.Cells[row, colTinhChat].Text?.Trim() : null;
-                var kyHieuQuyen = colKyHieuQuyen > 0 ? ws.Cells[row, colKyHieuQuyen].Text?.Trim() : string.Empty;
-                var soBienLai = colSoBienLai > 0 ? ws.Cells[row, colSoBienLai].Text?.Trim() : string.Empty;
+                var mucThuLePhiRaw = colMucThuLePhi > 0 ? ws.Cells[row, colMucThuLePhi].Text?.Trim() : null;
+                var khuVucRaw = colKhuVuc > 0 ? ws.Cells[row, colKhuVuc].Text?.Trim() : null;
+                var kyHieuQuyenRaw = colKyHieuQuyen > 0 ? ws.Cells[row, colKyHieuQuyen].Text?.Trim() : string.Empty;
+                var canBoLapRaw = colCanBoLap > 0 ? ws.Cells[row, colCanBoLap].Text?.Trim() : null;
+                var soBienLaiRaw = colSoBienLai > 0 ? ws.Cells[row, colSoBienLai].Text?.Trim() : string.Empty;
                 var hoTenNguoiNop = colHoTenNguoiNop > 0 ? ws.Cells[row, colHoTenNguoiNop].Text?.Trim() : null;
                 if (string.IsNullOrWhiteSpace(hoTenNguoiNop)) hoTenNguoiNop = "Người nộp tiền";
                 var soCccd = colSoCccd > 0 ? ws.Cells[row, colSoCccd].Text?.Trim() : null;
                 var maHoSoDvc = colMaHoSoDvc > 0 ? ws.Cells[row, colMaHoSoDvc].Text?.Trim() : null;
-                var canBoLap = colCanBoLap > 0 ? ws.Cells[row, colCanBoLap].Text?.Trim() : null;
+                var rawGhiChu = colGhiChu > 0 ? ws.Cells[row, colGhiChu].Text?.Trim() : null;
+                var rawXuatKho = colTinhChat > 0 ? ws.Cells[row, colTinhChat].Text?.Trim() : null;
                 var rawTrangThai = colTrangThai > 0 ? ws.Cells[row, colTrangThai].Text?.Trim() : null;
 
                 // Xác định tính chất xuất kho
@@ -1455,75 +1480,207 @@ public class XuatKhoService : IXuatKhoService
                     else trangThai = "HoanTat";
                 }
 
-                // Đọc số tiền lệ phí thu
+                // Khớp nối các danh mục tương ứng (các ô khoanh đỏ):
+
+                // a) Khớp Danh mục Loại thủ tục
+                LoaiThuTuc? loaiThuTuc = null;
+                if (!string.IsNullOrWhiteSpace(loaiThuTucRaw))
+                {
+                    var trimmed = loaiThuTucRaw.Trim();
+                    loaiThuTuc = listLoaiThuTuc.FirstOrDefault(x =>
+                        string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase))
+                        ?? listLoaiThuTuc.FirstOrDefault(x =>
+                            x.Ten.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
+                            trimmed.Contains(x.Ten, StringComparison.OrdinalIgnoreCase));
+                }
+                loaiThuTuc ??= listLoaiThuTuc.FirstOrDefault();
+                var loaiThuTucId = loaiThuTuc?.Id ?? string.Empty;
+                var loaiThuTucTen = loaiThuTuc?.Ten ?? loaiThuTucRaw ?? "Cấp biển (Có xuất kho số)";
+
+                // b) Khớp Danh mục Mức thu lệ phí
+                MucThuLePhi? mucThu = null;
+                if (!string.IsNullOrWhiteSpace(mucThuLePhiRaw))
+                {
+                    var trimmed = mucThuLePhiRaw.Trim();
+                    mucThu = listMucThu.FirstOrDefault(x =>
+                        (loaiThuTuc == null || x.LoaiThuTucId == loaiThuTuc.Id) &&
+                        (string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase)))
+                        ?? listMucThu.FirstOrDefault(x =>
+                            string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase))
+                        ?? listMucThu.FirstOrDefault(x =>
+                            x.Ten.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
+                            trimmed.Contains(x.Ten, StringComparison.OrdinalIgnoreCase));
+                }
+                mucThu ??= listMucThu.FirstOrDefault(x => loaiThuTuc != null && x.LoaiThuTucId == loaiThuTuc.Id)
+                           ?? listMucThu.FirstOrDefault();
+
+                var mucThuLePhiId = mucThu?.Id ?? string.Empty;
+                var mucThuLePhiTen = mucThu?.Ten ?? mucThuLePhiRaw;
+                var canCuPhapLy = (colCanCuPhapLy > 0 ? ws.Cells[row, colCanCuPhapLy].Text?.Trim() : null)
+                                  ?? (mucThu?.CanCuPhapLy ?? "Thông tư 155/2025/TT-BTC");
+
+                // c) Khớp Danh mục Khu vực áp dụng
+                KhuVucApDung? khuVuc = null;
+                if (!string.IsNullOrWhiteSpace(khuVucRaw))
+                {
+                    var trimmed = khuVucRaw.Trim();
+                    khuVuc = listKhuVuc.FirstOrDefault(x =>
+                        string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase))
+                        ?? listKhuVuc.FirstOrDefault(x =>
+                            x.Ten.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
+                            trimmed.Contains(x.Ten, StringComparison.OrdinalIgnoreCase));
+                }
+                khuVuc ??= listKhuVuc.FirstOrDefault();
+                var khuVucApDungId = khuVuc?.Id ?? string.Empty;
+                var khuVucApDungTen = khuVuc?.Ten ?? khuVucRaw;
+
+                // d) Tra cứu Chi tiết mức thu theo khu vực (MucThuLePhiKhuVuc)
+                MucThuLePhiKhuVuc? mucThuKhuVuc = null;
+                if (mucThu != null && khuVuc != null)
+                {
+                    mucThuKhuVuc = listMucThuKhuVuc.FirstOrDefault(x =>
+                        x.MucThuLePhiId == mucThu.Id && x.KhuVucApDungId == khuVuc.Id);
+                }
+                var mucThuKhuVucId = mucThuKhuVuc?.Id;
+                decimal soTienTuDong = mucThuKhuVuc?.MucThu ?? 0;
+
+                // e) Khớp Danh mục Ký hiệu quyển biên lai
+                KyHieuQuyenBienLai? quyen = null;
+                if (!string.IsNullOrWhiteSpace(kyHieuQuyenRaw))
+                {
+                    var trimmed = kyHieuQuyenRaw.Trim();
+                    quyen = listQuyen.FirstOrDefault(x =>
+                        string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase))
+                        ?? listQuyen.FirstOrDefault(x =>
+                            x.Ma.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
+                            x.Ten.Contains(trimmed, StringComparison.OrdinalIgnoreCase));
+                }
+                quyen ??= listQuyen.FirstOrDefault();
+                var kyHieuQuyenBienLaiId = quyen?.Id ?? string.Empty;
+                var kyHieuQuyen = !string.IsNullOrWhiteSpace(kyHieuQuyenRaw) ? kyHieuQuyenRaw.Trim() : (quyen?.Ma ?? string.Empty);
+
+                // f) Cán bộ lập: Tra cứu theo bảng Users
+                User? userCanBo = null;
+                if (!string.IsNullOrWhiteSpace(canBoLapRaw))
+                {
+                    var trimmedCanBo = canBoLapRaw.Trim();
+                    userCanBo = listUsers.FirstOrDefault(u =>
+                        string.Equals(u.FullName, trimmedCanBo, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(u.Id, trimmedCanBo, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(u.SoHieuCAND, trimmedCanBo, StringComparison.OrdinalIgnoreCase))
+                        ?? listUsers.FirstOrDefault(u =>
+                            u.FullName.Contains(trimmedCanBo, StringComparison.OrdinalIgnoreCase) ||
+                            trimmedCanBo.Contains(u.FullName, StringComparison.OrdinalIgnoreCase));
+                }
+
+                string createdById;
+                string createdByName;
+                if (userCanBo != null)
+                {
+                    createdById = userCanBo.Id ?? _currentUserService.UserId ?? string.Empty;
+                    createdByName = userCanBo.FullName;
+                }
+                else if (!string.IsNullOrWhiteSpace(canBoLapRaw))
+                {
+                    createdById = _currentUserService.UserId ?? string.Empty;
+                    createdByName = canBoLapRaw.Trim();
+                }
+                else
+                {
+                    createdById = _currentUserService.UserId ?? string.Empty;
+                    createdByName = _currentUserService.FullName ?? _currentUserService.Username ?? "Cán bộ quản lý";
+                }
+
+                // Đọc số tiền lệ phí thu (nếu rỗng hoặc = 0 thì tự động lấy theo mức thu khu vực)
                 decimal soTienThu = 0;
-                var valMoney = colSoTienThu > 0 ? ws.Cells[row, colSoTienThu].Value : null;
-                if (valMoney is double dVal) soTienThu = Convert.ToDecimal(dVal);
-                else if (valMoney is decimal decVal) soTienThu = decVal;
-                else if (valMoney is int iVal) soTienThu = iVal;
-                else if (valMoney is long lVal) soTienThu = lVal;
-                else
+                bool hasExplicitMoney = false;
+                if (colSoTienThu > 0)
                 {
-                    var textMoney = colSoTienThu > 0 ? ws.Cells[row, colSoTienThu].Text?.Trim() : null;
-                    if (!string.IsNullOrWhiteSpace(textMoney))
+                    var valMoney = ws.Cells[row, colSoTienThu].Value;
+                    if (valMoney is double dVal) { soTienThu = Convert.ToDecimal(dVal); hasExplicitMoney = true; }
+                    else if (valMoney is decimal decVal) { soTienThu = decVal; hasExplicitMoney = true; }
+                    else if (valMoney is int iVal) { soTienThu = iVal; hasExplicitMoney = true; }
+                    else if (valMoney is long lVal) { soTienThu = lVal; hasExplicitMoney = true; }
+                    else
                     {
-                        var cleanMoney = textMoney.Replace(",", "").Replace(".", "").Replace("đ", "").Replace("VND", "").Trim();
-                        decimal.TryParse(cleanMoney, out soTienThu);
+                        var textMoney = ws.Cells[row, colSoTienThu].Text?.Trim();
+                        if (!string.IsNullOrWhiteSpace(textMoney))
+                        {
+                            var cleanMoney = textMoney.Replace(",", "").Replace(".", "").Replace("đ", "").Replace("₫", "").Replace("VND", "", StringComparison.OrdinalIgnoreCase).Replace("VNĐ", "", StringComparison.OrdinalIgnoreCase).Trim();
+                            if (decimal.TryParse(cleanMoney, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedMoney) ||
+                                decimal.TryParse(cleanMoney, NumberStyles.Any, CultureInfo.GetCultureInfo("vi-VN"), out parsedMoney))
+                            {
+                                soTienThu = parsedMoney;
+                                hasExplicitMoney = true;
+                            }
+                        }
                     }
                 }
 
-                // Đọc ngày thực hiện
-                DateTime ngayThucHien = DateTime.UtcNow;
-                var dateCellVal = colNgayThucHien > 0 ? ws.Cells[row, colNgayThucHien].Value : null;
-                if (dateCellVal == null && colNgayBienLai > 0) dateCellVal = ws.Cells[row, colNgayBienLai].Value;
-
-                if (dateCellVal is DateTime dt)
+                if ((!hasExplicitMoney || soTienThu <= 0) && soTienTuDong > 0)
                 {
-                    ngayThucHien = dt;
+                    soTienThu = soTienTuDong;
+                }
+
+                // Hàm hỗ trợ đọc ngày từ ô Excel đa định dạng (DateTime, Excel OADate double, hoặc chuỗi ngày)
+                DateTime? ParseExcelDate(int colIdx)
+                {
+                    if (colIdx <= 0) return null;
+                    var cell = ws.Cells[row, colIdx];
+                    var val = cell.Value;
+                    if (val is DateTime dtVal) return dtVal;
+                    if (val is double dDate && dDate > 0 && dDate < 2958466)
+                    {
+                        try { return DateTime.FromOADate(dDate); } catch { }
+                    }
+                    var textDate = cell.Text?.Trim();
+                    if (string.IsNullOrWhiteSpace(textDate)) return null;
+
+                    string[] dateFormats = { "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "yyyy-MM-dd", "dd/MM/yyyy HH:mm:ss", "yyyy-MM-dd HH:mm:ss" };
+                    if (DateTime.TryParseExact(textDate, dateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var exactDt))
+                        return exactDt;
+                    if (DateTime.TryParse(textDate, CultureInfo.GetCultureInfo("vi-VN"), DateTimeStyles.None, out var viDt))
+                        return viDt;
+                    if (DateTime.TryParse(textDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out var invDt))
+                        return invDt;
+
+                    return null;
+                }
+
+                // Đọc ngày thực hiện và ngày biên lai
+                var parsedNgayThucHien = ParseExcelDate(colNgayThucHien);
+                var parsedNgayBienLai = ParseExcelDate(colNgayBienLai);
+
+                DateTime ngayThucHien = parsedNgayThucHien ?? parsedNgayBienLai ?? DateTime.UtcNow;
+                DateTime ngayBienLai = parsedNgayBienLai ?? parsedNgayThucHien ?? ngayThucHien;
+
+                // Xử lý số biên lai: nếu không nhập, gợi ý số tiếp theo từ Quyển biên lai
+                string soBienLai;
+                if (!string.IsNullOrWhiteSpace(soBienLaiRaw))
+                {
+                    soBienLai = soBienLaiRaw.Trim();
+                }
+                else if (quyen != null)
+                {
+                    long soTiepTheo = (quyen.SoHienTai ?? ((quyen.TuSo ?? 1) - 1)) + 1;
+                    soBienLai = soTiepTheo.ToString("D7");
+                    quyen.SoHienTai = soTiepTheo;
                 }
                 else
                 {
-                    var dateText = colNgayThucHien > 0 ? ws.Cells[row, colNgayThucHien].Text?.Trim() : null;
-                    if (string.IsNullOrWhiteSpace(dateText) && colNgayBienLai > 0) dateText = ws.Cells[row, colNgayBienLai].Text?.Trim();
-
-                    if (!string.IsNullOrWhiteSpace(dateText))
-                    {
-                        if (DateTime.TryParse(dateText, CultureInfo.GetCultureInfo("vi-VN"), DateTimeStyles.None, out var parsedDt))
-                            ngayThucHien = parsedDt;
-                        else if (DateTime.TryParse(dateText, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDtInv))
-                            ngayThucHien = parsedDtInv;
-                    }
+                    soBienLai = bienKiemSoat;
                 }
 
-                // Đọc ngày biên lai
-                DateTime ngayBienLai = ngayThucHien;
-                var blDateCellVal = colNgayBienLai > 0 ? ws.Cells[row, colNgayBienLai].Value : null;
-                if (blDateCellVal is DateTime dtBL)
-                {
-                    ngayBienLai = dtBL;
-                }
-                else
-                {
-                    var blDateText = colNgayBienLai > 0 ? ws.Cells[row, colNgayBienLai].Text?.Trim() : null;
-                    if (!string.IsNullOrWhiteSpace(blDateText))
-                    {
-                        if (DateTime.TryParse(blDateText, CultureInfo.GetCultureInfo("vi-VN"), DateTimeStyles.None, out var parsedBLDt))
-                            ngayBienLai = parsedBLDt;
-                        else if (DateTime.TryParse(blDateText, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedBLDtInv))
-                            ngayBienLai = parsedBLDtInv;
-                    }
-                }
-
-                // Ghép thông tin bổ sung vào GhiChu (cán bộ lập, nhãn hiệu, số khung, số máy nếu có)
+                // Ghép thông tin Ghi chú nghiệp vụ và các cột mở rộng nếu có
                 var ghiChuParts = new List<string>();
-                if (colGhiChu > 0)
+                if (!string.IsNullOrWhiteSpace(rawGhiChu))
                 {
-                    var legacyGhiChu = ws.Cells[row, colGhiChu].Text?.Trim();
-                    if (!string.IsNullOrWhiteSpace(legacyGhiChu)) ghiChuParts.Add(legacyGhiChu);
-                }
-                if (!string.IsNullOrWhiteSpace(canBoLap))
-                {
-                    ghiChuParts.Add($"{canBoLap}");
+                    ghiChuParts.Add(rawGhiChu);
                 }
                 if (colNhanHieu > 0)
                 {
@@ -1542,7 +1699,7 @@ public class XuatKhoService : IXuatKhoService
                 }
                 var ghiChu = ghiChuParts.Count > 0 ? string.Join("; ", ghiChuParts) : null;
 
-                // 7. Kiểm tra biển số trong bảng KhoBienSo
+                // 7. Kiểm tra đối soát biển số trong bảng KhoBienSo
                 var bienSo = await _dbContext.KhoBienSos
                     .FirstOrDefaultAsync(x =>
                         (string.IsNullOrEmpty(customerId) || x.CustomerId == customerId || x.CustomerId == null) &&
@@ -1599,41 +1756,16 @@ public class XuatKhoService : IXuatKhoService
                     affectedDotNhapIds.Add(bienSo.DotNhapKhoId);
                 }
 
-                // 8. Khớp nối các danh mục liên quan
-                var loaiThuTuc = listLoaiThuTuc.FirstOrDefault(x =>
-                    !string.IsNullOrWhiteSpace(loaiThuTucRaw) &&
-                    (x.Ten.Contains(loaiThuTucRaw, StringComparison.OrdinalIgnoreCase) || 
-                     loaiThuTucRaw.Contains(x.Ten, StringComparison.OrdinalIgnoreCase) ||
-                     x.Ma.Equals(loaiThuTucRaw, StringComparison.OrdinalIgnoreCase)))
-                    ?? listLoaiThuTuc.FirstOrDefault();
-
-                var khuVucRaw = colKhuVuc > 0 ? ws.Cells[row, colKhuVuc].Text?.Trim() : null;
-                var khuVuc = listKhuVuc.FirstOrDefault(x =>
-                    !string.IsNullOrWhiteSpace(khuVucRaw) &&
-                    (x.Ten.Contains(khuVucRaw, StringComparison.OrdinalIgnoreCase) || khuVucRaw.Contains(x.Ten, StringComparison.OrdinalIgnoreCase)))
-                    ?? listKhuVuc.FirstOrDefault();
-
-                var quyen = listQuyen.FirstOrDefault(x =>
-                    !string.IsNullOrWhiteSpace(kyHieuQuyen) &&
-                    (x.Ma.Equals(kyHieuQuyen, StringComparison.OrdinalIgnoreCase) ||
-                     x.Ten.Contains(kyHieuQuyen, StringComparison.OrdinalIgnoreCase)))
-                    ?? listQuyen.FirstOrDefault();
-
-                var mucThu = listMucThu.FirstOrDefault(x => loaiThuTuc != null && x.LoaiThuTucId == loaiThuTuc.Id)
-                    ?? listMucThu.FirstOrDefault();
-
                 var dauBien = listDauBien.FirstOrDefault(d => d.Id == bienSo.DauBienSoId);
                 var mauBien = defaultMauBien;
-                var canCuPhapLy = (colCanCuPhapLy > 0 ? ws.Cells[row, colCanCuPhapLy].Text?.Trim() : null)
-                                  ?? (mucThu?.CanCuPhapLy ?? "Thông tư 155/2025/TT-BTC");
 
-                // 9. Tạo thực thể XuatKhoBienSo với DaXuatKho = true
+                // 8. Tạo thực thể XuatKhoBienSo với DaXuatKho = true và thông tin đã đối soát
                 var xuatKho = new XuatKhoBienSo
                 {
                     Id = Guid.NewGuid().ToString("D"),
                     CustomerId = customerId,
-                    LoaiThuTucId = loaiThuTuc?.Id ?? string.Empty,
-                    LoaiThuTucTen = loaiThuTuc?.Ten ?? loaiThuTucRaw ?? "Cấp biển (Có xuất kho số)",
+                    LoaiThuTucId = loaiThuTucId,
+                    LoaiThuTucTen = loaiThuTucTen,
                     NgayThucHien = ngayThucHien,
                     TinhChatXuatKho = tinhChatXuatKho,
                     KhoBienSoId = bienSo.Id ?? string.Empty,
@@ -1645,17 +1777,18 @@ public class XuatKhoService : IXuatKhoService
                     DauBienSoId = bienSo.DauBienSoId,
                     DauBienSoTen = dauBien?.KyHieuSeries ?? dauBien?.Ten,
 
-                    MucThuLePhiId = mucThu?.Id ?? string.Empty,
-                    MucThuLePhiTen = mucThu?.Ten,
-                    KhuVucApDungId = khuVuc?.Id ?? string.Empty,
-                    KhuVucApDungTen = khuVuc?.Ten,
-                    DieuKienTriGiaXe = null,
+                    MucThuLePhiId = mucThuLePhiId,
+                    MucThuLePhiTen = mucThuLePhiTen,
+                    KhuVucApDungId = khuVucApDungId,
+                    KhuVucApDungTen = khuVucApDungTen,
+                    MucThuLePhiKhuVucId = mucThuKhuVucId,
+                    DieuKienTriGiaXe = mucThu?.KhoangTriGiaXe,
                     CanCuPhapLy = canCuPhapLy,
-                    SoTienTuDongDien = soTienThu,
+                    SoTienTuDongDien = soTienTuDong > 0 ? soTienTuDong : soTienThu,
 
-                    KyHieuQuyenBienLaiId = quyen?.Id ?? string.Empty,
-                    KyHieuQuyen = !string.IsNullOrWhiteSpace(kyHieuQuyen) ? kyHieuQuyen : (quyen?.Ma ?? string.Empty),
-                    SoBienLai = !string.IsNullOrWhiteSpace(soBienLai) ? soBienLai : bienKiemSoat,
+                    KyHieuQuyenBienLaiId = kyHieuQuyenBienLaiId,
+                    KyHieuQuyen = kyHieuQuyen,
+                    SoBienLai = soBienLai,
                     NgayBienLai = ngayBienLai,
                     SoTienThu = soTienThu,
                     HoTenNguoiNop = hoTenNguoiNop,
@@ -1666,14 +1799,14 @@ public class XuatKhoService : IXuatKhoService
                     TrangThai = trangThai,
                     Created = DateTime.UtcNow,
                     Modified = DateTime.UtcNow,
-                    CreatedByName = !string.IsNullOrWhiteSpace(canBoLap) ? canBoLap : (_currentUserService.FullName ?? _currentUserService.Username),
-                    CreatedById = _currentUserService.UserId
+                    CreatedByName = createdByName,
+                    CreatedById = createdById
                 };
 
                 await _dbContext.XuatKhoBienSos.AddAsync(xuatKho, cancellationToken);
                 bienSo.XuatKhoId = xuatKho.Id;
 
-                // 10. Cập nhật dòng chi tiết đợt nhập (nếu có liên kết)
+                // 9. Cập nhật dòng chi tiết đợt nhập (nếu có liên kết)
                 if (!string.IsNullOrWhiteSpace(bienSo.ChiTietDotNhapBienSoId))
                 {
                     var chiTiet = await _dbContext.ChiTietDotNhapBienSos
@@ -1687,7 +1820,7 @@ public class XuatKhoService : IXuatKhoService
                     }
                 }
 
-                // 11. Cập nhật Số hiện tại của Quyển biên lai
+                // 10. Cập nhật Số hiện tại của Quyển biên lai
                 if (quyen != null && long.TryParse(soBienLai, out var soBL))
                 {
                     if (!quyen.SoHienTai.HasValue || soBL > quyen.SoHienTai.Value)
@@ -1839,6 +1972,71 @@ public class XuatKhoService : IXuatKhoService
             await File.WriteAllBytesAsync(targetFilePath, excelBytes, cancellationToken);
         }
 
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+        if (File.Exists(targetFilePath))
+        {
+            using var package = new ExcelPackage(new FileInfo(targetFilePath));
+            var sheet1 = package.Workbook.Worksheets["Danh mục"];
+            if (sheet1 != null)
+            {
+                int nRow = 3;
+                var listLoaiThuTuc = await _dbContext.LoaiThuTucs.AsNoTracking().ToListAsync(cancellationToken);
+                foreach (var item in listLoaiThuTuc)
+                {
+                    sheet1.Cells[nRow, 1].Value = item.Ten;
+                    nRow++;
+                }
+
+                nRow = 3;
+                var mucThuLePhi = await _dbContext.MucThuLePhis.AsNoTracking().ToListAsync(cancellationToken);
+                foreach (var item in mucThuLePhi)
+                {
+                    sheet1.Cells[nRow, 2].Value = item.Ten;
+                    nRow++;
+                }
+
+                nRow = 3;
+                var khuVucApDungs = await _dbContext.KhuVucApDungs.AsNoTracking().ToListAsync(cancellationToken);
+                foreach (var item in khuVucApDungs)
+                {
+                    sheet1.Cells[nRow, 3].Value = item.Ten;
+                    nRow++;
+                }
+
+                nRow = 3;
+                var kyHieuQuyenBienLais = await _dbContext.KyHieuQuyenBienLais.AsNoTracking().ToListAsync(cancellationToken);
+                foreach (var item in kyHieuQuyenBienLais)
+                {
+                    sheet1.Cells[nRow, 4].Value = item.Ten ?? item.Ma;
+                    nRow++;
+                }
+
+                nRow = 3;
+                var users = await _dbContext.Users.AsNoTracking()
+                    .Where(a => string.IsNullOrEmpty(_currentUserService.CustomerId) || a.CustomerId == _currentUserService.CustomerId)
+                    .ToListAsync(cancellationToken);
+                foreach (var item in users)
+                {
+                    sheet1.Cells[nRow, 5].Value = item.FullName;
+                    nRow++;
+                }
+
+                nRow = 3;
+                var khoBienSos = await _dbContext.KhoBienSos.AsNoTracking()
+                    .Where(a => (string.IsNullOrEmpty(_currentUserService.CustomerId) || a.CustomerId == _currentUserService.CustomerId) && !a.DaXuatKho)
+                    .OrderBy(a => a.BienKiemSoat)
+                    .ToListAsync(cancellationToken);
+                foreach (var item in khoBienSos)
+                {
+                    sheet1.Cells[nRow, 6].Value = item.BienKiemSoat;
+                    nRow++;
+                }
+
+                await package.SaveAsync(cancellationToken);
+            }
+        }
+
         // 2. Mã hóa Base64 filename và path theo chuẩn chung của hệ thống (dùng cho /api/FileUpload/download)
         var encodedFileName = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(templateFileName));
         var encodedPath = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(targetFilePath));
@@ -1860,30 +2058,94 @@ public class XuatKhoService : IXuatKhoService
     /// </summary>
     public async Task<(byte[] FileBytes, string ContentType, string FileName)> DownloadFileMauXuatKhoAsync(CancellationToken cancellationToken = default)
     {
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
         var templateFileName = "XuatKhoBienSo.xlsx";
         var sourceTemplate = Path.Combine(_environment.ContentRootPath, "MauBaoCao", templateFileName);
 
-        byte[] bytes;
+        byte[] templateBytes;
         if (File.Exists(sourceTemplate))
         {
-            bytes = await File.ReadAllBytesAsync(sourceTemplate, cancellationToken);
+            templateBytes = await File.ReadAllBytesAsync(sourceTemplate, cancellationToken);
         }
         else
         {
-            bytes = GenerateMauXuatKhoExcelBytes();
+            templateBytes = GenerateMauXuatKhoExcelBytes();
             var mauBaoCaoDir = Path.Combine(_environment.ContentRootPath, "MauBaoCao");
             if (!Directory.Exists(mauBaoCaoDir))
             {
                 Directory.CreateDirectory(mauBaoCaoDir);
             }
-            await File.WriteAllBytesAsync(sourceTemplate, bytes, cancellationToken);
+            await File.WriteAllBytesAsync(sourceTemplate, templateBytes, cancellationToken);
         }
 
-        return (bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", templateFileName);
+        using var memoryStream = new MemoryStream();
+        await memoryStream.WriteAsync(templateBytes, cancellationToken);
+        using var package = new ExcelPackage(memoryStream);
+
+        var sheet1 = package.Workbook.Worksheets["Danh mục"];
+        if (sheet1 != null)
+        {
+            int nRow = 3;
+            var listLoaiThuTuc = await _dbContext.LoaiThuTucs.AsNoTracking().ToListAsync(cancellationToken);
+            foreach (var item in listLoaiThuTuc)
+            {
+                sheet1.Cells[nRow, 1].Value = item.Ten;
+                nRow++;
+            }
+
+            nRow = 3;
+            var mucThuLePhi = await _dbContext.MucThuLePhis.AsNoTracking().ToListAsync(cancellationToken);
+            foreach (var item in mucThuLePhi)
+            {
+                sheet1.Cells[nRow, 2].Value = item.Ten;
+                nRow++;
+            }
+
+            nRow = 3;
+            var khuVucApDungs = await _dbContext.KhuVucApDungs.AsNoTracking().ToListAsync(cancellationToken);
+            foreach (var item in khuVucApDungs)
+            {
+                sheet1.Cells[nRow, 3].Value = item.Ten;
+                nRow++;
+            }
+
+            nRow = 3;
+            var kyHieuQuyenBienLais = await _dbContext.KyHieuQuyenBienLais.AsNoTracking().ToListAsync(cancellationToken);
+            foreach (var item in kyHieuQuyenBienLais)
+            {
+                sheet1.Cells[nRow, 4].Value = item.Ten ?? item.Ma;
+                nRow++;
+            }
+
+            nRow = 3;
+            var users = await _dbContext.Users.AsNoTracking()
+                .Where(a => string.IsNullOrEmpty(_currentUserService.CustomerId) || a.CustomerId == _currentUserService.CustomerId)
+                .ToListAsync(cancellationToken);
+            foreach (var item in users)
+            {
+                sheet1.Cells[nRow, 5].Value = item.FullName;
+                nRow++;
+            }
+
+            nRow = 3;
+            var khoBienSos = await _dbContext.KhoBienSos.AsNoTracking()
+                .Where(a => (string.IsNullOrEmpty(_currentUserService.CustomerId) || a.CustomerId == _currentUserService.CustomerId) && !a.DaXuatKho)
+                .OrderBy(a => a.BienKiemSoat)
+                .ToListAsync(cancellationToken);
+            foreach (var item in khoBienSos)
+            {
+                sheet1.Cells[nRow, 6].Value = item.BienKiemSoat;
+                nRow++;
+            }
+        }
+
+        var resultBytes = package.GetAsByteArray();
+        return (resultBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", templateFileName);
     }
 
     /// <summary>
-    /// Tạo cấu trúc và dữ liệu mẫu tệp Excel xuất kho biển số xe theo chuẩn 14 cột của MauBaoCao/XuatKhoBienSo.xlsx bằng EPPlus.
+    /// Tạo cấu trúc và dữ liệu mẫu tệp Excel xuất kho biển số xe theo chuẩn 15 cột của MauBaoCao/XuatKhoBienSo.xlsx bằng EPPlus.
     /// </summary>
     private static byte[] GenerateMauXuatKhoExcelBytes()
     {
@@ -1891,30 +2153,30 @@ public class XuatKhoService : IXuatKhoService
         using var package = new ExcelPackage();
         var ws = package.Workbook.Worksheets.Add("XuatKho");
 
-        // 1. Tiêu đề (Merge A1:N1)
+        // 1. Tiêu đề (Merge A1:O1)
         ws.Cells[1, 1].Value = "DANH SÁCH BIỂN SỐ XE XUẤT KHO";
-        ws.Cells[1, 1, 1, 14].Merge = true;
+        ws.Cells[1, 1, 1, 15].Merge = true;
         ws.Cells[1, 1].Style.Font.Bold = true;
         ws.Cells[1, 1].Style.Font.Size = 16;
         ws.Cells[1, 1].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
         ws.Cells[1, 1].Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
         ws.Row(1).Height = 35;
 
-        // 2. Phụ đề (Merge A2:N2)
+        // 2. Phụ đề (Merge A2:O2)
         ws.Cells[2, 1].Value = "(Áp dụng cho tệp mẫu nhập xuất kho biển số xe và biên lai thu phí)";
-        ws.Cells[2, 1, 2, 14].Merge = true;
+        ws.Cells[2, 1, 2, 15].Merge = true;
         ws.Cells[2, 1].Style.Font.Italic = true;
         ws.Cells[2, 1].Style.Font.Size = 10;
         ws.Cells[2, 1].Style.Font.Color.SetColor(System.Drawing.Color.Gray);
         ws.Cells[2, 1].Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
         ws.Row(2).Height = 20;
 
-        // 3. Dòng Header (Dòng 3 - 14 cột chuẩn)
+        // 3. Dòng Header (Dòng 3 - 15 cột chuẩn theo MauBaoCao/XuatKhoBienSo.xlsx)
         var headers = new[]
         {
-            "STT", "Ngày thực hiện", "Thủ tục", "Biển số xe", "Xuất kho",
-            "Ký hiệu quyển", "Số biên lai", "Ngày biên lai", "Số tiền thu (VNĐ)", "Người nộp tiền",
-            "Số CCCD", "Mã hồ sơ DVC", "Cán bộ lập", "Trạng thái"
+            "STT", "Ngày thực hiện", "Loại thủ tục(*)", "Biển số xe(*)", "Mức thu lệ phí(*)",
+            "Khu vực áp dụng(*)", "Ký hiệu quyển biên lai", "Cán bộ lập", "Số biên lai", "Ngày biên lai",
+            "Số tiền thu(VNĐ)", "Họ tên người nộp tiền(*)", "Số CCCD", "Mã hồ sơ dịch vụ công", "Ghi chú nghiệp vụ"
         };
 
         ws.Row(3).Height = 28;
@@ -1931,12 +2193,11 @@ public class XuatKhoService : IXuatKhoService
             cell.Style.VerticalAlignment = OfficeOpenXml.Style.ExcelVerticalAlignment.Center;
         }
 
-        // 4. Dữ liệu mẫu (Rows 4, 5, 6)
+        // 4. Dữ liệu mẫu (Rows 4, 5)
         var sampleRows = new List<object[]>
         {
-            new object[] { 1, "19/10/2026", "Cấp biển (Có xuất kho số)", "30A-999.99", "Xuất 01 biển từ kho 'Biển được bấm'", "Q01", "0000001", "19/10/2026", 150000, "Nguyễn Văn A", "001234567890", "DVC-2026-0001", "Cán bộ quản lý", "Hoàn tất" },
-            new object[] { 2, "19/10/2026", "Cấp biển (Có xuất kho số)", "30A-888.88", "Xuất 01 biển từ kho 'Biển được bấm'", "Q01", "0000002", "19/10/2026", 150000, "Trần Thị B", "001098765432", "DVC-2026-0002", "Cán bộ quản lý", "Hoàn tất" },
-            new object[] { 3, "19/10/2026", "Cấp lại biển số", "29B-123.45", "Xuất 01 biển từ kho 'Biển được bấm'", "Q01", "0000003", "19/10/2026", 100000, "Lê Văn C", "001087654321", "DVC-2026-0003", "Cán bộ quản lý", "Hoàn tất" }
+            new object[] { 1, "19/10/2026", "Cấp biển (Có xuất kho số)", "30A-999.99", "[Ô tô] Cấp mới đăng ký kèm biển số Ô tô chở người từ 9 chỗ trở xuống", "Khu vực I (Hà Nội, TP.HCM)", "AA/26E", "Cán bộ quản lý", "0000001", "19/10/2026", 20000000, "Nguyễn Văn A", "001234567890", "DVC-2026-0001", "Ghi chú xuất kho" },
+            new object[] { 2, "19/10/2026", "Cấp biển (Có xuất kho số)", "30A-888.88", "[Ô tô] Cấp mới đăng ký kèm biển số Ô tô chở người từ 9 chỗ trở xuống", "Khu vực I (Hà Nội, TP.HCM)", "AA/26E", "Cán bộ quản lý", "0000002", "19/10/2026", 20000000, "Trần Thị B", "001098765432", "DVC-2026-0002", "Ghi chú xuất kho" }
         };
 
         for (int i = 0; i < sampleRows.Count; i++)
@@ -1957,20 +2218,20 @@ public class XuatKhoService : IXuatKhoService
                     cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
                     cell.Style.Font.Bold = true;
                 }
-                else if (c == 9)
+                else if (c == 11)
                 {
                     cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Right;
                     cell.Style.Numberformat.Format = "#,##0";
                 }
-                else if (c == 2 || c == 6 || c == 7 || c == 8 || c == 11 || c == 12 || c == 14)
+                else if (c == 2 || c == 7 || c == 8 || c == 9 || c == 10 || c == 13 || c == 14)
                 {
                     cell.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
                 }
             }
         }
 
-        // Độ rộng các cột tương ứng theo MauBaoCao/XuatKhoBienSo.xlsx
-        int[] colWidths = { 8, 18, 28, 32, 16, 18, 16, 16, 20, 18, 16, 16, 22, 18 };
+        // Độ rộng 15 cột tương ứng theo MauBaoCao/XuatKhoBienSo.xlsx
+        int[] colWidths = { 8, 16, 26, 18, 30, 26, 22, 20, 16, 16, 18, 24, 18, 22, 22 };
         for (int c = 1; c <= colWidths.Length; c++)
         {
             ws.Column(c).Width = colWidths[c - 1];

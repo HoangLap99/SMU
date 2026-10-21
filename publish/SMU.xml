@@ -5086,7 +5086,7 @@
         </member>
         <member name="M:SMU.Application.Services.XuatKhoService.GenerateMauXuatKhoExcelBytes">
             <summary>
-            Tạo cấu trúc và dữ liệu mẫu tệp Excel xuất kho biển số xe theo chuẩn 14 cột của MauBaoCao/XuatKhoBienSo.xlsx bằng EPPlus.
+            Tạo cấu trúc và dữ liệu mẫu tệp Excel xuất kho biển số xe theo chuẩn 15 cột của MauBaoCao/XuatKhoBienSo.xlsx bằng EPPlus.
             </summary>
         </member>
         <member name="M:SMU.Application.Services.XuatKhoService.ImportXuatKhoTuFileAiAsync(SMU.Application.DTOs.ImportXuatKhoAiRequest,System.Threading.CancellationToken)">
