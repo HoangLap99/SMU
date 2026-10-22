@@ -71,11 +71,15 @@ public class NhapKhoService : INhapKhoService
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             var kw = keyword.Trim().ToLower();
+            var listId= _dbContext.ChiTietDotNhapBienSos.AsNoTracking().Where(a=>a.BienKiemSoat.ToLower().Contains(kw)).Select(a=>a.DotNhapKhoId).ToList();
             query = query.Where(x =>
                 x.MaDotNhap.ToLower().Contains(kw) ||
+                x.KyHieuDaiDauBien.ToLower().Contains(kw) ||
+                listId.Contains(x.Id) ||
                 (x.SoCongVan != null && x.SoCongVan.ToLower().Contains(kw)) ||
                 (x.CanBoTiepNhan != null && x.CanBoTiepNhan.ToLower().Contains(kw)) ||
                 (x.GhiChu != null && x.GhiChu.ToLower().Contains(kw)));
+
         }
 
         if (!string.IsNullOrEmpty(request.LoaiXeId))

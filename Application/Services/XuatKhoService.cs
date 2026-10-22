@@ -1247,7 +1247,17 @@ public class XuatKhoService : IXuatKhoService
                     }
                     else
                     {
-                        throw new FileNotFoundException($"Không tìm thấy tệp tin '{safeFileName}' trong thư mục lưu trữ '{configuredFolder}'.", safeFileName);
+                        var matchingFiles = Directory.Exists(destinationFolder)
+                            ? Directory.GetFiles(destinationFolder, $"*{safeFileName}*")
+                            : Array.Empty<string>();
+                        if (matchingFiles.Length > 0)
+                        {
+                            filePath = matchingFiles[0];
+                        }
+                        else
+                        {
+                            throw new FileNotFoundException($"Không tìm thấy tệp tin '{safeFileName}' trong thư mục lưu trữ '{configuredFolder}'.", safeFileName);
+                        }
                     }
                 }
             }
@@ -1406,6 +1416,169 @@ public class XuatKhoService : IXuatKhoService
         var response = new ImportXuatKhoExcelResponse();
         var processedPlatesInFile = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var affectedDotNhapIds = new HashSet<string>();
+        var affectedChiTietIds = new HashSet<string>();
+        var newXuatKhoList = new List<XuatKhoBienSo>();
+
+        // Tối ưu hóa: Tải trước toàn bộ kho biển số của đơn vị trong 1 truy vấn duy nhất để tra cứu O(1) trong bộ nhớ
+        var khoBienSoQuery = _dbContext.KhoBienSos
+            .Where(x => string.IsNullOrEmpty(customerId) || x.CustomerId == customerId || x.CustomerId == null);
+
+        if (request.ChiKiemTra == true)
+        {
+            khoBienSoQuery = khoBienSoQuery.AsNoTracking();
+        }
+
+        var khoBienSoList = await khoBienSoQuery.ToListAsync(cancellationToken);
+
+        var exactPlateDict = new Dictionary<string, KhoBienSo>(StringComparer.OrdinalIgnoreCase);
+        var normalizedPlateDict = new Dictionary<string, KhoBienSo>(StringComparer.OrdinalIgnoreCase);
+
+        // Ưu tiên bản ghi chưa xuất kho (DaXuatKho = false) nạp trước vào dictionary
+        foreach (var kb in khoBienSoList.OrderBy(x => x.DaXuatKho ? 1 : 0))
+        {
+            if (!string.IsNullOrWhiteSpace(kb.BienKiemSoat))
+            {
+                var rawUpper = kb.BienKiemSoat.Trim().ToUpperInvariant();
+                exactPlateDict.TryAdd(rawUpper, kb);
+                var norm = Regex.Replace(rawUpper, @"[\s\.\-]+", "");
+                normalizedPlateDict.TryAdd(norm, kb);
+            }
+        }
+
+        // Cache tra cứu danh mục để tăng tốc độ xử lý hàng nghìn dòng trong bộ nhớ
+        var loaiThuTucCache = new Dictionary<string, LoaiThuTuc?>(StringComparer.OrdinalIgnoreCase);
+        var mucThuCache = new Dictionary<(string, string?), MucThuLePhi?>();
+        var khuVucCache = new Dictionary<string, KhuVucApDung?>(StringComparer.OrdinalIgnoreCase);
+        var userCache = new Dictionary<string, User?>(StringComparer.OrdinalIgnoreCase);
+        var quyenCache = new Dictionary<string, KyHieuQuyenBienLai?>(StringComparer.OrdinalIgnoreCase);
+        var dauBienDict = listDauBien.Where(d => !string.IsNullOrEmpty(d.Id)).ToDictionary(d => d.Id!);
+        var mucThuKhuVucDict = listMucThuKhuVuc
+            .Where(x => !string.IsNullOrEmpty(x.MucThuLePhiId) && !string.IsNullOrEmpty(x.KhuVucApDungId))
+            .GroupBy(x => (x.MucThuLePhiId!, x.KhuVucApDungId!))
+            .ToDictionary(g => g.Key, g => g.First());
+
+        LoaiThuTuc? ResolveLoaiThuTuc(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return listLoaiThuTuc.FirstOrDefault();
+            var trimmed = raw.Trim();
+            if (loaiThuTucCache.TryGetValue(trimmed, out var cached)) return cached;
+
+            var result = listLoaiThuTuc.FirstOrDefault(x =>
+                string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase))
+                ?? listLoaiThuTuc.FirstOrDefault(x =>
+                    x.Ten.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.Contains(x.Ten, StringComparison.OrdinalIgnoreCase))
+                ?? listLoaiThuTuc.FirstOrDefault();
+
+            loaiThuTucCache[trimmed] = result;
+            return result;
+        }
+
+        MucThuLePhi? ResolveMucThu(string? raw, string? ltId)
+        {
+            var key = (raw?.Trim() ?? string.Empty, ltId);
+            if (mucThuCache.TryGetValue(key, out var cached)) return cached;
+
+            MucThuLePhi? result = null;
+            if (!string.IsNullOrWhiteSpace(raw))
+            {
+                var trimmed = raw.Trim();
+                result = listMucThu.FirstOrDefault(x =>
+                    (string.IsNullOrEmpty(ltId) || x.LoaiThuTucId == ltId) &&
+                    (string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase)))
+                    ?? listMucThu.FirstOrDefault(x =>
+                        string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase))
+                    ?? listMucThu.FirstOrDefault(x =>
+                        x.Ten.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
+                        trimmed.Contains(x.Ten, StringComparison.OrdinalIgnoreCase));
+            }
+            result ??= listMucThu.FirstOrDefault(x => !string.IsNullOrEmpty(ltId) && x.LoaiThuTucId == ltId)
+                       ?? listMucThu.FirstOrDefault();
+
+            mucThuCache[key] = result;
+            return result;
+        }
+
+        KhuVucApDung? ResolveKhuVuc(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return listKhuVuc.FirstOrDefault();
+            var trimmed = raw.Trim();
+            if (khuVucCache.TryGetValue(trimmed, out var cached)) return cached;
+
+            var result = listKhuVuc.FirstOrDefault(x =>
+                string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase))
+                ?? listKhuVuc.FirstOrDefault(x =>
+                    x.Ten.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.Contains(x.Ten, StringComparison.OrdinalIgnoreCase))
+                ?? listKhuVuc.FirstOrDefault();
+
+            khuVucCache[trimmed] = result;
+            return result;
+        }
+
+        KyHieuQuyenBienLai? ResolveQuyen(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return listQuyen.FirstOrDefault();
+            var trimmed = raw.Trim();
+            if (quyenCache.TryGetValue(trimmed, out var cached)) return cached;
+
+            var result = listQuyen.FirstOrDefault(x =>
+                string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase))
+                ?? listQuyen.FirstOrDefault(x =>
+                    x.Ma.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
+                    x.Ten.Contains(trimmed, StringComparison.OrdinalIgnoreCase))
+                ?? listQuyen.FirstOrDefault();
+
+            quyenCache[trimmed] = result;
+            return result;
+        }
+
+        User? ResolveUser(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var trimmed = raw.Trim();
+            if (userCache.TryGetValue(trimmed, out var cached)) return cached;
+
+            var result = listUsers.FirstOrDefault(u =>
+                string.Equals(u.FullName, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(u.Id, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(u.SoHieuCAND, trimmed, StringComparison.OrdinalIgnoreCase))
+                ?? listUsers.FirstOrDefault(u =>
+                    u.FullName.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.Contains(u.FullName, StringComparison.OrdinalIgnoreCase));
+
+            userCache[trimmed] = result;
+            return result;
+        }
+
+        DateTime? ParseExcelDate(int r, int colIdx)
+        {
+            if (colIdx <= 0) return null;
+            var cell = ws.Cells[r, colIdx];
+            var val = cell.Value;
+            if (val is DateTime dtVal) return dtVal;
+            if (val is double dDate && dDate > 0 && dDate < 2958466)
+            {
+                try { return DateTime.FromOADate(dDate); } catch { }
+            }
+            var textDate = cell.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(textDate)) return null;
+
+            string[] dateFormats = { "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "yyyy-MM-dd", "dd/MM/yyyy HH:mm:ss", "yyyy-MM-dd HH:mm:ss" };
+            if (DateTime.TryParseExact(textDate, dateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var exactDt))
+                return exactDt;
+            if (DateTime.TryParse(textDate, CultureInfo.GetCultureInfo("vi-VN"), DateTimeStyles.None, out var viDt))
+                return viDt;
+            if (DateTime.TryParse(textDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out var invDt))
+                return invDt;
+
+            return null;
+        }
 
         // 6. Quét từng dòng dữ liệu từ Excel (từ sau dòng header)
         for (int row = headerRow + 1; row <= ws.Dimension.End.Row; row++)
@@ -1480,104 +1653,34 @@ public class XuatKhoService : IXuatKhoService
                     else trangThai = "HoanTat";
                 }
 
-                // Khớp nối các danh mục tương ứng (các ô khoanh đỏ):
-
-                // a) Khớp Danh mục Loại thủ tục
-                LoaiThuTuc? loaiThuTuc = null;
-                if (!string.IsNullOrWhiteSpace(loaiThuTucRaw))
-                {
-                    var trimmed = loaiThuTucRaw.Trim();
-                    loaiThuTuc = listLoaiThuTuc.FirstOrDefault(x =>
-                        string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase))
-                        ?? listLoaiThuTuc.FirstOrDefault(x =>
-                            x.Ten.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
-                            trimmed.Contains(x.Ten, StringComparison.OrdinalIgnoreCase));
-                }
-                loaiThuTuc ??= listLoaiThuTuc.FirstOrDefault();
+                // Khớp nối các danh mục tương ứng
+                var loaiThuTuc = ResolveLoaiThuTuc(loaiThuTucRaw);
                 var loaiThuTucId = loaiThuTuc?.Id ?? string.Empty;
                 var loaiThuTucTen = loaiThuTuc?.Ten ?? loaiThuTucRaw ?? "Cấp biển (Có xuất kho số)";
 
-                // b) Khớp Danh mục Mức thu lệ phí
-                MucThuLePhi? mucThu = null;
-                if (!string.IsNullOrWhiteSpace(mucThuLePhiRaw))
-                {
-                    var trimmed = mucThuLePhiRaw.Trim();
-                    mucThu = listMucThu.FirstOrDefault(x =>
-                        (loaiThuTuc == null || x.LoaiThuTucId == loaiThuTuc.Id) &&
-                        (string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase)))
-                        ?? listMucThu.FirstOrDefault(x =>
-                            string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase))
-                        ?? listMucThu.FirstOrDefault(x =>
-                            x.Ten.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
-                            trimmed.Contains(x.Ten, StringComparison.OrdinalIgnoreCase));
-                }
-                mucThu ??= listMucThu.FirstOrDefault(x => loaiThuTuc != null && x.LoaiThuTucId == loaiThuTuc.Id)
-                           ?? listMucThu.FirstOrDefault();
-
+                var mucThu = ResolveMucThu(mucThuLePhiRaw, loaiThuTucId);
                 var mucThuLePhiId = mucThu?.Id ?? string.Empty;
                 var mucThuLePhiTen = mucThu?.Ten ?? mucThuLePhiRaw;
                 var canCuPhapLy = (colCanCuPhapLy > 0 ? ws.Cells[row, colCanCuPhapLy].Text?.Trim() : null)
                                   ?? (mucThu?.CanCuPhapLy ?? "Thông tư 155/2025/TT-BTC");
 
-                // c) Khớp Danh mục Khu vực áp dụng
-                KhuVucApDung? khuVuc = null;
-                if (!string.IsNullOrWhiteSpace(khuVucRaw))
-                {
-                    var trimmed = khuVucRaw.Trim();
-                    khuVuc = listKhuVuc.FirstOrDefault(x =>
-                        string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase))
-                        ?? listKhuVuc.FirstOrDefault(x =>
-                            x.Ten.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
-                            trimmed.Contains(x.Ten, StringComparison.OrdinalIgnoreCase));
-                }
-                khuVuc ??= listKhuVuc.FirstOrDefault();
+                var khuVuc = ResolveKhuVuc(khuVucRaw);
                 var khuVucApDungId = khuVuc?.Id ?? string.Empty;
                 var khuVucApDungTen = khuVuc?.Ten ?? khuVucRaw;
 
-                // d) Tra cứu Chi tiết mức thu theo khu vực (MucThuLePhiKhuVuc)
                 MucThuLePhiKhuVuc? mucThuKhuVuc = null;
-                if (mucThu != null && khuVuc != null)
+                if (!string.IsNullOrEmpty(mucThu?.Id) && !string.IsNullOrEmpty(khuVuc?.Id))
                 {
-                    mucThuKhuVuc = listMucThuKhuVuc.FirstOrDefault(x =>
-                        x.MucThuLePhiId == mucThu.Id && x.KhuVucApDungId == khuVuc.Id);
+                    mucThuKhuVucDict.TryGetValue((mucThu.Id, khuVuc.Id), out mucThuKhuVuc);
                 }
                 var mucThuKhuVucId = mucThuKhuVuc?.Id;
                 decimal soTienTuDong = mucThuKhuVuc?.MucThu ?? 0;
 
-                // e) Khớp Danh mục Ký hiệu quyển biên lai
-                KyHieuQuyenBienLai? quyen = null;
-                if (!string.IsNullOrWhiteSpace(kyHieuQuyenRaw))
-                {
-                    var trimmed = kyHieuQuyenRaw.Trim();
-                    quyen = listQuyen.FirstOrDefault(x =>
-                        string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase))
-                        ?? listQuyen.FirstOrDefault(x =>
-                            x.Ma.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
-                            x.Ten.Contains(trimmed, StringComparison.OrdinalIgnoreCase));
-                }
-                quyen ??= listQuyen.FirstOrDefault();
+                var quyen = ResolveQuyen(kyHieuQuyenRaw);
                 var kyHieuQuyenBienLaiId = quyen?.Id ?? string.Empty;
                 var kyHieuQuyen = !string.IsNullOrWhiteSpace(kyHieuQuyenRaw) ? kyHieuQuyenRaw.Trim() : (quyen?.Ma ?? string.Empty);
 
-                // f) Cán bộ lập: Tra cứu theo bảng Users
-                User? userCanBo = null;
-                if (!string.IsNullOrWhiteSpace(canBoLapRaw))
-                {
-                    var trimmedCanBo = canBoLapRaw.Trim();
-                    userCanBo = listUsers.FirstOrDefault(u =>
-                        string.Equals(u.FullName, trimmedCanBo, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(u.Id, trimmedCanBo, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(u.SoHieuCAND, trimmedCanBo, StringComparison.OrdinalIgnoreCase))
-                        ?? listUsers.FirstOrDefault(u =>
-                            u.FullName.Contains(trimmedCanBo, StringComparison.OrdinalIgnoreCase) ||
-                            trimmedCanBo.Contains(u.FullName, StringComparison.OrdinalIgnoreCase));
-                }
-
+                var userCanBo = ResolveUser(canBoLapRaw);
                 string createdById;
                 string createdByName;
                 if (userCanBo != null)
@@ -1627,34 +1730,9 @@ public class XuatKhoService : IXuatKhoService
                     soTienThu = soTienTuDong;
                 }
 
-                // Hàm hỗ trợ đọc ngày từ ô Excel đa định dạng (DateTime, Excel OADate double, hoặc chuỗi ngày)
-                DateTime? ParseExcelDate(int colIdx)
-                {
-                    if (colIdx <= 0) return null;
-                    var cell = ws.Cells[row, colIdx];
-                    var val = cell.Value;
-                    if (val is DateTime dtVal) return dtVal;
-                    if (val is double dDate && dDate > 0 && dDate < 2958466)
-                    {
-                        try { return DateTime.FromOADate(dDate); } catch { }
-                    }
-                    var textDate = cell.Text?.Trim();
-                    if (string.IsNullOrWhiteSpace(textDate)) return null;
-
-                    string[] dateFormats = { "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "yyyy-MM-dd", "dd/MM/yyyy HH:mm:ss", "yyyy-MM-dd HH:mm:ss" };
-                    if (DateTime.TryParseExact(textDate, dateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var exactDt))
-                        return exactDt;
-                    if (DateTime.TryParse(textDate, CultureInfo.GetCultureInfo("vi-VN"), DateTimeStyles.None, out var viDt))
-                        return viDt;
-                    if (DateTime.TryParse(textDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out var invDt))
-                        return invDt;
-
-                    return null;
-                }
-
                 // Đọc ngày thực hiện và ngày biên lai
-                var parsedNgayThucHien = ParseExcelDate(colNgayThucHien);
-                var parsedNgayBienLai = ParseExcelDate(colNgayBienLai);
+                var parsedNgayThucHien = ParseExcelDate(row, colNgayThucHien);
+                var parsedNgayBienLai = ParseExcelDate(row, colNgayBienLai);
 
                 DateTime ngayThucHien = parsedNgayThucHien ?? parsedNgayBienLai ?? DateTime.UtcNow;
                 DateTime ngayBienLai = parsedNgayBienLai ?? parsedNgayThucHien ?? ngayThucHien;
@@ -1699,13 +1777,12 @@ public class XuatKhoService : IXuatKhoService
                 }
                 var ghiChu = ghiChuParts.Count > 0 ? string.Join("; ", ghiChuParts) : null;
 
-                // 7. Kiểm tra đối soát biển số trong bảng KhoBienSo
-                var bienSo = await _dbContext.KhoBienSos
-                    .FirstOrDefaultAsync(x =>
-                        (string.IsNullOrEmpty(customerId) || x.CustomerId == customerId || x.CustomerId == null) &&
-                        (x.BienKiemSoat.ToUpper() == bienKiemSoat ||
-                         x.BienKiemSoat.Replace("-", "").Replace(".", "").Replace(" ", "").ToUpper() == normalizedPlate),
-                        cancellationToken);
+                // 7. Kiểm tra đối soát biển số trong bộ nhớ (O(1) - không truy vấn DB trong vòng lặp)
+                KhoBienSo? bienSo = null;
+                if (!exactPlateDict.TryGetValue(bienKiemSoat, out bienSo))
+                {
+                    normalizedPlateDict.TryGetValue(normalizedPlate, out bienSo);
+                }
 
                 // Kiểm tra xem biển số đã có trong kho hay chưa
                 if (bienSo == null)
@@ -1756,7 +1833,12 @@ public class XuatKhoService : IXuatKhoService
                     affectedDotNhapIds.Add(bienSo.DotNhapKhoId);
                 }
 
-                var dauBien = listDauBien.FirstOrDefault(d => d.Id == bienSo.DauBienSoId);
+                if (!string.IsNullOrWhiteSpace(bienSo.ChiTietDotNhapBienSoId))
+                {
+                    affectedChiTietIds.Add(bienSo.ChiTietDotNhapBienSoId);
+                }
+
+                dauBienDict.TryGetValue(bienSo.DauBienSoId ?? string.Empty, out var dauBien);
                 var mauBien = defaultMauBien;
 
                 // 8. Tạo thực thể XuatKhoBienSo với DaXuatKho = true và thông tin đã đối soát
@@ -1803,24 +1885,10 @@ public class XuatKhoService : IXuatKhoService
                     CreatedById = createdById
                 };
 
-                await _dbContext.XuatKhoBienSos.AddAsync(xuatKho, cancellationToken);
+                newXuatKhoList.Add(xuatKho);
                 bienSo.XuatKhoId = xuatKho.Id;
 
-                // 9. Cập nhật dòng chi tiết đợt nhập (nếu có liên kết)
-                if (!string.IsNullOrWhiteSpace(bienSo.ChiTietDotNhapBienSoId))
-                {
-                    var chiTiet = await _dbContext.ChiTietDotNhapBienSos
-                        .FirstOrDefaultAsync(x => x.Id == bienSo.ChiTietDotNhapBienSoId, cancellationToken);
-                    if (chiTiet != null)
-                    {
-                        chiTiet.TrangThaiBienSoId = statusDaBam?.Id ?? chiTiet.TrangThaiBienSoId;
-                        chiTiet.TrangThaiBienSoTen = statusDaBam?.Ten ?? "Đã bấm (Đã cấp)";
-                        chiTiet.MauSacHienThi = statusDaBam?.MauSacHienThi ?? "secondary";
-                        chiTiet.Modified = DateTime.UtcNow;
-                    }
-                }
-
-                // 10. Cập nhật Số hiện tại của Quyển biên lai
+                // 9. Cập nhật Số hiện tại của Quyển biên lai
                 if (quyen != null && long.TryParse(soBienLai, out var soBL))
                 {
                     if (!quyen.SoHienTai.HasValue || soBL > quyen.SoHienTai.Value)
@@ -1849,7 +1917,10 @@ public class XuatKhoService : IXuatKhoService
         var thongBaoParts = new List<string>();
         if (response.DanhSachBienSoChuaCoTrongKho.Count > 0)
         {
-            thongBaoParts.Add($"Cảnh báo: Có {response.DanhSachBienSoChuaCoTrongKho.Count} biển số chưa có trong kho: {string.Join(", ", response.DanhSachBienSoChuaCoTrongKho)}.");
+            var previewPlates = response.DanhSachBienSoChuaCoTrongKho.Count <= 10
+                ? string.Join(", ", response.DanhSachBienSoChuaCoTrongKho)
+                : $"{string.Join(", ", response.DanhSachBienSoChuaCoTrongKho.Take(10))}... và {response.DanhSachBienSoChuaCoTrongKho.Count - 10} biển số khác";
+            thongBaoParts.Add($"Cảnh báo: Có {response.DanhSachBienSoChuaCoTrongKho.Count} biển số chưa có trong kho: {previewPlates}.");
         }
 
         if (request.ChiKiemTra == true)
@@ -1890,31 +1961,62 @@ public class XuatKhoService : IXuatKhoService
 
         if (response.SoLuongThanhCong > 0)
         {
-            // 12. Lưu thay đổi vào cơ sở dữ liệu
-            await _dbContext.SaveChangesAsync(cancellationToken);
-
-            // 13. Cập nhật lại số lượng của các đợt nhập kho bị ảnh hưởng (nếu có)
-            foreach (var dotNhapId in affectedDotNhapIds)
+            // 11. Cập nhật dòng chi tiết đợt nhập theo batch (nếu có liên kết)
+            if (affectedChiTietIds.Count > 0)
             {
-                var dotNhap = await _dbContext.DotNhapKhos.FirstOrDefaultAsync(x => x.Id == dotNhapId, cancellationToken);
-                if (dotNhap != null)
+                var chiTietIdList = affectedChiTietIds.ToList();
+                for (int i = 0; i < chiTietIdList.Count; i += 1000)
                 {
-                    var dotNhapKhoList = await _dbContext.KhoBienSos
-                        .Where(x => x.DotNhapKhoId == dotNhap.Id)
+                    var chunk = chiTietIdList.Skip(i).Take(1000).ToList();
+                    var chiTiets = await _dbContext.ChiTietDotNhapBienSos
+                        .Where(x => chunk.Contains(x.Id!))
                         .ToListAsync(cancellationToken);
 
+                    foreach (var chiTiet in chiTiets)
+                    {
+                        chiTiet.TrangThaiBienSoId = statusDaBam?.Id ?? chiTiet.TrangThaiBienSoId;
+                        chiTiet.TrangThaiBienSoTen = statusDaBam?.Ten ?? "Đã bấm (Đã cấp)";
+                        chiTiet.MauSacHienThi = statusDaBam?.MauSacHienThi ?? "secondary";
+                        chiTiet.Modified = DateTime.UtcNow;
+                    }
+                }
+            }
+
+            // 12. Thêm mới các phiếu xuất kho vào DbSet
+            if (newXuatKhoList.Count > 0)
+            {
+                await _dbContext.XuatKhoBienSos.AddRangeAsync(newXuatKhoList, cancellationToken);
+            }
+
+            // 13. Cập nhật lại số lượng của các đợt nhập kho bị ảnh hưởng (nếu có)
+            if (affectedDotNhapIds.Count > 0)
+            {
+                var dotNhapList = await _dbContext.DotNhapKhos
+                    .Where(x => affectedDotNhapIds.Contains(x.Id!))
+                    .ToListAsync(cancellationToken);
+
+                foreach (var dotNhap in dotNhapList)
+                {
+                    var dotNhapKhoList = khoBienSoList.Where(x => x.DotNhapKhoId == dotNhap.Id);
                     dotNhap.SoBienDaBam = dotNhapKhoList.Count(x => x.DaXuatKho);
                     dotNhap.SoBienDuocBam = dotNhapKhoList.Count(x => !x.DaXuatKho && !x.LaBienDauGia);
                     dotNhap.Modified = DateTime.UtcNow;
                 }
             }
 
-            if (affectedDotNhapIds.Count > 0)
+            // 14. Lưu thay đổi vào cơ sở dữ liệu với CommandTimeout an toàn
+            var prevTimeout = _dbContext.Database.GetCommandTimeout();
+            try
             {
+                _dbContext.Database.SetCommandTimeout(180);
                 await _dbContext.SaveChangesAsync(cancellationToken);
             }
+            finally
+            {
+                _dbContext.Database.SetCommandTimeout(prevTimeout);
+            }
 
-            // 14. Ghi vết vào Nhật ký hoạt động (Audit Log)
+            // 15. Ghi vết vào Nhật ký hoạt động (Audit Log)
             try
             {
                 await _logHoatDongService.GhiLogAsync(
@@ -2409,6 +2511,34 @@ public class XuatKhoService : IXuatKhoService
 
         var processedPlatesInFile = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var affectedDotNhapIds = new HashSet<string>();
+        var affectedChiTietIds = new HashSet<string>();
+        var newXuatKhoList = new List<XuatKhoBienSo>();
+
+        // Tải trước toàn bộ kho biển số trong 1 truy vấn duy nhất để tra cứu O(1)
+        var khoBienSoQuery = _dbContext.KhoBienSos
+            .Where(x => string.IsNullOrEmpty(customerId) || x.CustomerId == customerId || x.CustomerId == null);
+
+        if (request.ChiKiemTra == true)
+        {
+            khoBienSoQuery = khoBienSoQuery.AsNoTracking();
+        }
+
+        var khoBienSoList = await khoBienSoQuery.ToListAsync(cancellationToken);
+
+        var exactPlateDict = new Dictionary<string, KhoBienSo>(StringComparer.OrdinalIgnoreCase);
+        var normalizedPlateDict = new Dictionary<string, KhoBienSo>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var kb in khoBienSoList.OrderBy(x => x.DaXuatKho ? 1 : 0))
+        {
+            if (!string.IsNullOrWhiteSpace(kb.BienKiemSoat))
+            {
+                var rawUpper = kb.BienKiemSoat.Trim().ToUpperInvariant();
+                exactPlateDict.TryAdd(rawUpper, kb);
+                var norm = Regex.Replace(rawUpper, @"[\s\.\-]+", "");
+                normalizedPlateDict.TryAdd(norm, kb);
+            }
+        }
+
         int stt = 0;
 
         // 6. Quét từng bản ghi đã trích xuất được
@@ -2462,13 +2592,12 @@ public class XuatKhoService : IXuatKhoService
 
             try
             {
-                // 7. Kiểm tra sự tồn tại trong KhoBienSo
-                var bienSo = await _dbContext.KhoBienSos
-                    .FirstOrDefaultAsync(x =>
-                        (string.IsNullOrEmpty(customerId) || x.CustomerId == customerId || x.CustomerId == null) &&
-                        (x.BienKiemSoat.ToUpper() == bienKiemSoat ||
-                         x.BienKiemSoat.Replace("-", "").Replace(".", "").Replace(" ", "").ToUpper() == normalizedPlate),
-                        cancellationToken);
+                // 7. Kiểm tra sự tồn tại trong KhoBienSo qua bộ nhớ (O(1))
+                KhoBienSo? bienSo = null;
+                if (!exactPlateDict.TryGetValue(bienKiemSoat, out bienSo))
+                {
+                    normalizedPlateDict.TryGetValue(normalizedPlate, out bienSo);
+                }
 
                 if (bienSo == null)
                 {
@@ -2543,7 +2672,12 @@ public class XuatKhoService : IXuatKhoService
                     affectedDotNhapIds.Add(bienSo.DotNhapKhoId);
                 }
 
-                // 9. Khớp nối các danh mục liên quan (nhận diện linh hoạt trường nào có thì nhận trường đó)
+                if (!string.IsNullOrWhiteSpace(bienSo.ChiTietDotNhapBienSoId))
+                {
+                    affectedChiTietIds.Add(bienSo.ChiTietDotNhapBienSoId);
+                }
+
+                // 9. Khớp nối các danh mục liên quan
                 var loaiXe = requestedLoaiXe
                     ?? listLoaiXe.FirstOrDefault(x => x.Id == bienSo.LoaiXeId)
                     ?? listLoaiXe.FirstOrDefault(x => !string.IsNullOrWhiteSpace(item.NhanHieu) && (x.Ten.Contains(item.NhanHieu, StringComparison.OrdinalIgnoreCase) || item.NhanHieu.Contains(x.Ten, StringComparison.OrdinalIgnoreCase)))
@@ -2629,24 +2763,10 @@ public class XuatKhoService : IXuatKhoService
                     Modified = DateTime.UtcNow
                 };
 
-                await _dbContext.XuatKhoBienSos.AddAsync(xuatKho, cancellationToken);
+                newXuatKhoList.Add(xuatKho);
                 bienSo.XuatKhoId = xuatKho.Id;
 
-                // 11. Cập nhật chi tiết đợt nhập nếu có
-                if (!string.IsNullOrWhiteSpace(bienSo.ChiTietDotNhapBienSoId))
-                {
-                    var chiTiet = await _dbContext.ChiTietDotNhapBienSos
-                        .FirstOrDefaultAsync(x => x.Id == bienSo.ChiTietDotNhapBienSoId, cancellationToken);
-                    if (chiTiet != null)
-                    {
-                        chiTiet.TrangThaiBienSoId = statusDaBam?.Id ?? chiTiet.TrangThaiBienSoId;
-                        chiTiet.TrangThaiBienSoTen = statusDaBam?.Ten ?? "Đã bấm (Đã cấp)";
-                        chiTiet.MauSacHienThi = statusDaBam?.MauSacHienThi ?? "secondary";
-                        chiTiet.Modified = DateTime.UtcNow;
-                    }
-                }
-
-                // 12. Cập nhật số hiện tại của quyển biên lai
+                // 11. Cập nhật số hiện tại của quyển biên lai
                 if (quyen != null && !string.IsNullOrWhiteSpace(item.SoBienLai) && long.TryParse(item.SoBienLai, out var soBL))
                 {
                     if (!quyen.SoHienTai.HasValue || soBL > quyen.SoHienTai.Value)
@@ -2676,29 +2796,58 @@ public class XuatKhoService : IXuatKhoService
             }
         }
 
-        // 13. Lưu dữ liệu nếu có bản ghi thành công
+        // 12. Lưu dữ liệu nếu có bản ghi thành công
         if (request.ChiKiemTra != true && response.SoLuongThanhCong > 0)
         {
-            await _dbContext.SaveChangesAsync(cancellationToken);
-
-            foreach (var dotNhapId in affectedDotNhapIds)
+            if (affectedChiTietIds.Count > 0)
             {
-                var dotNhap = await _dbContext.DotNhapKhos.FirstOrDefaultAsync(x => x.Id == dotNhapId, cancellationToken);
-                if (dotNhap != null)
+                var chiTietIdList = affectedChiTietIds.ToList();
+                for (int i = 0; i < chiTietIdList.Count; i += 1000)
                 {
-                    var dotNhapKhoList = await _dbContext.KhoBienSos
-                        .Where(x => x.DotNhapKhoId == dotNhap.Id)
+                    var chunk = chiTietIdList.Skip(i).Take(1000).ToList();
+                    var chiTiets = await _dbContext.ChiTietDotNhapBienSos
+                        .Where(x => chunk.Contains(x.Id!))
                         .ToListAsync(cancellationToken);
 
+                    foreach (var chiTiet in chiTiets)
+                    {
+                        chiTiet.TrangThaiBienSoId = statusDaBam?.Id ?? chiTiet.TrangThaiBienSoId;
+                        chiTiet.TrangThaiBienSoTen = statusDaBam?.Ten ?? "Đã bấm (Đã cấp)";
+                        chiTiet.MauSacHienThi = statusDaBam?.MauSacHienThi ?? "secondary";
+                        chiTiet.Modified = DateTime.UtcNow;
+                    }
+                }
+            }
+
+            if (newXuatKhoList.Count > 0)
+            {
+                await _dbContext.XuatKhoBienSos.AddRangeAsync(newXuatKhoList, cancellationToken);
+            }
+
+            if (affectedDotNhapIds.Count > 0)
+            {
+                var dotNhapList = await _dbContext.DotNhapKhos
+                    .Where(x => affectedDotNhapIds.Contains(x.Id!))
+                    .ToListAsync(cancellationToken);
+
+                foreach (var dotNhap in dotNhapList)
+                {
+                    var dotNhapKhoList = khoBienSoList.Where(x => x.DotNhapKhoId == dotNhap.Id);
                     dotNhap.SoBienDaBam = dotNhapKhoList.Count(x => x.DaXuatKho);
                     dotNhap.SoBienDuocBam = dotNhapKhoList.Count(x => !x.DaXuatKho && !x.LaBienDauGia);
                     dotNhap.Modified = DateTime.UtcNow;
                 }
             }
 
-            if (affectedDotNhapIds.Count > 0)
+            var prevTimeout = _dbContext.Database.GetCommandTimeout();
+            try
             {
+                _dbContext.Database.SetCommandTimeout(180);
                 await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+            finally
+            {
+                _dbContext.Database.SetCommandTimeout(prevTimeout);
             }
 
             try
