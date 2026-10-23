@@ -1866,7 +1866,7 @@ public class XuatKhoService : IXuatKhoService
                     MucThuLePhiKhuVucId = mucThuKhuVucId,
                     DieuKienTriGiaXe = mucThu?.KhoangTriGiaXe,
                     CanCuPhapLy = canCuPhapLy,
-                    SoTienTuDongDien = soTienTuDong > 0 ? soTienTuDong : soTienThu,
+                    SoTienTuDongDien = soTienThu > 0 ? soTienThu : soTienTuDong,
 
                     KyHieuQuyenBienLaiId = kyHieuQuyenBienLaiId,
                     KyHieuQuyen = kyHieuQuyen,
