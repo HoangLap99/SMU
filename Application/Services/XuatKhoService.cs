@@ -435,7 +435,8 @@ public class XuatKhoService : IXuatKhoService
                 MaHoSoDvc = request.MaHoSoDvc?.Trim(),
                 GhiChu = request.GhiChu,
                 DaXuatKho = request.DaXuatKho,
-                TrangThai = request.DaXuatKho ? "HoanTat" : "LuuTam"
+                TrangThai = request.DaXuatKho ? "HoanTat" : "LuuTam",
+                CreatedByName = !string.IsNullOrWhiteSpace(request.CanBoCap) ? request.CanBoCap.Trim() : null
             };
 
             await _dbContext.XuatKhoBienSos.AddAsync(xuatKho, cancellationToken);

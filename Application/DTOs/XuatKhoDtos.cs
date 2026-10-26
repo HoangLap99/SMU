@@ -306,6 +306,11 @@ public class SetXuatKhoRequest
     /// </summary>
     public bool DaXuatKho { get; set; } = false;
 
+    /// <summary>
+    /// Cán bộ cấp / lập phiếu xuất kho (tùy chọn; nếu để trống sẽ tự động lấy theo thông tin người dùng đăng nhập).
+    /// </summary>
+    public string? CanBoCap { get; set; }
+
     #endregion
 }
 
@@ -421,6 +426,11 @@ public class XuatKhoResponse
     public string? CreatedByName { get; set; }
     public DateTime? Modified { get; set; }
     public string? ModifileByName { get; set; }
+
+    /// <summary>
+    /// Tên cán bộ cấp / lập phiếu xuất kho (đồng bộ CanBoCap với báo cáo xuất kho, alias của CreatedByName).
+    /// </summary>
+    public string? CanBoCap => CreatedByName;
 }
 
 #endregion

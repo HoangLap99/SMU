@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using System.ComponentModel.DataAnnotations;
 
 namespace SMU.Application.DTOs;
@@ -230,4 +231,113 @@ public class PagedCapLaiDangKyXeRequest
     /// Lọc đến ngày biên lai.
     /// </summary>
     public DateTime? DenNgay { get; set; }
+}
+
+/// <summary>
+/// Yêu cầu import biên lai Cấp lại đăng ký xe từ tệp Excel (mẫu MauBaoCao/CapLaiBienDangKy.xlsx).
+/// Lưu ý: Biển số không lấy trong kho, không thay đổi dữ liệu trong kho, mặc định DaXacNhan = true.
+/// </summary>
+public class ImportCapLaiDangKyXeRequest
+{
+    /// <summary>
+    /// Tên tệp tin Excel mẫu đã lưu trong thư mục StorageFolder hoặc thư mục MauBaoCao (Ví dụ: "CapLaiBienDangKy.xlsx").
+    /// </summary>
+    public string? FileName { get; set; }
+
+    /// <summary>
+    /// Tùy chọn upload tệp trực tiếp từ máy khách (dạng multipart/form-data).
+    /// </summary>
+    public IFormFile? File { get; set; }
+
+    /// <summary>
+    /// ID Khách hàng / Đơn vị thực hiện (nếu để trống tự động lấy theo tài khoản đăng nhập).
+    /// </summary>
+    public string? CustomerId { get; set; }
+
+    /// <summary>
+    /// Tùy chọn: ID Loại xe mặc định áp dụng cho các dòng nếu file không chỉ định.
+    /// </summary>
+    public string? LoaiXeId { get; set; }
+
+    /// <summary>
+    /// Tùy chọn: Loại phương tiện mặc định (Mặc định: "Ô tô").
+    /// </summary>
+    public string? LoaiPhuongTien { get; set; } = "Ô tô";
+
+    /// <summary>
+    /// Trạng thái xác nhận phát hành biên lai. Mặc định là true (DaXacNhan = true, TrangThai = 'DaXacNhan').
+    /// </summary>
+    public bool DaXacNhan { get; set; } = true;
+
+    /// <summary>
+    /// Tùy chọn: Nếu đặt là true, hệ thống chỉ kiểm tra tính hợp lệ và đọc thử dữ liệu mà không thực hiện lưu vào CSDL (dry-run).
+    /// </summary>
+    public bool? ChiKiemTra { get; set; } = false;
+}
+
+/// <summary>
+/// Kết quả phản hồi sau khi import dữ liệu Cấp lại đăng ký xe từ tệp Excel.
+/// </summary>
+public class ImportCapLaiDangKyXeResponse
+{
+    /// <summary>
+    /// Thông báo tóm tắt kết quả import.
+    /// </summary>
+    public string ThongBao { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Tổng số dòng dữ liệu đọc được từ tệp Excel.
+    /// </summary>
+    public int TongSoDong { get; set; }
+
+    /// <summary>
+    /// Số lượng biên lai cấp lại đăng ký xe được tạo thành công.
+    /// </summary>
+    public int SoLuongThanhCong { get; set; }
+
+    /// <summary>
+    /// Số lượng dòng bị bỏ qua (trùng lặp trong tệp, thiếu thông tin bắt buộc...).
+    /// </summary>
+    public int SoLuongBoQua { get; set; }
+
+    /// <summary>
+    /// Số lượng dòng bị lỗi khi xử lý.
+    /// </summary>
+    public int SoLuongLoi { get; set; }
+
+    /// <summary>
+    /// Tổng số tiền lệ phí thu được từ các biên lai import thành công (VNĐ).
+    /// </summary>
+    public decimal TongTienThu { get; set; }
+
+    /// <summary>
+    /// Danh sách các biển kiểm soát đã import cấp lại thành công.
+    /// </summary>
+    public List<string> DanhSachBienSoThanhCong { get; set; } = [];
+
+    /// <summary>
+    /// Danh sách chi tiết các dòng bị lỗi hoặc bỏ qua trong quá trình import.
+    /// </summary>
+    public List<ImportCapLaiLoiItem> DanhSachLoi { get; set; } = [];
+}
+
+/// <summary>
+/// Chi tiết dòng bị lỗi hoặc bỏ qua trong quá trình import Excel cấp lại đăng ký xe.
+/// </summary>
+public class ImportCapLaiLoiItem
+{
+    /// <summary>
+    /// Số thứ tự dòng trong tệp Excel.
+    /// </summary>
+    public int Dong { get; set; }
+
+    /// <summary>
+    /// Biển kiểm soát đọc được tại dòng đó (nếu có).
+    /// </summary>
+    public string? BienKiemSoat { get; set; }
+
+    /// <summary>
+    /// Lý do lỗi hoặc bỏ qua.
+    /// </summary>
+    public string LyDoLoi { get; set; } = string.Empty;
 }
