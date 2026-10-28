@@ -164,4 +164,125 @@ public class CapLaiDangKyXeController : ControllerBase
         var result = await _logHoatDongService.LayLogTheoChungTuAsync(id, cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>
+    /// API 9: (POST) Import danh sách biên lai cấp lại đăng ký xe từ tệp Excel theo mẫu MauBaoCao/CapLaiBienDangKy.xlsx.
+    /// - Biển số không lấy trong kho và tuyệt đối không thay đổi dữ liệu trong kho.
+    /// - Mặc định DaXacNhan = true (tự động khóa biên lai, phát hành ngay).
+    /// </summary>
+    /// <param name="request">Yêu cầu chứa tên file (FileName), tùy chọn Loại xe, đơn vị và cờ DaXacNhan.</param>
+    /// <param name="cancellationToken">Token hủy yêu cầu.</param>
+    /// <returns>Kết quả tổng hợp số lượng import thành công, bỏ qua, lỗi, tổng tiền và danh sách biển số đã import.</returns>
+    [HttpPost("import-excel")]
+    [HttpPost("import")]
+    [ProducesResponseType(typeof(ImportCapLaiDangKyXeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ImportCapLaiDangKyXeResponse>> ImportExcel(
+        [FromBody] ImportCapLaiDangKyXeRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _capLaiDangKyXeService.ImportTuExcelAsync(request, cancellationToken);
+            return Ok(result);
+        }
+        catch (FileNotFoundException ex)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Không tìm thấy tệp Excel",
+                Detail = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Dữ liệu yêu cầu không hợp lệ",
+                Detail = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// API 10: (POST) Kiểm tra trước tệp tin Excel cấp lại đăng ký xe (dry-run).
+    /// Đọc và kiểm tra tính hợp lệ dữ liệu của tệp Excel nhưng KHÔNG ghi vào cơ sở dữ liệu.
+    /// </summary>
+    [HttpPost("check-import-excel")]
+    [ProducesResponseType(typeof(ImportCapLaiDangKyXeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ImportCapLaiDangKyXeResponse>> CheckImportExcel(
+        [FromBody] ImportCapLaiDangKyXeRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            request.ChiKiemTra = true;
+            var result = await _capLaiDangKyXeService.ImportTuExcelAsync(request, cancellationToken);
+            return Ok(result);
+        }
+        catch (FileNotFoundException ex)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Không tìm thấy tệp Excel",
+                Detail = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Dữ liệu yêu cầu không hợp lệ",
+                Detail = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// API 11: (POST) Upload và Import trực tiếp tệp Excel cấp lại đăng ký xe từ máy khách (multipart/form-data).
+    /// - Biển số không lấy trong kho và không thay đổi dữ liệu trong kho.
+    /// - Mặc định DaXacNhan = true.
+    /// </summary>
+    [HttpPost("import-upload")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ImportCapLaiDangKyXeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ImportCapLaiDangKyXeResponse>> ImportUpload(
+        [FromForm] ImportCapLaiDangKyXeRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _capLaiDangKyXeService.ImportTuExcelAsync(request, cancellationToken);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Dữ liệu yêu cầu không hợp lệ",
+                Detail = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// API 12: (GET) Lấy thông tin tệp tin Excel mẫu cấp lại biển đăng ký xe (MauBaoCao/CapLaiBienDangKy.xlsx).
+    /// Output trả về các tham số filename và path (mã hóa Base64) là input cho API tải file /api/FileUpload/download.
+    /// </summary>
+    [HttpGet("export-mau")]
+    [ProducesResponseType(typeof(ExportMauXuatKhoResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ExportMauXuatKhoResponse>> ExportMau(CancellationToken cancellationToken)
+    {
+        var result = await _capLaiDangKyXeService.ExportFileMauCapLaiDangKyAsync(cancellationToken);
+        return Ok(result);
+    }
 }

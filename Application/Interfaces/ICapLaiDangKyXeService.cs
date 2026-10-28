@@ -41,4 +41,17 @@ public interface ICapLaiDangKyXeService
     /// Lấy thông tin quyển biên lai và gợi ý số biên lai tiếp theo theo KyHieuQuyenBienLaiId.
     /// </summary>
     Task<SoBienLaiTiepTheoResponse?> LaySoBienLaiTiepTheoAsync(string kyHieuQuyenBienLaiId, CancellationToken cancellationToken = default);
+
+
+    /// <summary>
+    /// API 10: (GET) Lấy thông tin tệp tin Excel mẫu cấp lại biển đăng ký (MauBaoCao/CapLaiBienDangKy.xlsx).
+    /// Output trả về các tham số filename và path (mã hóa Base64) là input cho API tải file /api/FileUpload/download.
+    /// </summary>
+    Task<ExportMauXuatKhoResponse> ExportFileMauCapLaiDangKyAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Import danh sách biên lai cấp lại đăng ký xe từ tệp Excel (mẫu MauBaoCao/CapLaiBienDangKy.xlsx).
+    /// Quy tắc: Biển số không lấy trong kho, không thay đổi dữ liệu trong kho, mặc định DaXacNhan = true.
+    /// </summary>
+    Task<ImportCapLaiDangKyXeResponse> ImportTuExcelAsync(ImportCapLaiDangKyXeRequest request, CancellationToken cancellationToken = default);
 }

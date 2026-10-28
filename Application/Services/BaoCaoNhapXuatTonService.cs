@@ -809,6 +809,19 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
             .ThenBy(x => x.SoBienLai)
             .ToListAsync(cancellationToken);
 
+        // Lấy danh sách UserId cần tra cứu nếu CreatedByName trên phiếu xuất kho bị để trống
+        var missingUserIds = listXuat
+            .Where(x => string.IsNullOrWhiteSpace(x.CreatedByName) && !string.IsNullOrWhiteSpace(x.CreatedById))
+            .Select(x => x.CreatedById!)
+            .Distinct()
+            .ToList();
+
+        var userMap = missingUserIds.Count > 0
+            ? await _dbContext.Users.AsNoTracking()
+                .Where(u => u.Id != null && missingUserIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id!, u => u.FullName, cancellationToken)
+            : new Dictionary<string, string>();
+
         var items = new List<BangKeChiTietBienSoXuatKhoItemDto>();
         int stt = 1;
 
@@ -817,7 +830,11 @@ public class BaoCaoNhapXuatTonService : IBaoCaoNhapXuatTonService
             var dauBienTen = (x.DauBienSoId != null && dauBienMap.TryGetValue(x.DauBienSoId, out var db)) ? db : x.DauBienSoTen;
             var dauBien = ExtractDauBien(x.BienKiemSoat, dauBienTen);
             var soBienLai = $"{x.KyHieuQuyen}-{x.SoBienLai}";
-            var canBoCap = "Trung Tá - Mai Cao";
+            var canBoCap = !string.IsNullOrWhiteSpace(x.CreatedByName)
+                ? x.CreatedByName
+                : (x.CreatedById != null && userMap.TryGetValue(x.CreatedById, out var uName) && !string.IsNullOrWhiteSpace(uName)
+                    ? uName
+                    : (!string.IsNullOrWhiteSpace(x.ModifileByName) ? x.ModifileByName : "Cán bộ quản lý"));
 
             items.Add(new BangKeChiTietBienSoXuatKhoItemDto
             {

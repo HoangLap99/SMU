@@ -1351,6 +1351,35 @@ GET {{SMU_HostAddress}}/api/CapLaiDangKyXe/{{capLaiId}}
 Authorization: Bearer {{authToken}}
 Accept: application/json
 
+### 10. (GET) LẤY THÔNG TIN TỆP EXCEL MẪU CẤP LẠI ĐĂNG KÝ XE (MauBaoCao/CapLaiBienDangKy.xlsx)
+GET {{SMU_HostAddress}}/api/CapLaiDangKyXe/export-mau
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+### 11. (POST) KIỂM TRA TRƯỚC TỆP EXCEL CẤP LẠI ĐĂNG KÝ XE (DRY-RUN)
+# @name checkImportCapLaiExcel
+POST {{SMU_HostAddress}}/api/CapLaiDangKyXe/check-import-excel
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "fileName": "CapLaiBienDangKy.xlsx",
+  "loaiPhuongTien": "Ô tô",
+  "daXacNhan": true
+}
+
+### 12. (POST) IMPORT BIÊN LAI CẤP LẠI ĐĂNG KÝ XE TỪ EXCEL (Biển số không lấy từ kho, không đổi kho, DaXacNhan=true)
+# @name importCapLaiExcel
+POST {{SMU_HostAddress}}/api/CapLaiDangKyXe/import-excel
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "fileName": "CapLaiBienDangKy.xlsx",
+  "loaiPhuongTien": "Ô tô",
+  "daXacNhan": true
+}
+
 
 ###############################################################################
 ### BÁO CÁO: BIỂU ĐỒ PHÂN TÍCH BIẾN THIÊN NHẬP - XUẤT - CHI PHÍ LỆ PHÍ

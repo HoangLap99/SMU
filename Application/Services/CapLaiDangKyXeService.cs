@@ -1,9 +1,15 @@
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using OfficeOpenXml;
 using SMU.Application.DTOs;
 using SMU.Application.Interfaces;
 using SMU.Core.Entities;
 using SMU.Infrastructure.Data;
+using SMU.Infrastructure.Storage.Configuration;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace SMU.Application.Services;
 
@@ -13,6 +19,7 @@ namespace SMU.Application.Services;
 /// 2. Xác nhận hoàn tất biên lai (Khóa phiếu, không cho sửa hay xóa nữa)
 /// 3. Tuyệt đối không thay đổi thông tin của KhoBienSo (không xuất kho, không giảm tồn)
 /// 4. Quản lý danh sách, chi tiết, xóa bản nháp và lấy số biên lai tiếp theo
+/// 5. Import dữ liệu cấp lại đăng ký xe từ tệp Excel MauBaoCao/CapLaiBienDangKy.xlsx
 /// </summary>
 public class CapLaiDangKyXeService : ICapLaiDangKyXeService
 {
@@ -20,17 +27,23 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<CapLaiDangKyXeService> _logger;
     private readonly ILogHoatDongService _logHoatDongService;
+    private readonly FileStorageSettings _fileStorageSettings;
+    private readonly IWebHostEnvironment _environment;
 
     public CapLaiDangKyXeService(
         PostgresDbContext dbContext,
         ICurrentUserService currentUserService,
         ILogger<CapLaiDangKyXeService> logger,
-        ILogHoatDongService logHoatDongService)
+        ILogHoatDongService logHoatDongService,
+        IOptions<FileStorageSettings> fileStorageOptions,
+        IWebHostEnvironment environment)
     {
         _dbContext = dbContext;
         _currentUserService = currentUserService;
         _logger = logger;
         _logHoatDongService = logHoatDongService;
+        _fileStorageSettings = fileStorageOptions?.Value ?? new FileStorageSettings();
+        _environment = environment;
     }
 
     /// <summary>
@@ -462,5 +475,594 @@ public class CapLaiDangKyXeService : ICapLaiDangKyXeService
             ModifileById = entity.ModifileById,
             ModifileByName = entity.ModifileByName
         };
+    }
+
+
+
+    /// <summary>
+    /// API 10: (GET) Lấy thông tin tệp tin Excel mẫu xuất kho biển số xe (MauBaoCao/XuatKhoBienSo.xlsx).
+    /// Output trả về các tham số filename và path (mã hóa Base64) là input cho API tải file /api/FileUpload/download.
+    /// </summary>
+    public async Task<ExportMauXuatKhoResponse> ExportFileMauCapLaiDangKyAsync(CancellationToken cancellationToken = default)
+    {
+        var configuredFolder = string.IsNullOrWhiteSpace(_fileStorageSettings.StorageFolder) ? "Uploads" : _fileStorageSettings.StorageFolder;
+        var storageDir = Path.IsPathRooted(configuredFolder)
+            ? configuredFolder
+            : Path.Combine(_environment.ContentRootPath, configuredFolder);
+
+        if (!Directory.Exists(storageDir))
+        {
+            Directory.CreateDirectory(storageDir);
+        }
+
+        var templateFileName = "CapLaiBienDangKy.xlsx";
+        var targetFilePath = Path.Combine(storageDir, templateFileName);
+        var sourceTemplate = Path.Combine(_environment.ContentRootPath, "MauBaoCao", templateFileName);
+
+        // 1. Đảm bảo file tồn tại ở MauBaoCao và sao chép sang StorageFolder
+        if (File.Exists(sourceTemplate))
+        {
+            File.Copy(sourceTemplate, targetFilePath, overwrite: true);
+        }
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+        if (File.Exists(targetFilePath))
+        {
+            using var package = new ExcelPackage(new FileInfo(targetFilePath));
+            var sheet1 = package.Workbook.Worksheets["Danh mục"];
+            if (sheet1 != null)
+            {
+                int nRow = 3;
+                var mucThuLePhi = await _dbContext.MucThuLePhis.AsNoTracking().ToListAsync(cancellationToken);
+                foreach (var item in mucThuLePhi)
+                {
+                    sheet1.Cells[nRow, 1].Value = item.Ten;
+                    nRow++;
+                }
+
+                var kyHieuQuyenBienLais = await _dbContext.KyHieuQuyenBienLais.AsNoTracking().ToListAsync(cancellationToken);
+                foreach (var item in kyHieuQuyenBienLais)
+                {
+                    sheet1.Cells[nRow, 2].Value = item.Ten ?? item.Ma;
+                    nRow++;
+                }
+
+              
+                await package.SaveAsync(cancellationToken);
+            }
+        }
+
+        // 2. Mã hóa Base64 filename và path theo chuẩn chung của hệ thống (dùng cho /api/FileUpload/download)
+        var encodedFileName = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(templateFileName));
+        var encodedPath = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(targetFilePath));
+        var downloadUrl = $"/api/FileUpload/download?filename={Uri.EscapeDataString(encodedFileName)}&path={Uri.EscapeDataString(encodedPath)}";
+
+        _logger.LogInformation("Export mẫu xuất kho: Trả về input cho download file: filename='{FileName}', path='{Path}'", encodedFileName, encodedPath);
+
+        return new ExportMauXuatKhoResponse
+        {
+            FileName = encodedFileName,
+            Path = encodedPath,
+            DownloadUrl = downloadUrl,
+            OriginalFileName = templateFileName
+        };
+    }
+
+    /// <summary>
+    /// Import danh sách biên lai cấp lại đăng ký xe từ tệp Excel (mẫu MauBaoCao/CapLaiBienDangKy.xlsx).
+    /// Quy tắc nghiệp vụ bắt buộc:
+    /// 1. Biển số không lấy trong kho (không đối soát và không phụ thuộc bảng KhoBienSo).
+    /// 2. Tuyệt đối không thay đổi dữ liệu trong kho (không xuất kho, không giảm tồn kho).
+    /// 3. Mặc định DaXacNhan = true (tự động khóa biên lai, phát hành ngay).
+    /// </summary>
+    public async Task<ImportCapLaiDangKyXeResponse> ImportTuExcelAsync(
+        ImportCapLaiDangKyXeRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request), "Dữ liệu yêu cầu không được rỗng.");
+        }
+
+        if (request.File == null && string.IsNullOrWhiteSpace(request.FileName))
+        {
+            throw new ArgumentException("Vui lòng cung cấp tệp Excel (File) hoặc tên tệp tin (FileName) cần import.", nameof(request.FileName));
+        }
+
+        // 1. Xác định thư mục lưu trữ và đường dẫn tệp Excel
+        var configuredFolder = string.IsNullOrWhiteSpace(_fileStorageSettings.StorageFolder) ? "Uploads" : _fileStorageSettings.StorageFolder;
+        var destinationFolder = Path.IsPathRooted(configuredFolder)
+            ? configuredFolder
+            : Path.Combine(_environment.ContentRootPath, configuredFolder);
+
+        if (!Directory.Exists(destinationFolder))
+        {
+            Directory.CreateDirectory(destinationFolder);
+        }
+
+        string filePath;
+
+        // Nếu client upload file trực tiếp (multipart/form-data)
+        if (request.File != null && request.File.Length > 0)
+        {
+            var safeExt = Path.GetExtension(request.File.FileName);
+            if (string.IsNullOrWhiteSpace(safeExt)) safeExt = ".xlsx";
+            var uniqueFileName = $"CapLaiImport_{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid():N}{safeExt}";
+            filePath = Path.Combine(destinationFolder, uniqueFileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                await request.File.CopyToAsync(stream, cancellationToken);
+            }
+        }
+        else
+        {
+            var safeFileName = Path.GetFileName(request.FileName!);
+            filePath = Path.Combine(destinationFolder, safeFileName);
+
+            if (!File.Exists(filePath))
+            {
+                if (File.Exists(request.FileName!))
+                {
+                    filePath = request.FileName!;
+                }
+                else
+                {
+                    var mauBaoCaoPath = Path.Combine(_environment.ContentRootPath, "MauBaoCao", safeFileName);
+                    if (File.Exists(mauBaoCaoPath))
+                    {
+                        filePath = mauBaoCaoPath;
+                    }
+                    else
+                    {
+                        var altPath = Path.Combine(_environment.ContentRootPath, request.FileName!.TrimStart('/', '\\'));
+                        if (File.Exists(altPath))
+                        {
+                            filePath = altPath;
+                        }
+                        else
+                        {
+                            var matchingFiles = Directory.Exists(destinationFolder)
+                                ? Directory.GetFiles(destinationFolder, $"*{safeFileName}*")
+                                : Array.Empty<string>();
+                            if (matchingFiles.Length > 0)
+                            {
+                                filePath = matchingFiles[0];
+                            }
+                            else
+                            {
+                                throw new FileNotFoundException($"Không tìm thấy tệp tin '{safeFileName}' trong thư mục lưu trữ hoặc MauBaoCao.", safeFileName);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Mở file Excel bằng EPPlus (dùng FileShare.ReadWrite để không bị khóa nếu file đang mở)
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+        using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var package = new ExcelPackage(fileStream);
+
+        var ws = package.Workbook.Worksheets.FirstOrDefault(w =>
+                    w.Name.Equals("CapLai", StringComparison.OrdinalIgnoreCase) ||
+                    w.Name.Equals("CapDangKyLai", StringComparison.OrdinalIgnoreCase) ||
+                    w.Name.Equals("CapLaiDangKy", StringComparison.OrdinalIgnoreCase) ||
+                    w.Name.Equals("XuatKho", StringComparison.OrdinalIgnoreCase) ||
+                    w.Name.Equals("Sheet1", StringComparison.OrdinalIgnoreCase))
+                 ?? package.Workbook.Worksheets.FirstOrDefault(w => !w.Name.Equals("Danh mục", StringComparison.OrdinalIgnoreCase))
+                 ?? package.Workbook.Worksheets.FirstOrDefault();
+
+        if (ws == null || ws.Dimension == null)
+        {
+            return new ImportCapLaiDangKyXeResponse
+            {
+                TongSoDong = 0,
+                ThongBao = "Tệp Excel không chứa dữ liệu hoặc không có trang tính hợp lệ."
+            };
+        }
+
+        // 3. Vị trí cột mặc định theo file MauBaoCao/CapLaiBienDangKy.xlsx (Dòng 3 có 13 cột)
+        // 1: STT, 2: Ngày biên lai, 3: Biển số xe(*), 4: Mức thu lệ phí(*), 5: Ký hiệu quyển biên lai,
+        // 6: Số biên lai, 7: Số tiền thu(VNĐ), 8: Họ tên người nộp tiền(*), 9: Số CCCD,
+        // 10: Mã hồ sơ dịch vụ công, 11: Hình thức thu tiền, 12: Nội dung thu phí, 13: Lý do cấp lại đăng ký xe
+        int headerRow = 3;
+        int colStt = 1;
+        int colNgayBienLai = 2;
+        int colBienSo = 3;
+        int colMucThuLePhi = 4;
+        int colKyHieuQuyen = 5;
+        int colSoBienLai = 6;
+        int colSoTienThu = 7;
+        int colHoTenNguoiNop = 8;
+        int colSoCccd = 9;
+        int colMaHoSoDvc = 10;
+        int colHinhThucThuTien = 11;
+        int colNoiDungThuPhi = 12;
+        int colLyDoCapLai = 13;
+        int colLoaiPhuongTien = -1;
+
+        // Quét thông minh nhận diện dòng header thực tế
+        int maxScanRow = Math.Min(10, ws.Dimension.End.Row);
+        bool foundDynamicHeader = false;
+
+        for (int r = 1; r <= maxScanRow; r++)
+        {
+            int matchedHeaderCells = 0;
+            for (int c = 1; c <= ws.Dimension.End.Column; c++)
+            {
+                var text = ws.Cells[r, c].Text?.Trim().ToLowerInvariant();
+                if (string.IsNullOrWhiteSpace(text)) continue;
+
+                if (text == "stt" || text.Contains("thứ tự") ||
+                    text.Contains("biển số") || text.Contains("biển kiểm soát") || text == "bks" ||
+                    text.Contains("mức thu") || text.Contains("lệ phí") ||
+                    text.Contains("quyển") || text.Contains("số biên lai") || text.Contains("ngày biên lai") ||
+                    text.Contains("người nộp") || text.Contains("họ tên") ||
+                    text.Contains("cccd") || text.Contains("mã hồ sơ") || text.Contains("dvc") ||
+                    text.Contains("tiền thu") || text.Contains("hình thức") || text.Contains("nội dung") ||
+                    text.Contains("lý do") || text.Contains("ghi chú"))
+                {
+                    matchedHeaderCells++;
+                }
+            }
+
+            if (matchedHeaderCells >= 2)
+            {
+                headerRow = r;
+                foundDynamicHeader = true;
+                break;
+            }
+        }
+
+        // Tự động gán lại vị trí cột nếu nhận diện được tiêu đề động
+        if (foundDynamicHeader)
+        {
+            for (int c = 1; c <= ws.Dimension.End.Column; c++)
+            {
+                var rawText = ws.Cells[headerRow, c].Text?.Trim().ToLowerInvariant() ?? "";
+                if (string.IsNullOrWhiteSpace(rawText)) continue;
+
+                var text = Regex.Replace(rawText, @"[\(\)\*\:]", "").Trim();
+
+                if (text == "stt" || text.Contains("thứ tự")) colStt = c;
+                else if (text.Contains("ngày biên lai") || text.Contains("ngày bl") || text.Contains("ngày thu") || text.Contains("ngày lập") || text.Contains("ngày thực hiện") || text.Contains("thời gian")) colNgayBienLai = c;
+                else if (text.Contains("biển số") || text.Contains("biển kiểm soát") || text == "bks" || text.StartsWith("biển")) colBienSo = c;
+                else if (text.Contains("mức thu") || (text.Contains("lệ phí") && !text.Contains("tiền"))) colMucThuLePhi = c;
+                else if (text.Contains("ký hiệu quyển") || text.Contains("quyển biên lai") || text.Contains("quyển") || text == "quyen") colKyHieuQuyen = c;
+                else if (text.Contains("số biên lai") || text.Contains("số bl") || text == "so bl") colSoBienLai = c;
+                else if (text.Contains("số tiền") || text.Contains("tiền thu") || text.Contains("tiền")) colSoTienThu = c;
+                else if (text.Contains("người nộp") || text.Contains("họ tên") || text.Contains("chủ xe") || text.Contains("chủ phương tiện")) colHoTenNguoiNop = c;
+                else if (text.Contains("cccd") || text.Contains("cmnd") || text.Contains("định danh")) colSoCccd = c;
+                else if (text.Contains("hồ sơ") || text.Contains("dvc") || text.Contains("mã hs")) colMaHoSoDvc = c;
+                else if (text.Contains("hình thức") || text.Contains("phương thức")) colHinhThucThuTien = c;
+                else if (text.Contains("nội dung")) colNoiDungThuPhi = c;
+                else if (text.Contains("lý do") || text.Contains("ghi chú")) colLyDoCapLai = c;
+                else if (text.Contains("loại xe") || text.Contains("loại phương tiện") || text.Contains("phương tiện")) colLoaiPhuongTien = c;
+            }
+        }
+
+        if (ws.Dimension.End.Row <= headerRow)
+        {
+            return new ImportCapLaiDangKyXeResponse
+            {
+                TongSoDong = 0,
+                ThongBao = "Tệp Excel chỉ chứa dòng tiêu đề, không có dữ liệu biên lai cấp lại đăng ký nào."
+            };
+        }
+
+        // 4. Nạp danh mục cần thiết để liên kết
+        var customerId = request.CustomerId ?? _currentUserService.CustomerId;
+        var currentUserName = _currentUserService.FullName ?? _currentUserService.Username ?? "Quản trị viên";
+
+        var listMucThu = await _dbContext.MucThuLePhis.AsNoTracking().ToListAsync(cancellationToken);
+        var listQuyen = await _dbContext.KyHieuQuyenBienLais.ToListAsync(cancellationToken);
+        var listLoaiXe = await _dbContext.LoaiXes.AsNoTracking().ToListAsync(cancellationToken);
+
+        var mucThuCache = new Dictionary<string, MucThuLePhi?>(StringComparer.OrdinalIgnoreCase);
+        var quyenCache = new Dictionary<string, KyHieuQuyenBienLai?>(StringComparer.OrdinalIgnoreCase);
+        var loaiXeCache = new Dictionary<string, LoaiXe?>(StringComparer.OrdinalIgnoreCase);
+
+        DateTime? ParseExcelDate(int r, int colIdx)
+        {
+            if (colIdx <= 0) return null;
+            var cell = ws.Cells[r, colIdx];
+            var val = cell.Value;
+            if (val is DateTime dtVal) return dtVal;
+            if (val is double dDate && dDate > 0 && dDate < 2958466)
+            {
+                try { return DateTime.FromOADate(dDate); } catch { }
+            }
+            var textDate = cell.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(textDate)) return null;
+
+            string[] dateFormats = { "dd/MM/yyyy", "d/M/yyyy", "dd-MM-yyyy", "yyyy-MM-dd", "dd/MM/yyyy HH:mm:ss", "yyyy-MM-dd HH:mm:ss" };
+            if (DateTime.TryParseExact(textDate, dateFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var exactDt))
+                return exactDt;
+            if (DateTime.TryParse(textDate, CultureInfo.GetCultureInfo("vi-VN"), DateTimeStyles.None, out var viDt))
+                return viDt;
+            if (DateTime.TryParse(textDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out var invDt))
+                return invDt;
+
+            return null;
+        }
+
+        MucThuLePhi? ResolveMucThu(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return listMucThu.FirstOrDefault();
+            var trimmed = raw.Trim();
+            if (mucThuCache.TryGetValue(trimmed, out var cached)) return cached;
+
+            var result = listMucThu.FirstOrDefault(x =>
+                string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(x.Id, trimmed, StringComparison.OrdinalIgnoreCase))
+                ?? listMucThu.FirstOrDefault(x =>
+                    x.Ten.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.Contains(x.Ten, StringComparison.OrdinalIgnoreCase))
+                ?? listMucThu.FirstOrDefault();
+
+            mucThuCache[trimmed] = result;
+            return result;
+        }
+
+        KyHieuQuyenBienLai? ResolveQuyen(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return listQuyen.FirstOrDefault();
+            var trimmed = raw.Trim();
+            if (quyenCache.TryGetValue(trimmed, out var cached)) return cached;
+
+            var result = listQuyen.FirstOrDefault(x =>
+                string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(x.Id, trimmed, StringComparison.OrdinalIgnoreCase))
+                ?? listQuyen.FirstOrDefault(x =>
+                    x.Ma.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
+                    x.Ten.Contains(trimmed, StringComparison.OrdinalIgnoreCase))
+                ?? listQuyen.FirstOrDefault();
+
+            quyenCache[trimmed] = result;
+            return result;
+        }
+
+        LoaiXe? ResolveLoaiXe(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var trimmed = raw.Trim();
+            if (loaiXeCache.TryGetValue(trimmed, out var cached)) return cached;
+
+            var result = listLoaiXe.FirstOrDefault(x =>
+                string.Equals(x.Ma, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(x.Ten, trimmed, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(x.Id, trimmed, StringComparison.OrdinalIgnoreCase))
+                ?? listLoaiXe.FirstOrDefault(x =>
+                    x.Ten.Contains(trimmed, StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.Contains(x.Ten, StringComparison.OrdinalIgnoreCase));
+
+            loaiXeCache[trimmed] = result;
+            return result;
+        }
+
+        var response = new ImportCapLaiDangKyXeResponse();
+        var processedPlatesInFile = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var entitiesToAdd = new List<CapLaiDangKyXe>();
+        long receiptOffset = 0;
+
+        // 5. Quét từng dòng dữ liệu từ Excel
+        for (int row = headerRow + 1; row <= ws.Dimension.End.Row; row++)
+        {
+            var rawBienSo = colBienSo > 0 ? ws.Cells[row, colBienSo].Text?.Trim() : null;
+            if (string.IsNullOrWhiteSpace(rawBienSo))
+            {
+                continue;
+            }
+
+            // Bỏ qua nếu dòng là tiêu đề lặp lại
+            if (rawBienSo.Equals("biển số xe", StringComparison.OrdinalIgnoreCase) ||
+                rawBienSo.Equals("biển kiểm soát", StringComparison.OrdinalIgnoreCase) ||
+                rawBienSo.Equals("bks", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            response.TongSoDong++;
+
+            // Chuẩn hóa biển kiểm soát
+            var bienKiemSoat = rawBienSo.ToUpperInvariant().Trim();
+            var normalizedPlate = Regex.Replace(bienKiemSoat, @"[\s\.\-]+", "").ToUpperInvariant();
+
+            // Kiểm tra trùng lặp trong cùng tệp Excel
+            if (!processedPlatesInFile.Add(normalizedPlate))
+            {
+                response.SoLuongBoQua++;
+                response.DanhSachLoi.Add(new ImportCapLaiLoiItem
+                {
+                    Dong = row,
+                    BienKiemSoat = bienKiemSoat,
+                    LyDoLoi = $"Biển số '{bienKiemSoat}' bị trùng lặp nhiều lần trong tệp Excel."
+                });
+                continue;
+            }
+
+            try
+            {
+                var parsedNgayBienLai = ParseExcelDate(row, colNgayBienLai);
+                var ngayBienLai = parsedNgayBienLai ?? DateTime.UtcNow;
+
+                var mucThuRaw = colMucThuLePhi > 0 ? ws.Cells[row, colMucThuLePhi].Text?.Trim() : null;
+                var mucThu = ResolveMucThu(mucThuRaw);
+
+                var kyHieuQuyenRaw = colKyHieuQuyen > 0 ? ws.Cells[row, colKyHieuQuyen].Text?.Trim() : string.Empty;
+                var quyen = ResolveQuyen(kyHieuQuyenRaw);
+                var kyHieuQuyen = !string.IsNullOrWhiteSpace(kyHieuQuyenRaw) ? kyHieuQuyenRaw : (quyen?.Ma ?? string.Empty);
+                var kyHieuQuyenBienLaiId = quyen?.Id ?? string.Empty;
+
+                var soBienLaiRaw = colSoBienLai > 0 ? ws.Cells[row, colSoBienLai].Text?.Trim() : string.Empty;
+                string soBienLai;
+                if (!string.IsNullOrWhiteSpace(soBienLaiRaw))
+                {
+                    soBienLai = soBienLaiRaw;
+                }
+                else if (quyen != null)
+                {
+                    long currentSo = quyen.SoHienTai ?? ((quyen.TuSo ?? 1) - 1);
+                    long nextSo = currentSo + 1 + receiptOffset++;
+                    soBienLai = nextSo.ToString("D7");
+                }
+                else
+                {
+                    soBienLai = (++receiptOffset).ToString("D7");
+                }
+
+                // Đọc số tiền lệ phí thu (mặc định 50.000đ theo TT 155/2025/TT-BTC nếu rỗng hoặc = 0)
+                decimal soTienThu = 0;
+                bool hasExplicitMoney = false;
+                if (colSoTienThu > 0)
+                {
+                    var valMoney = ws.Cells[row, colSoTienThu].Value;
+                    if (valMoney is double dVal) { soTienThu = Convert.ToDecimal(dVal); hasExplicitMoney = true; }
+                    else if (valMoney is decimal decVal) { soTienThu = decVal; hasExplicitMoney = true; }
+                    else if (valMoney is int iVal) { soTienThu = iVal; hasExplicitMoney = true; }
+                    else if (valMoney is long lVal) { soTienThu = lVal; hasExplicitMoney = true; }
+                    else
+                    {
+                        var textMoney = ws.Cells[row, colSoTienThu].Text?.Trim();
+                        if (!string.IsNullOrWhiteSpace(textMoney))
+                        {
+                            var cleanMoney = textMoney.Replace(",", "").Replace(".", "").Replace("đ", "").Replace("₫", "").Replace("VND", "", StringComparison.OrdinalIgnoreCase).Replace("VNĐ", "", StringComparison.OrdinalIgnoreCase).Trim();
+                            if (decimal.TryParse(cleanMoney, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsedMoney) ||
+                                decimal.TryParse(cleanMoney, NumberStyles.Any, CultureInfo.GetCultureInfo("vi-VN"), out parsedMoney))
+                            {
+                                soTienThu = parsedMoney;
+                                hasExplicitMoney = true;
+                            }
+                        }
+                    }
+                }
+
+                if (!hasExplicitMoney || soTienThu <= 0)
+                {
+                    soTienThu = 50000;
+                }
+
+                var hoTenChuXe = colHoTenNguoiNop > 0 ? ws.Cells[row, colHoTenNguoiNop].Text?.Trim() : null;
+                if (string.IsNullOrWhiteSpace(hoTenChuXe)) hoTenChuXe = "Người nộp tiền";
+
+                var soCccd = colSoCccd > 0 ? ws.Cells[row, colSoCccd].Text?.Trim() : null;
+                var maHoSoDvc = colMaHoSoDvc > 0 ? ws.Cells[row, colMaHoSoDvc].Text?.Trim() : null;
+
+                var hinhThucThu = colHinhThucThuTien > 0 ? ws.Cells[row, colHinhThucThuTien].Text?.Trim() : null;
+                if (string.IsNullOrWhiteSpace(hinhThucThu)) hinhThucThu = "Tiền mặt";
+
+                var noiDungThu = colNoiDungThuPhi > 0 ? ws.Cells[row, colNoiDungThuPhi].Text?.Trim() : null;
+                if (string.IsNullOrWhiteSpace(noiDungThu))
+                {
+                    noiDungThu = mucThu?.Ten ?? "Cấp lại riêng giấy chứng nhận đăng ký xe (mất, hư hỏng - không cấp biển mới)";
+                }
+
+                var lyDoCapLai = colLyDoCapLai > 0 ? ws.Cells[row, colLyDoCapLai].Text?.Trim() : null;
+                if (string.IsNullOrWhiteSpace(lyDoCapLai))
+                {
+                    lyDoCapLai = "Cấp lại chứng nhận đăng ký xe bị mất/hỏng theo đơn";
+                }
+
+                // Xác định Loại xe và Loại phương tiện
+                var rawLoaiPhuongTien = colLoaiPhuongTien > 0 ? ws.Cells[row, colLoaiPhuongTien].Text?.Trim() : null;
+                string? loaiXeId = request.LoaiXeId ?? mucThu?.LoaiXeId;
+                string loaiPhuongTien = "Ô tô";
+
+                if (!string.IsNullOrWhiteSpace(rawLoaiPhuongTien))
+                {
+                    loaiPhuongTien = rawLoaiPhuongTien;
+                }
+                else if (!string.IsNullOrWhiteSpace(request.LoaiPhuongTien))
+                {
+                    loaiPhuongTien = request.LoaiPhuongTien;
+                }
+                else if (!string.IsNullOrWhiteSpace(loaiXeId))
+                {
+                    var loaiXe = ResolveLoaiXe(loaiXeId);
+                    if (loaiXe != null) loaiPhuongTien = loaiXe.Ten;
+                }
+
+                // NGUYÊN TẮC QUAN TRỌNG:
+                // 1. Biển số không lấy trong kho (không tìm kiếm và không đòi hỏi biển số phải tồn tại trong KhoBienSo).
+                // 2. Không thay đổi dữ liệu trong kho (không cập nhật trạng thái hay xuất kho trong KhoBienSo).
+                // 3. Mặc định DaXacNhan = true (tự động khóa biên lai, phát hành ngay).
+                bool daXacNhan = request.DaXacNhan;
+
+                var entity = new CapLaiDangKyXe
+                {
+                    CustomerId = customerId,
+                    KyHieuQuyenBienLaiId = kyHieuQuyenBienLaiId,
+                    KyHieuQuyen = kyHieuQuyen,
+                    SoBienLai = soBienLai,
+                    NgayBienLai = ngayBienLai,
+                    BienKiemSoat = bienKiemSoat,
+                    LoaiXeId = loaiXeId,
+                    LoaiPhuongTien = loaiPhuongTien,
+                    MucThuLePhiId = mucThu?.Id,
+                    NoiDungThuPhi = noiDungThu,
+                    SoTienThu = soTienThu,
+                    HinhThucThuTien = hinhThucThu,
+                    HoTenChuXe = hoTenChuXe,
+                    SoCccd = string.IsNullOrWhiteSpace(soCccd) ? null : soCccd,
+                    MaHoSoDvc = string.IsNullOrWhiteSpace(maHoSoDvc) ? null : maHoSoDvc,
+                    LyDoCapLai = string.IsNullOrWhiteSpace(lyDoCapLai) ? null : lyDoCapLai,
+                    TrangThai = daXacNhan ? "DaXacNhan" : "LuuNhap",
+                    DaXacNhan = daXacNhan,
+                    NgayXacNhan = daXacNhan ? DateTime.UtcNow : null,
+                    NguoiXacNhan = daXacNhan ? currentUserName : null
+                };
+
+                entitiesToAdd.Add(entity);
+                response.SoLuongThanhCong++;
+                response.TongTienThu += soTienThu;
+                response.DanhSachBienSoThanhCong.Add(bienKiemSoat);
+            }
+            catch (Exception ex)
+            {
+                response.SoLuongLoi++;
+                response.DanhSachLoi.Add(new ImportCapLaiLoiItem
+                {
+                    Dong = row,
+                    BienKiemSoat = bienKiemSoat,
+                    LyDoLoi = $"Lỗi xử lý dòng dữ liệu: {ex.Message}"
+                });
+            }
+        }
+
+        // 6. Lưu vào cơ sở dữ liệu nếu không phải chế độ kiểm tra trước (dry-run)
+        if (request.ChiKiemTra != true && entitiesToAdd.Count > 0)
+        {
+            await _dbContext.CapLaiDangKyXes.AddRangeAsync(entitiesToAdd, cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+
+            // Ghi nhật ký hoạt động
+            await _logHoatDongService.GhiLogAsync(
+                "CapLaiDangKy",
+                "ImportExcel",
+                Path.GetFileName(filePath),
+                $"Import thành công {entitiesToAdd.Count} biên lai cấp lại đăng ký xe từ file '{Path.GetFileName(filePath)}'. Mặc định Đã xác nhận (DaXacNhan=true).",
+                null,
+                null,
+                "DaXacNhan",
+                "Đã xác nhận (Đã phát hành)",
+                null,
+                customerId,
+                "Import Excel Cấp lại đăng ký xe",
+                cancellationToken);
+        }
+
+        // 7. Tổng kết thông báo trả về
+        response.ThongBao = request.ChiKiemTra == true
+            ? $"[Kiểm tra trước] Tệp Excel hợp lệ với {response.TongSoDong} dòng dữ liệu ({response.SoLuongThanhCong} dòng sẵn sàng import, {response.SoLuongBoQua} dòng bỏ qua, {response.SoLuongLoi} dòng lỗi). Chưa lưu vào CSDL."
+            : $"Import thành công {response.SoLuongThanhCong}/{response.TongSoDong} biên lai cấp lại đăng ký xe (Mặc định Đã xác nhận/Khóa phiếu, biển số không lấy trong kho và không thay đổi kho). Tổng tiền thu: {response.TongTienThu:N0} VNĐ.";
+
+        _logger.LogInformation("Import Cấp lại đăng ký xe: Thành công {ThanhCong}/{TongSo} dòng từ file '{FilePath}', tổng tiền: {TongTien:N0}đ",
+            response.SoLuongThanhCong, response.TongSoDong, filePath, response.TongTienThu);
+
+        return response;
     }
 }
