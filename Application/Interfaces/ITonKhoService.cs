@@ -37,4 +37,14 @@ public interface ITonKhoService
     /// API 5: Cập nhật trạng thái của 1 số trong ma trận dải số.
     /// </summary>
     Task<bool> CapNhatTrangThaiSoAsync(CapNhatTrangThaiSoRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// API 6: Xuất file Excel Biên bản kiểm kê danh sách biển số tồn trong KhoBienSo theo chuẩn mẫu MauBaoCao/Tồn tháng 8.25.xlsx.
+    /// </summary>
+    Task<(byte[] FileBytes, string ContentType, string FileName)> ExportBienTonExcelAsync(ExportBienTonExcelRequest? request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// API 7: Lấy danh sách cán bộ thuộc đơn vị của user hiện tại đang đăng nhập (kèm cấp bậc CAND và chức vụ).
+    /// </summary>
+    Task<IReadOnlyList<CanBoDonViResponse>> LayDanhSachCanBoDonViAsync(string? customerId = null, CancellationToken cancellationToken = default);
 }

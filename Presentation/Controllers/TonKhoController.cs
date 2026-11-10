@@ -146,4 +146,49 @@ public class TonKhoController : ControllerBase
         var success = await _tonKhoService.CapNhatTrangThaiSoAsync(request, cancellationToken);
         return Ok(new { success, message = $"Đã cập nhật trạng thái ô số {request.DauBien}.{request.SoDuoi} sang {request.TrangThaiMoi} thành công." });
     }
+
+    /// <summary>
+    /// API 6: (POST) Xuất tệp tin Excel Biên bản kiểm kê danh sách biển số tồn trong KhoBienSo.
+    /// Định dạng mẫu chuẩn 100% theo MauBaoCao/Tồn tháng 8.25.xlsx (Biên bản kiểm kê Công an phường, bảng 6 cột STT|BKS).
+    /// </summary>
+    /// <param name="request">Thông tin bộ lọc, đơn vị và thành phần tham gia kiểm kê (tùy chọn).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Tệp tin Excel .xlsx</returns>
+    [HttpPost("export-bien-ton")]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportBienTonPost([FromBody] ExportBienTonExcelRequest? request, CancellationToken cancellationToken)
+    {
+        var (fileBytes, contentType, fileName) = await _tonKhoService.ExportBienTonExcelAsync(request, cancellationToken);
+        return File(fileBytes, contentType, fileName);
+    }
+
+    /// <summary>
+    /// API 7: (GET) Tải trực tiếp tệp tin Excel Biên bản kiểm kê danh sách biển số tồn trong KhoBienSo.
+    /// Hỗ trợ tải trực tiếp qua đường dẫn trình duyệt (Query string).
+    /// </summary>
+    /// <param name="request">Các tham số truy vấn bộ lọc (tùy chọn).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Tệp tin Excel .xlsx</returns>
+    [HttpGet("export-bien-ton")]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportBienTonGet([FromQuery] ExportBienTonExcelRequest? request, CancellationToken cancellationToken)
+    {
+        var (fileBytes, contentType, fileName) = await _tonKhoService.ExportBienTonExcelAsync(request, cancellationToken);
+        return File(fileBytes, contentType, fileName);
+    }
+
+    /// <summary>
+    /// API 8: (GET) Lấy danh sách cán bộ thuộc đơn vị của user đang đăng nhập (kèm Cấp bậc CAND và Chức vụ).
+    /// Hỗ trợ nạp dropdown chọn Lãnh đạo ký duyệt và Cán bộ tham gia kiểm kê trên giao diện trước khi xuất file.
+    /// </summary>
+    /// <param name="customerId">Mã đơn vị (tùy chọn, mặc định lấy theo đơn vị của người dùng đang đăng nhập).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Danh sách cán bộ trong đơn vị.</returns>
+    [HttpGet("can-bo")]
+    [ProducesResponseType(typeof(IReadOnlyList<CanBoDonViResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> LayDanhSachCanBoDonVi([FromQuery] string? customerId, CancellationToken cancellationToken)
+    {
+        var result = await _tonKhoService.LayDanhSachCanBoDonViAsync(customerId, cancellationToken);
+        return Ok(result);
+    }
 }

@@ -500,3 +500,99 @@ public class CapNhatTrangThaiSoRequest
 
 #endregion
 
+#region 5. DTOs Xuất báo cáo Biên bản kiểm kê biển tồn kho Excel
+
+/// <summary>
+/// Yêu cầu xuất tệp tin Excel Biên bản kiểm kê danh sách biển số tồn trong KhoBienSo.
+/// Mẫu định dạng chuẩn theo MauBaoCao/Tồn tháng 8.25.xlsx (Biên bản kiểm kê Công an phường).
+/// </summary>
+public class ExportBienTonExcelRequest
+{
+    /// <summary>
+    /// ID Khách hàng / Đơn vị cần xuất (mặc định lấy theo tài khoản đăng nhập).
+    /// </summary>
+    public string? CustomerId { get; set; }
+
+    /// <summary>
+    /// Lọc theo Loại xe / Loại phương tiện (nếu cần).
+    /// </summary>
+    public string? LoaiXeId { get; set; }
+
+    /// <summary>
+    /// Lọc theo Màu biển số (nếu cần).
+    /// </summary>
+    public string? MauBienSoId { get; set; }
+
+    /// <summary>
+    /// Lọc theo Đầu biển số (nếu cần).
+    /// </summary>
+    public string? DauBien { get; set; }
+
+    /// <summary>
+    /// Ngày chốt tồn / Ngày lập biên bản kiểm kê (mặc định là ngày hiện tại).
+    /// </summary>
+    public DateTime? NgayKiemKe { get; set; }
+
+    /// <summary>
+    /// Thời gian lập biên bản (Ví dụ: "17 giờ 15 phút"). Mặc định tự động sinh theo giờ hiện tại.
+    /// </summary>
+    public string? ThoiGianKiemKe { get; set; }
+
+    /// <summary>
+    /// Địa điểm kiểm kê (Ví dụ: "Tổ đăng ký xe, Công an phường Tây Mỗ"). Mặc định tự động điền theo tên đơn vị.
+    /// </summary>
+    public string? DiaDiemKiemKe { get; set; }
+
+    /// <summary>
+    /// Tên cơ quan cấp trên (Dòng 1 tiêu đề bên trái, Ví dụ: "CÔNG AN TP HÀ NỘI").
+    /// </summary>
+    public string? TenCoQuanCapTren { get; set; }
+
+    /// <summary>
+    /// Tên đơn vị trực tiếp (Dòng 2 tiêu đề bên trái, Ví dụ: "CÔNG AN PHƯỜNG TÂY MỖ").
+    /// </summary>
+    public string? TenDonVi { get; set; }
+
+    /// <summary>
+    /// Địa danh ghi trên biên bản (Ví dụ: "Tây Mỗ", "Hà Nội").
+    /// </summary>
+    public string? DiaDanh { get; set; }
+
+    /// <summary>
+    /// Đại diện Lãnh đạo / Phó Trưởng Công an (Ví dụ: "Trung tá Nguyễn Tuấn Hoàng").
+    /// </summary>
+    public string? LanhDaoKy { get; set; }
+
+    /// <summary>
+    /// Chức vụ lãnh đạo (Ví dụ: "Phó Trưởng Công an phường").
+    /// </summary>
+    public string? ChucVuLanhDao { get; set; }
+
+    /// <summary>
+    /// Cán bộ 1 tham gia kiểm kê (Ví dụ: "Trung tá Cao Thị Mai").
+    /// </summary>
+    public string? CanBo1 { get; set; }
+
+    /// <summary>
+    /// Cán bộ 2 tham gia kiểm kê (Ví dụ: "Trung tá Chu Văn Phương").
+    /// </summary>
+    public string? CanBo2 { get; set; }
+}
+
+/// <summary>
+/// Thông tin cán bộ thuộc đơn vị dùng cho biên bản kiểm kê và dropdown chọn cán bộ trên giao diện.
+/// </summary>
+public class CanBoDonViResponse
+{
+    public string Id { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string? CapBacId { get; set; }
+    public string? CapBac { get; set; }
+    public string? ChucVu { get; set; }
+    public string? SoHieuCAND { get; set; }
+    public string FullNameWithRank { get; set; } = string.Empty;
+    public bool IsLeader { get; set; }
+}
+
+#endregion
+

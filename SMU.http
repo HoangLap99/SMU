@@ -1047,6 +1047,37 @@ Content-Type: application/json
   "ghiChu": "Cập nhật thủ công từ ma trận"
 }
 
+### 6. (POST) XUẤT FILE EXCEL BIÊN BẢN KIỂM KÊ BIỂN TỒN KHO (CHUẨN MẪU TỒN THÁNG 8.25.XLSX)
+# @name exportBienTonKhoExcelPost
+POST {{SMU_HostAddress}}/api/TonKho/export-bien-ton
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "tenDonVi": "CÔNG AN PHƯỜNG TÂY MỖ",
+  "tenCoQuanCapTren": "CÔNG AN TP HÀ NỘI",
+  "diaDanh": "Tây Mỗ",
+  "thoiGianKiemKe": "17 giờ 15 phút",
+  "diaDiemKiemKe": "Tổ đăng ký xe, Công an phường Tây Mỗ",
+  "lanhDaoKy": "Trung tá Nguyễn Tuấn Hoàng",
+  "chucVuLanhDao": "Phó Trưởng Công an phường",
+  "canBo1": "Trung tá Cao Thị Mai",
+  "canBo2": "Trung tá Chu Văn Phương"
+}
+
+### 7. (GET) TẢI FILE EXCEL BIÊN BẢN KIỂM KÊ BIỂN TỒN KHO TRỰC TIẾP (QUERY PARAMETERS)
+# @name exportBienTonKhoExcelGet
+GET {{SMU_HostAddress}}/api/TonKho/export-bien-ton?dauBien=30M
+Authorization: Bearer {{authToken}}
+
+### 8. (GET) LẤY DANH SÁCH CÁN BỘ THUỘC ĐƠN VỊ CỦA USER ĐANG ĐĂNG NHẬP
+# @name getCanBoDonVi
+GET {{SMU_HostAddress}}/api/TonKho/can-bo
+Authorization: Bearer {{authToken}}
+Accept: application/json
+
+
+
 ### =================================================================
 ### QUẢN LÝ KIỂM KÊ KHO BIỂN SỐ XE (/api/KiemKeKho)
 ### =================================================================
